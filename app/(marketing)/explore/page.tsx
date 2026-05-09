@@ -1,0 +1,190 @@
+import { Suspense } from "react";
+import {
+  CATEGORIES,
+  getAssetById,
+  type AssetFilters,
+  type MockAssetShape,
+} from "@/lib/mock/assets";
+import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
+import { FilterSidebar } from "./_components/FilterSidebar";
+import { SortDropdown } from "./_components/SortDropdown";
+import { EmptyState } from "./_components/EmptyState";
+import { prisma } from "@/lib/prisma";
+import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
+import type { Prisma } from "@prisma/client";
+
+export const metadata = {
+  title: "Explore — Browse premium assets",
+};
+
+// Don't cache — newly approved assets must show up immediately.
+export const dynamic = "force-dynamic";
+
+interface SearchParams {
+  q?: string;
+  category?: string;
+  price?: string;
+  fileType?: string;
+  sort?: string;
+}
+
+// Fallback shape/color for real user uploads that don't match a seed entry —
+// keeps the card preview from looking broken if the previewKey ever fails.
+const FALLBACK_SHAPE: MockAssetShape = "icosahedron";
+const FALLBACK_COLOR = "#7c3aed";
+
+function buildOrderBy(
+  sort: AssetFilters["sort"]
+): Prisma.AssetOrderByWithRelationInput {
+  switch (sort) {
+    case "popular":
+      return { downloads: "desc" };
+    case "price-asc":
+      return { price: "asc" };
+    case "price-desc":
+      return { price: "desc" };
+    case "rating":
+      // No rating column on Asset yet — best proxy is most-downloaded
+      return { downloads: "desc" };
+    case "newest":
+    default:
+      return { createdAt: "desc" };
+  }
+}
+
+function buildWhere(filters: AssetFilters): Prisma.AssetWhereInput {
+  const where: Prisma.AssetWhereInput = { status: "APPROVED" };
+
+  if (filters.category) where.category = filters.category;
+  if (filters.fileType) {
+    where.fileType = filters.fileType as Prisma.AssetWhereInput["fileType"];
+  }
+
+  switch (filters.price) {
+    case "free":
+      where.price = 0;
+      break;
+    case "under-25":
+      where.price = { gt: 0, lt: 2500 };
+      break;
+    case "under-50":
+      where.price = { gt: 0, lt: 5000 };
+      break;
+    case "50-plus":
+      where.price = { gte: 5000 };
+      break;
+  }
+
+  if (filters.q) {
+    const q = filters.q;
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { tags: { has: q.toLowerCase() } },
+    ];
+  }
+
+  return where;
+}
+
+export default async function ExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const sp = await searchParams;
+
+  const filters: AssetFilters = {
+    q: sp.q,
+    category: sp.category,
+    price: sp.price as AssetFilters["price"],
+    fileType: sp.fileType,
+    sort: sp.sort as AssetFilters["sort"],
+  };
+
+  // Make sure the seeded sample assets exist before we query (no-op if already done).
+  await ensureSampleAssetsSeeded().catch(() => {
+    // Non-fatal — proceed with whatever is in the DB
+  });
+
+  // One DB round-trip: filtered + sorted + total count for the heading.
+  const [dbAssets, totalApproved] = await Promise.all([
+    prisma.asset.findMany({
+      where: buildWhere(filters),
+      orderBy: buildOrderBy(filters.sort),
+      include: {
+        uploader: { select: { name: true } },
+      },
+      take: 96,
+    }),
+    prisma.asset.count({ where: { status: "APPROVED" } }),
+  ]);
+
+  const results: AssetCardData[] = dbAssets.map((a) => {
+    const mockMatch = getAssetById(a.id);
+    return {
+      id: a.id,
+      title: a.title,
+      creator: a.uploader.name ?? "Unknown",
+      price: a.price,
+      rating: mockMatch?.rating ?? 0,
+      downloads: a.downloads,
+      preview: {
+        shape: mockMatch?.preview.shape ?? FALLBACK_SHAPE,
+        color: mockMatch?.preview.color ?? FALLBACK_COLOR,
+      },
+      previewImage: a.previewKey || undefined,
+    };
+  });
+
+  const categoryName = sp.category
+    ? CATEGORIES.find((c) => c.slug === sp.category)?.name
+    : null;
+
+  const heading = sp.q
+    ? `Results for "${sp.q}"`
+    : categoryName ?? "Explore the marketplace";
+
+  const subheading = sp.q
+    ? `${results.length} ${results.length === 1 ? "asset" : "assets"} found`
+    : `${results.length} of ${totalApproved} premium assets from world-class creators`;
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <header className="mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          {heading}
+        </h1>
+        <p className="mt-2 text-secondary">{subheading}</p>
+      </header>
+
+      <div className="flex flex-col lg:flex-row gap-8">
+        <Suspense fallback={null}>
+          <FilterSidebar />
+        </Suspense>
+
+        <section className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-5">
+            <div className="text-sm text-muted">
+              <span className="font-medium text-primary">{results.length}</span>{" "}
+              {results.length === 1 ? "result" : "results"}
+            </div>
+            <Suspense fallback={null}>
+              <SortDropdown />
+            </Suspense>
+          </div>
+
+          {results.length === 0 ? (
+            <EmptyState query={sp.q} />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {results.map((asset) => (
+                <AssetCard key={asset.id} asset={asset} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}

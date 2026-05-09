@@ -1,0 +1,220 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { savePublic, savePrivate, deletePublic, deletePrivate } from "@/lib/storage";
+import { checkRateLimit } from "@/lib/rate-limit";
+import type { FileType } from "@prisma/client";
+
+export const runtime = "nodejs";
+
+const MAX_PREVIEW_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
+
+const VALID_FILE_TYPES: FileType[] = [
+  "MODEL_3D",
+  "TEXTURE",
+  "HDRI",
+  "MATERIAL",
+  "PLUGIN",
+  "IMAGE_2D",
+];
+
+const VALID_CATEGORIES = [
+  "3d-models",
+  "textures",
+  "hdris",
+  "materials",
+  "2d-graphics",
+  "plugins",
+];
+
+const ALLOWED_PREVIEW_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+]);
+
+export async function POST(req: Request) {
+  // 20 uploads per hour per IP — generous for legitimate creators, hard
+  // ceiling against abuse since each upload writes 100MB+ to storage.
+  const rl = checkRateLimit(req, "asset-upload", {
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.ok) return rl.response;
+
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "Could not parse upload." },
+      { status: 400 }
+    );
+  }
+
+  const title = String(form.get("title") ?? "").trim();
+  const description = String(form.get("description") ?? "").trim();
+  const category = String(form.get("category") ?? "").trim();
+  const fileType = String(form.get("fileType") ?? "").trim() as FileType;
+  const tagsRaw = String(form.get("tags") ?? "").trim();
+  const priceCentsRaw = String(form.get("priceCents") ?? "0").trim();
+
+  const file = form.get("file");
+  const preview = form.get("preview");
+
+  // ─── Validation ───────────────────────────────────────────────────────────
+
+  if (title.length < 3 || title.length > 100) {
+    return NextResponse.json(
+      { error: "Title must be 3–100 characters." },
+      { status: 400 }
+    );
+  }
+  if (description.length < 10 || description.length > 2000) {
+    return NextResponse.json(
+      { error: "Description must be 10–2000 characters." },
+      { status: 400 }
+    );
+  }
+  if (!VALID_CATEGORIES.includes(category)) {
+    return NextResponse.json(
+      { error: "Invalid category." },
+      { status: 400 }
+    );
+  }
+  if (!VALID_FILE_TYPES.includes(fileType)) {
+    return NextResponse.json(
+      { error: "Invalid file type." },
+      { status: 400 }
+    );
+  }
+
+  const priceCents = Number(priceCentsRaw);
+  if (!Number.isInteger(priceCents) || priceCents < 0 || priceCents > 999999) {
+    return NextResponse.json(
+      { error: "Price must be a whole number of cents (0–999999)." },
+      { status: 400 }
+    );
+  }
+
+  if (!(file instanceof File) || file.size === 0) {
+    return NextResponse.json(
+      { error: "Asset file is required." },
+      { status: 400 }
+    );
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    return NextResponse.json(
+      { error: `Asset file exceeds 100 MB limit.` },
+      { status: 400 }
+    );
+  }
+
+  if (!(preview instanceof File) || preview.size === 0) {
+    return NextResponse.json(
+      { error: "Preview image is required." },
+      { status: 400 }
+    );
+  }
+  if (preview.size > MAX_PREVIEW_BYTES) {
+    return NextResponse.json(
+      { error: "Preview image exceeds 5 MB limit." },
+      { status: 400 }
+    );
+  }
+  if (!ALLOWED_PREVIEW_TYPES.has(preview.type)) {
+    return NextResponse.json(
+      { error: "Preview must be a PNG, JPEG, or WebP image." },
+      { status: 400 }
+    );
+  }
+
+  // Tags: comma-separated, deduplicated, lowercase, max 10
+  const tags = Array.from(
+    new Set(
+      tagsRaw
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length >= 2 && t.length <= 30)
+    )
+  ).slice(0, 10);
+
+  // ─── Save files ───────────────────────────────────────────────────────────
+
+  let savedPreviewUrl: string | null = null;
+  let savedFileKey: string | null = null;
+  let savedModelUrl: string | null = null;
+
+  try {
+    const previewBuf = Buffer.from(await preview.arrayBuffer());
+    const previewSaved = await savePublic(
+      `previews/${session.user.id}`,
+      preview.name || "preview.png",
+      previewBuf
+    );
+    savedPreviewUrl = previewSaved.url;
+
+    const fileBuf = Buffer.from(await file.arrayBuffer());
+
+    // If the asset itself is a glTF/GLB, ALSO save a publicly-readable copy so
+    // it can be loaded into the in-browser 3D viewer. The private fileKey is
+    // still what gets gated for paid downloads — this is just a preview source.
+    const fileExt = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (fileExt === "glb" || fileExt === "gltf") {
+      const modelSaved = await savePublic(
+        `models/${session.user.id}`,
+        file.name || `model.${fileExt}`,
+        fileBuf
+      );
+      savedModelUrl = modelSaved.url;
+    }
+
+    const fileSaved = await savePrivate(
+      `files/${session.user.id}`,
+      file.name || "asset",
+      fileBuf
+    );
+    savedFileKey = fileSaved.key;
+
+    const asset = await prisma.asset.create({
+      data: {
+        title,
+        description,
+        category,
+        tags,
+        fileType,
+        price: priceCents,
+        previewKey: savedPreviewUrl,
+        fileKey: savedFileKey,
+        modelKey: savedModelUrl,
+        fileSizeBytes: fileSaved.bytes,
+        uploaderId: session.user.id,
+        // status defaults to PENDING — admin moderation queue picks it up
+      },
+      select: { id: true, status: true },
+    });
+
+    return NextResponse.json(
+      { id: asset.id, status: asset.status },
+      { status: 201 }
+    );
+  } catch (err) {
+    // Roll back any files we wrote so we don't leak orphaned blobs
+    if (savedPreviewUrl) await deletePublic(savedPreviewUrl);
+    if (savedModelUrl) await deletePublic(savedModelUrl);
+    if (savedFileKey) await deletePrivate(savedFileKey);
+
+    console.error("[asset upload] failed:", err);
+    return NextResponse.json(
+      { error: "Could not save asset. Please try again." },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,179 @@
+/**
+ * Mock asset data for the Explore page UI shell.
+ * Phase 6+ will replace these with Prisma queries against the real DB.
+ */
+
+export type MockAssetShape =
+  | "icosahedron"
+  | "torusKnot"
+  | "sphere"
+  | "box"
+  | "torus"
+  | "octahedron"
+  | "cone"
+  | "cylinder"
+  | "dodecahedron"
+  | "tetrahedron";
+
+export interface MockAsset {
+  id: string;
+  title: string;
+  creator: string;
+  price: number; // USD cents (0 = free)
+  category:
+    | "3d-models"
+    | "textures"
+    | "hdris"
+    | "materials"
+    | "2d-graphics"
+    | "plugins";
+  fileType: "MODEL_3D" | "TEXTURE" | "HDRI" | "MATERIAL" | "IMAGE_2D" | "PLUGIN";
+  tags: string[];
+  rating: number;
+  downloads: number;
+  createdAt: string;
+  preview: { shape: MockAssetShape; color: string };
+  description: string;
+  format: string;
+  fileSize: number; // bytes
+}
+
+export const MOCK_ASSETS: MockAsset[] = [
+  { id: "neon-icosahedron", title: "Neon Icosahedron", creator: "neonworks", price: 2400, category: "3d-models", fileType: "MODEL_3D", tags: ["abstract", "lowpoly", "neon"], rating: 4.9, downloads: 1240, createdAt: "2026-04-25", preview: { shape: "icosahedron", color: "#a855f7" }, description: "A high-detail icosahedron with iridescent neon shading. Perfect for sci-fi UI accents, abstract scenes, and motion-design hero moments.", format: ".glb, .fbx", fileSize: 4_404_019 },
+  { id: "twisted-knot", title: "Twisted Knot", creator: "polylab", price: 3200, category: "3d-models", fileType: "MODEL_3D", tags: ["geometric", "abstract"], rating: 4.7, downloads: 892, createdAt: "2026-04-22", preview: { shape: "torusKnot", color: "#7c3aed" }, description: "A stylized torus knot designed as a hero element for landing pages, intros, and motion design — clean topology and ready to import.", format: ".glb, .fbx", fileSize: 7_130_316 },
+  { id: "soft-orb", title: "Soft Orb Material", creator: "mokumoku", price: 0, category: "materials", fileType: "MATERIAL", tags: ["pbr", "soft"], rating: 4.8, downloads: 5340, createdAt: "2026-04-28", preview: { shape: "sphere", color: "#f59e0b" }, description: "A soft PBR sphere material with subtle subsurface translucency. Ideal for skin, jelly, wax, and stylized character work.", format: ".mat, .glsl", fileSize: 1_468_006 },
+  { id: "cube-lattice", title: "Cube Lattice Pack", creator: "harden", price: 1800, category: "3d-models", fileType: "MODEL_3D", tags: ["architecture", "modular"], rating: 4.6, downloads: 421, createdAt: "2026-04-20", preview: { shape: "box", color: "#10b981" }, description: "A modular cube-lattice pack — snap pieces together to build procedural architecture and abstract environments without modeling.", format: ".glb, .fbx, .obj", fileSize: 11_848_909 },
+  { id: "donut-ring", title: "Donut Ring", creator: "pixelvault", price: 1200, category: "3d-models", fileType: "MODEL_3D", tags: ["food", "stylized"], rating: 4.5, downloads: 678, createdAt: "2026-04-18", preview: { shape: "torus", color: "#3b82f6" }, description: "A stylized donut model rigged for animation. Includes glaze and sprinkle variants as separate material slots.", format: ".blend, .fbx", fileSize: 3_774_873 },
+  { id: "octahedron-set", title: "Crystal Octahedron Set", creator: "radial", price: 2800, category: "3d-models", fileType: "MODEL_3D", tags: ["crystal", "gem"], rating: 4.9, downloads: 1502, createdAt: "2026-04-26", preview: { shape: "octahedron", color: "#ec4899" }, description: "A pack of six crystal octahedrons in low-poly and high-poly variants, each with full PBR materials and dispersion.", format: ".glb, .fbx", fileSize: 19_084_902 },
+  { id: "studio-hdri-1", title: "Studio HDRI - Soft Light", creator: "lumenlab", price: 1500, category: "hdris", fileType: "HDRI", tags: ["studio", "soft"], rating: 4.8, downloads: 980, createdAt: "2026-04-24", preview: { shape: "sphere", color: "#fbbf24" }, description: "Soft three-point studio lighting captured in 8K. Neutral white background — ideal for product renders and clean shots.", format: ".hdr, .exr", fileSize: 91_645_132 },
+  { id: "concrete-pbr", title: "Concrete PBR Pack", creator: "texturefoundry", price: 0, category: "textures", fileType: "TEXTURE", tags: ["pbr", "concrete", "free"], rating: 4.7, downloads: 12400, createdAt: "2026-04-29", preview: { shape: "box", color: "#71717a" }, description: "Eight seamless concrete textures with full PBR maps: albedo, normal, roughness, AO, and displacement at 4K.", format: ".png, .jpg", fileSize: 148_897_792 },
+  { id: "abstract-pattern", title: "Abstract Pattern Vector", creator: "shapeforge", price: 800, category: "2d-graphics", fileType: "IMAGE_2D", tags: ["vector", "pattern"], rating: 4.4, downloads: 234, createdAt: "2026-04-15", preview: { shape: "dodecahedron", color: "#06b6d4" }, description: "A library of 100+ abstract pattern vectors. Editable strokes, scalable to any size, royalty-free for commercial use.", format: ".svg, .ai, .pdf", fileSize: 25_690_112 },
+  { id: "iridescent-shader", title: "Iridescent Shader", creator: "matlab", price: 4200, category: "materials", fileType: "MATERIAL", tags: ["shader", "iridescent"], rating: 4.9, downloads: 678, createdAt: "2026-04-27", preview: { shape: "icosahedron", color: "#22d3ee" }, description: "A real-time iridescent shader with full PBR support. Includes GLSL source and a drop-in Three.js example.", format: ".glsl, .js", fileSize: 419_430 },
+  { id: "gltf-loader-pro", title: "GLTF Loader Pro", creator: "devplugins", price: 5400, category: "plugins", fileType: "PLUGIN", tags: ["loader", "tool"], rating: 4.8, downloads: 312, createdAt: "2026-04-23", preview: { shape: "cone", color: "#f97316" }, description: "A drop-in GLTF loader plugin with progressive loading, KTX2 compression, and Draco support out of the box.", format: ".js, .ts", fileSize: 838_860 },
+  { id: "glass-cylinder", title: "Glass Cylinder Vase", creator: "minimal", price: 1600, category: "3d-models", fileType: "MODEL_3D", tags: ["glass", "minimal"], rating: 4.6, downloads: 489, createdAt: "2026-04-19", preview: { shape: "cylinder", color: "#84cc16" }, description: "A minimalist glass cylinder vase with refraction and dispersion. Ideal for product mockups and editorial shots.", format: ".glb, .fbx", fileSize: 2_202_009 },
+  { id: "low-poly-tree", title: "Low Poly Tree", creator: "stylized", price: 0, category: "3d-models", fileType: "MODEL_3D", tags: ["nature", "lowpoly", "free"], rating: 4.5, downloads: 8934, createdAt: "2026-04-30", preview: { shape: "cone", color: "#22c55e" }, description: "Five low-poly tree variants with stylized canopies. Free for personal and commercial use, no attribution required.", format: ".glb, .fbx", fileSize: 1_782_579 },
+  { id: "outdoor-hdri", title: "Outdoor Sunset HDRI", creator: "lumenlab", price: 2200, category: "hdris", fileType: "HDRI", tags: ["outdoor", "sunset"], rating: 4.9, downloads: 1840, createdAt: "2026-04-21", preview: { shape: "sphere", color: "#fb7185" }, description: "A golden-hour sunset captured at 12K. Strong directional sun with warm ambient skylight for cinematic shots.", format: ".hdr, .exr", fileSize: 130_023_424 },
+  { id: "metal-textures", title: "Metal Textures Vol. 2", creator: "texturefoundry", price: 1900, category: "textures", fileType: "TEXTURE", tags: ["metal", "pbr"], rating: 4.7, downloads: 1230, createdAt: "2026-04-17", preview: { shape: "box", color: "#94a3b8" }, description: "Sixteen metal textures with full PBR maps. Includes brushed, polished, oxidized, and worn variants at 4K.", format: ".png", fileSize: 192_937_984 },
+  { id: "geometric-icons", title: "Geometric Icon Set", creator: "iconsmith", price: 1400, category: "2d-graphics", fileType: "IMAGE_2D", tags: ["icons", "geometric"], rating: 4.6, downloads: 567, createdAt: "2026-04-16", preview: { shape: "tetrahedron", color: "#d946ef" }, description: "A set of 240 geometric icons in vector format. Outline and filled variants across 24 categories.", format: ".svg, .ai", fileSize: 12_897_484 },
+  { id: "cloth-material", title: "Cloth Material Bundle", creator: "matlab", price: 2900, category: "materials", fileType: "MATERIAL", tags: ["cloth", "fabric"], rating: 4.8, downloads: 745, createdAt: "2026-04-14", preview: { shape: "sphere", color: "#f43f5e" }, description: "A bundle of eight cloth materials — linen, silk, wool, denim — with PBR and microfiber detail maps.", format: ".png, .jpg", fileSize: 40_475_852 },
+  { id: "blender-addon", title: "BlendKit Pro Addon", creator: "devplugins", price: 7800, category: "plugins", fileType: "PLUGIN", tags: ["blender", "tool"], rating: 4.9, downloads: 421, createdAt: "2026-04-13", preview: { shape: "octahedron", color: "#eab308" }, description: "A pro Blender addon for streamlined PBR workflows: bulk import, smart materials, and render presets.", format: ".zip, .py", fileSize: 2_516_582 },
+];
+
+export interface AssetFilters {
+  q?: string;
+  category?: string;
+  price?: "free" | "under-25" | "under-50" | "50-plus";
+  fileType?: string;
+  sort?: "newest" | "popular" | "price-asc" | "price-desc" | "rating";
+}
+
+export function filterAssets(
+  assets: MockAsset[],
+  filters: AssetFilters
+): MockAsset[] {
+  let result = [...assets];
+
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    result = result.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.tags.some((t) => t.toLowerCase().includes(q)) ||
+        a.creator.toLowerCase().includes(q)
+    );
+  }
+
+  if (filters.category) {
+    result = result.filter((a) => a.category === filters.category);
+  }
+
+  if (filters.fileType) {
+    result = result.filter((a) => a.fileType === filters.fileType);
+  }
+
+  switch (filters.price) {
+    case "free":
+      result = result.filter((a) => a.price === 0);
+      break;
+    case "under-25":
+      result = result.filter((a) => a.price > 0 && a.price < 2500);
+      break;
+    case "under-50":
+      result = result.filter((a) => a.price > 0 && a.price < 5000);
+      break;
+    case "50-plus":
+      result = result.filter((a) => a.price >= 5000);
+      break;
+  }
+
+  switch (filters.sort) {
+    case "popular":
+      result.sort((a, b) => b.downloads - a.downloads);
+      break;
+    case "price-asc":
+      result.sort((a, b) => a.price - b.price);
+      break;
+    case "price-desc":
+      result.sort((a, b) => b.price - a.price);
+      break;
+    case "rating":
+      result.sort((a, b) => b.rating - a.rating);
+      break;
+    case "newest":
+    default:
+      result.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }
+
+  return result;
+}
+
+export function getAssetById(id: string): MockAsset | undefined {
+  return MOCK_ASSETS.find((a) => a.id === id);
+}
+
+export function getRelatedAssets(asset: MockAsset, limit = 3): MockAsset[] {
+  const sameCategory = MOCK_ASSETS.filter(
+    (a) => a.id !== asset.id && a.category === asset.category
+  );
+  if (sameCategory.length >= limit) return sameCategory.slice(0, limit);
+  const others = MOCK_ASSETS.filter(
+    (a) => a.id !== asset.id && a.category !== asset.category
+  ).sort((a, b) => b.downloads - a.downloads);
+  return [...sameCategory, ...others].slice(0, limit);
+}
+
+export const CATEGORIES = [
+  { slug: "3d-models", name: "3D Models" },
+  { slug: "textures", name: "Textures" },
+  { slug: "hdris", name: "HDRIs" },
+  { slug: "materials", name: "Materials" },
+  { slug: "2d-graphics", name: "2D Graphics" },
+  { slug: "plugins", name: "Plugins" },
+] as const;
+
+export const FILE_TYPES = [
+  { slug: "MODEL_3D", name: "3D Model" },
+  { slug: "TEXTURE", name: "Texture" },
+  { slug: "HDRI", name: "HDRI" },
+  { slug: "MATERIAL", name: "Material" },
+  { slug: "IMAGE_2D", name: "2D Image" },
+  { slug: "PLUGIN", name: "Plugin" },
+] as const;
+
+export const PRICE_RANGES = [
+  { slug: "free", name: "Free" },
+  { slug: "under-25", name: "Under $25" },
+  { slug: "under-50", name: "Under $50" },
+  { slug: "50-plus", name: "$50+" },
+] as const;
+
+export const SORT_OPTIONS = [
+  { slug: "newest", name: "Newest" },
+  { slug: "popular", name: "Most Popular" },
+  { slug: "rating", name: "Top Rated" },
+  { slug: "price-asc", name: "Price: Low to High" },
+  { slug: "price-desc", name: "Price: High to Low" },
+] as const;

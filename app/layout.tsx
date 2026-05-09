@@ -1,0 +1,82 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Providers } from "./providers";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+export const viewport: Viewport = {
+  themeColor: "#080808",
+  colorScheme: "dark",
+};
+
+export const metadata: Metadata = {
+  title: {
+    default: "GameChanger — 3D & 2D Asset Marketplace",
+    template: "%s | GameChanger",
+  },
+  description:
+    "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium 3D models, textures, HDRIs, materials, and 2D graphics.",
+  keywords: [
+    "3D assets",
+    "3D models",
+    "textures",
+    "HDRI",
+    "game assets",
+    "digital marketplace",
+    "AR assets",
+    "3D graphics",
+  ],
+  authors: [{ name: "GameChanger" }],
+  creator: "GameChanger",
+  metadataBase: new URL(
+    process.env.NEXTAUTH_URL ?? "http://localhost:3000"
+  ),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    title: "GameChanger — 3D & 2D Asset Marketplace",
+    description:
+      "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium digital assets.",
+    siteName: "GameChanger",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GameChanger — 3D & 2D Asset Marketplace",
+    description:
+      "The leading platform for 3D & AR assets on the web.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-dvh bg-canvas text-primary antialiased">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

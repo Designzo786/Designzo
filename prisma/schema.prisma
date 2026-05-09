@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AssetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FileType {
+  MODEL_3D
+  TEXTURE
+  HDRI
+  MATERIAL
+  PLUGIN
+  IMAGE_2D
+}
+
+enum LicenseType {
+  STANDARD
+  EXTENDED
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+// ─── Auth Models (required by @auth/prisma-adapter v2) ────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Extended profile
+  avatarKey    String? // R2 key for custom uploaded avatar
+  passwordHash String?
+  bio          String?
+  website      String?
+
+  role    Role @default(USER)
+  balance Int  @default(0) // stored in USD cents
+
+  // Legal — proof that the user accepted Terms & Privacy at registration.
+  acceptedTermsAt DateTime?
+
+  // KYC / Legal — sensitive PII, accessed only by the user themselves and
+  // admins. Aadhaar/PAN numbers stored plaintext for MVP; encrypt-at-rest
+  // before going live with real users.
+  kycStatus        KycStatus @default(UNVERIFIED)
+  legalName        String?
+  aadhaarNumber    String?   // 12 digits
+  aadhaarKey       String?   // R2 key — front of Aadhaar card
+  aadhaarBackKey   String?   // R2 key — back of Aadhaar card
+  panNumber        String?   // 10 chars (e.g. ABCDE1234F)
+  panKey           String?   // R2 key — PAN card image
+  bankAccountName  String?   // name on bank account (must match legal name)
+  bankAccount      String?
+  bankIfsc         String?
+  bankName         String?
+  kycSubmittedAt   DateTime?
+  kycVerifiedAt    DateTime?
+  kycRejectionNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  accounts  Account[]
+  sessions  Session[]
+  assets    Asset[]
+  purchases Purchase[]  @relation("BuyerPurchases")
+  payouts   Payout[]
+  likes     AssetLike[]
+  adminLogs AdminLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([kycStatus])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core Business Models ─────────────────────────────────────────────────────
+
+model Asset {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  category    String
+  tags        String[]    @default([])
+  fileType    FileType
+  license     LicenseType @default(STANDARD)
+
+  // R2 keys — never expose directly, always generate signed URLs
+  fileKey    String // actual downloadable file
+  previewKey String // thumbnail / preview image
+  modelKey   String? // .glb / .gltf for in-browser 3D preview
+
+  price  Int @default(0) // USD cents; 0 = free
+
+  status        AssetStatus @default(PENDING)
+  rejectionNote String?
+
+  // Metrics
+  downloads    Int @default(0)
+  likes        Int @default(0)
+
+  // Metadata
+  polygonCount  Int?
+  fileSizeBytes Int?
+  dimensions    String? // e.g. "4096x4096"
+
+  uploaderId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  uploader   User        @relation(fields: [uploaderId], references: [id])
+  purchases  Purchase[]
+  assetLikes AssetLike[]
+
+  @@index([status])
+  @@index([uploaderId])
+  @@index([category])
+  @@index([fileType])
+  @@index([price])
+  @@index([downloads])
+  @@index([createdAt])
+}
+
+model AssetLike {
+  id      String @id @default(cuid())
+  userId  String
+  assetId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@index([assetId])
+  @@index([userId])
+}
+
+model Purchase {
+  id             String         @id @default(cuid())
+  buyerId        String
+  assetId        String
+  amount         Int // USD cents (total charged)
+  platformFee    Int // USD cents
+  creatorEarning Int // USD cents
+  licenseKey     String         @unique @default(cuid()) // proof of purchase
+
+  paypalOrderId   String?
+  paypalCaptureId String?
+  status          PurchaseStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  buyer User  @relation("BuyerPurchases", fields: [buyerId], references: [id])
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@unique([buyerId, assetId]) // one purchase per user per asset
+  @@index([buyerId])
+  @@index([assetId])
+  @@index([status])
+  @@index([paypalOrderId])
+}
+
+model Payout {
+  id        String       @id @default(cuid())
+  creatorId String
+  amount    Int // USD cents
+  status    PayoutStatus @default(PENDING)
+
+  paypalPayoutBatchId String?
+  paypalItemId        String?
+  failureReason       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User @relation(fields: [creatorId], references: [id])
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Polymorphic audit trail — targetType tells you what targetId refers to
+model AdminLog {
+  id         String  @id @default(cuid())
+  adminId    String
+  action     String // e.g. "APPROVE_ASSET", "REJECT_ASSET", "BAN_USER"
+  targetId   String // ID of the affected entity
+  targetType String // "ASSET" | "USER" | "PAYOUT"
+  note       String?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetId])
+  @@index([targetType])
+  @@index([createdAt])
+}

@@ -1,0 +1,463 @@
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { notFound } from "next/navigation";
+import {
+  Star,
+  Download,
+  ArrowLeft,
+  Tag,
+  Calendar,
+  FileType,
+  HardDrive,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  getAssetById,
+  getRelatedAssets,
+  CATEGORIES,
+  FILE_TYPES,
+  MOCK_ASSETS,
+  type MockAssetShape,
+} from "@/lib/mock/assets";
+
+const MOCK_IDS = new Set(MOCK_ASSETS.map((m) => m.id));
+import {
+  formatPrice,
+  formatNumber,
+  formatFileSize,
+  formatDate,
+} from "@/lib/utils";
+import { AssetCard } from "@/components/assets/AssetCard";
+import { AssetActionButton } from "@/components/assets/AssetActionButton";
+import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
+
+const AssetViewer = dynamic(
+  () => import("@/components/assets/AssetViewer"),
+  { loading: () => <div className="absolute inset-0 skeleton" /> }
+);
+
+// Unified asset shape so the page renders DB-backed and mock assets the same way.
+interface UnifiedAsset {
+  id: string;
+  title: string;
+  creatorName: string;
+  creatorId: string | null; // null for mock assets
+  description: string;
+  category: string;
+  fileType: string;
+  tags: string[];
+  rating: number;
+  downloads: number;
+  createdAt: Date;
+  format: string;
+  fileSizeBytes: number;
+  price: number;
+  isReal: boolean;
+  // Preview sources, in priority order: modelUrl > shape/shapeColor > previewImage
+  modelUrl?: string;
+  shape?: MockAssetShape;
+  shapeColor?: string;
+  previewImage?: string;
+}
+
+async function loadAsset(id: string): Promise<UnifiedAsset | null> {
+  // Self-heal: if a mock asset ID is requested, make sure it exists in the
+  // DB. Runs once per process — cheap on every subsequent call.
+  if (MOCK_IDS.has(id)) {
+    await ensureSampleAssetsSeeded().catch(() => {
+      // If auto-seed fails (e.g. read-only filesystem), fall back to mock data
+    });
+  }
+
+  // 1. Try real DB row (any status — uploaders should still see their own
+  //    pending/rejected listings). Access checks happen at action time.
+  try {
+    const dbAsset = await prisma.asset.findUnique({
+      where: { id },
+      include: { uploader: { select: { id: true, name: true } } },
+    });
+    if (dbAsset) {
+      // Seeded sample assets keep an empty previewKey and rely on the mock
+      // entry's shape/color for the 3D viewer. Real user uploads have a
+      // previewImage URL — and possibly a modelKey if they uploaded a glTF/GLB.
+      const mockMatch = getAssetById(dbAsset.id);
+      const hasModelUrl = !!dbAsset.modelKey;
+      const hasPreviewImage = !!dbAsset.previewKey;
+
+      return {
+        id: dbAsset.id,
+        title: dbAsset.title,
+        creatorName: dbAsset.uploader.name ?? "Unknown",
+        creatorId: dbAsset.uploaderId,
+        description: dbAsset.description,
+        category: dbAsset.category,
+        fileType: dbAsset.fileType,
+        tags: dbAsset.tags,
+        rating: mockMatch?.rating ?? 0,
+        downloads: dbAsset.downloads,
+        createdAt: dbAsset.createdAt,
+        format: mockMatch?.format ?? dbAsset.fileType,
+        fileSizeBytes: dbAsset.fileSizeBytes ?? 0,
+        price: dbAsset.price,
+        isReal: true,
+        // Real .glb upload → load it in the 3D viewer.
+        // Otherwise: mock match → mock shape; else preview image only.
+        modelUrl: hasModelUrl ? dbAsset.modelKey ?? undefined : undefined,
+        shape:
+          !hasModelUrl && !hasPreviewImage
+            ? mockMatch?.preview.shape
+            : undefined,
+        shapeColor:
+          !hasModelUrl && !hasPreviewImage
+            ? mockMatch?.preview.color
+            : undefined,
+        previewImage: !hasModelUrl && hasPreviewImage ? dbAsset.previewKey : undefined,
+      };
+    }
+  } catch {
+    // DB might not be configured during early dev — fall through to mock
+  }
+
+  // 2. Fall back to mock data (used to populate the marketplace UI before
+  //    real creators upload anything).
+  const mock = getAssetById(id);
+  if (!mock) return null;
+
+  return {
+    id: mock.id,
+    title: mock.title,
+    creatorName: mock.creator,
+    creatorId: null,
+    description: mock.description,
+    category: mock.category,
+    fileType: mock.fileType,
+    tags: mock.tags,
+    rating: mock.rating,
+    downloads: mock.downloads,
+    createdAt: new Date(mock.createdAt),
+    format: mock.format,
+    fileSizeBytes: mock.fileSize,
+    price: mock.price,
+    isReal: false,
+    shape: mock.preview.shape,
+    shapeColor: mock.preview.color,
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const asset = await loadAsset(id);
+  if (!asset) return { title: "Asset not found" };
+  return {
+    title: `${asset.title} by ${asset.creatorName}`,
+    description: asset.description,
+  };
+}
+
+export default async function AssetDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  // loadAsset and auth() are independent — run them in parallel
+  const [asset, session] = await Promise.all([
+    loadAsset(id),
+    auth().catch(() => null),
+  ]);
+  if (!asset) notFound();
+
+  const isFree = asset.price === 0;
+  const isAdmin = session?.user.role === "ADMIN";
+  const isOwner =
+    !!asset.creatorId && asset.creatorId === session?.user.id;
+
+  // Has the signed-in user already paid for / claimed this asset, and have
+  // they wishlisted it? Both are independent — run in parallel.
+  let hasPurchase = false;
+  let initialLiked = false;
+  if (asset.isReal && session) {
+    const [purchaseRow, likeRow] = await Promise.all([
+      prisma.purchase
+        .findFirst({
+          where: {
+            buyerId: session.user.id,
+            assetId: asset.id,
+            status: "COMPLETED",
+          },
+          select: { id: true },
+        })
+        .catch(() => null),
+      prisma.assetLike
+        .findUnique({
+          where: {
+            userId_assetId: { userId: session.user.id, assetId: asset.id },
+          },
+          select: { id: true },
+        })
+        .catch(() => null),
+    ]);
+    hasPurchase = !!purchaseRow;
+    initialLiked = !!likeRow;
+  }
+
+  let mode:
+    | "demo"
+    | "demo-signed-in"
+    | "guest-free"
+    | "guest-buy"
+    | "owned"
+    | "free"
+    | "buy";
+  if (!asset.isReal) mode = session ? "demo-signed-in" : "demo";
+  else if (!session) mode = isFree ? "guest-free" : "guest-buy";
+  else if (isOwner || isAdmin || hasPurchase) mode = "owned";
+  else mode = isFree ? "free" : "buy";
+
+  const category = CATEGORIES.find((c) => c.slug === asset.category);
+  const fileTypeMeta = FILE_TYPES.find((f) => f.slug === asset.fileType);
+
+  // Related assets — for now still pulled from mock pool. Phase 4 will
+  // replace this with DB queries once enough real assets exist.
+  const mockSelf = getAssetById(asset.id);
+  const related = mockSelf ? getRelatedAssets(mockSelf, 3) : [];
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <nav className="flex items-center gap-2 text-sm text-muted mb-6 flex-wrap">
+        <Link
+          href="/explore"
+          className="hover:text-primary inline-flex items-center gap-1 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Explore
+        </Link>
+        <span className="text-border">/</span>
+        <Link
+          href={`/explore?category=${asset.category}`}
+          className="hover:text-primary transition-colors"
+        >
+          {category?.name ?? asset.category}
+        </Link>
+        <span className="text-border">/</span>
+        <span className="text-secondary truncate">{asset.title}</span>
+      </nav>
+
+      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8 items-start">
+        <div className="space-y-4">
+          <div className="relative aspect-square lg:aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-elevated to-canvas">
+            {asset.modelUrl ? (
+              <>
+                <AssetViewer modelUrl={asset.modelUrl} />
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
+                  Drag to rotate · Scroll to zoom
+                </div>
+              </>
+            ) : asset.shape && asset.shapeColor ? (
+              <>
+                <AssetViewer shape={asset.shape} color={asset.shapeColor} />
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
+                  Drag to rotate · Scroll to zoom
+                </div>
+              </>
+            ) : asset.previewImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={asset.previewImage}
+                alt={asset.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
+                No preview available
+              </div>
+            )}
+            {isFree && (
+              <div className="absolute top-4 left-4 badge badge-free pointer-events-none">
+                Free
+              </div>
+            )}
+          </div>
+
+          <section className="rounded-2xl border border-border bg-surface p-6">
+            <h2 className="text-lg font-semibold mb-3 text-primary">
+              About this asset
+            </h2>
+            <p className="text-secondary leading-relaxed whitespace-pre-line">
+              {asset.description}
+            </p>
+            <div className="mt-5 pt-5 border-t border-border grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-muted text-xs uppercase tracking-wide mb-1">
+                  Category
+                </div>
+                <div className="text-primary font-medium">
+                  {category?.name ?? asset.category}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted text-xs uppercase tracking-wide mb-1">
+                  Asset type
+                </div>
+                <div className="text-primary font-medium">
+                  {fileTypeMeta?.name ?? asset.fileType}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-24">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight gradient-text">
+              {asset.title}
+            </h1>
+            <p className="mt-2 text-secondary">
+              by{" "}
+              <span className="text-primary font-medium">
+                {asset.creatorName}
+              </span>
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-6">
+            <div className="flex items-baseline gap-2 mb-4">
+              <span
+                className={`text-4xl font-bold ${
+                  isFree ? "text-info" : "gradient-text"
+                }`}
+              >
+                {formatPrice(asset.price)}
+              </span>
+              {!isFree && (
+                <span className="text-sm text-muted">USD · one-time</span>
+              )}
+            </div>
+
+            <AssetActionButton mode={mode} assetId={asset.id} />
+
+            <div className="mt-3">
+              <AssetSocialButtons
+                assetId={asset.id}
+                assetTitle={asset.title}
+                initialLiked={initialLiked}
+                isAuthed={!!session}
+                isReal={asset.isReal}
+              />
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-xs text-muted">
+              <CheckCircle2 className="w-4 h-4 text-info shrink-0" />
+              Royalty-free commercial license included
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-6 space-y-3">
+            {asset.rating > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="inline-flex items-center gap-2 text-muted">
+                  <Star className="w-4 h-4 fill-gold text-gold" />
+                  Rating
+                </span>
+                <span className="text-primary font-medium">
+                  {asset.rating.toFixed(1)} / 5.0
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="inline-flex items-center gap-2 text-muted">
+                <Download className="w-4 h-4" />
+                Downloads
+              </span>
+              <span className="text-primary font-medium">
+                {formatNumber(asset.downloads)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="inline-flex items-center gap-2 text-muted">
+                <Calendar className="w-4 h-4" />
+                Published
+              </span>
+              <span className="text-primary font-medium">
+                {formatDate(asset.createdAt)}
+              </span>
+            </div>
+            <div className="pt-3 border-t border-border flex items-center justify-between text-sm">
+              <span className="inline-flex items-center gap-2 text-muted">
+                <FileType className="w-4 h-4" />
+                Format
+              </span>
+              <span className="text-primary font-mono text-xs">
+                {asset.format}
+              </span>
+            </div>
+            {asset.fileSizeBytes > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="inline-flex items-center gap-2 text-muted">
+                  <HardDrive className="w-4 h-4" />
+                  File size
+                </span>
+                <span className="text-primary font-medium">
+                  {formatFileSize(asset.fileSizeBytes)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {asset.tags.length > 0 && (
+            <div className="rounded-2xl border border-border bg-surface p-6">
+              <h3 className="text-sm font-semibold mb-3 inline-flex items-center gap-2 text-primary">
+                <Tag className="w-4 h-4" />
+                Tags
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {asset.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/explore?q=${encodeURIComponent(tag)}`}
+                    className="px-2.5 py-1 rounded-full text-xs bg-elevated border border-border text-secondary hover:border-accent/40 hover:text-accent-light transition-colors"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {related.length > 0 && (
+        <section className="mt-16">
+          <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
+            <div>
+              <h2 className="text-2xl font-bold text-primary">
+                More from {category?.name ?? "the marketplace"}
+              </h2>
+              <p className="text-secondary text-sm mt-1">
+                Discover similar assets you might like
+              </p>
+            </div>
+            <Link
+              href={`/explore?category=${asset.category}`}
+              className="text-sm text-accent-light hover:text-accent inline-flex items-center gap-1 transition-colors"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {related.map((a) => (
+              <AssetCard key={a.id} asset={a} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
