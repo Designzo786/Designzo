@@ -46,7 +46,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-primary">Payments:</strong> we don&apos;t
-            store full card details. Payments are handled by PayPal and we
+            store full card details. Payments are handled by Razorpay and we
             keep only transaction IDs and amounts for our records.
           </li>
         </ul>
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
           <li>
             <strong className="text-primary">Service providers:</strong> Neon
             (database hosting), Cloudflare (file storage and CDN), Vercel
-            (application hosting), Resend (email delivery), PayPal (payments).
+            (application hosting), Resend (email delivery), Razorpay (payments).
             They access only what they need to operate.
           </li>
           <li>

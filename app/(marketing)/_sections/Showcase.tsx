@@ -1,11 +1,64 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { MOCK_ASSETS } from "@/lib/mock/assets";
-import { AssetCard } from "@/components/assets/AssetCard";
+import { unstable_cache } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { getAssetById } from "@/lib/mock/assets";
+import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 
-const FEATURED = MOCK_ASSETS.slice(0, 6);
+// Fallback preview for real uploads with no matching mock entry — keeps the
+// 3D card from looking broken when there's no preview image.
+const FALLBACK_SHAPE = "icosahedron" as const;
+const FALLBACK_COLOR = "#7c3aed";
 
-export function Showcase() {
+// Cached across requests, keyed nothing-special, purged by the "assets" tag
+// whenever an admin approves/rejects an upload — same tag the Explore page uses.
+const fetchFeatured = unstable_cache(
+  async () => {
+    return prisma.asset.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { downloads: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        downloads: true,
+        avgRating: true,
+        reviewCount: true,
+        previewKey: true,
+        uploader: { select: { name: true } },
+      },
+    });
+  },
+  ["home-featured"],
+  { tags: ["assets"], revalidate: 60 }
+);
+
+export async function Showcase() {
+  const dbAssets = await fetchFeatured();
+
+  // Nothing approved yet — hide the whole section rather than show an
+  // empty grid under a "Stunning 3D" headline.
+  if (dbAssets.length === 0) return null;
+
+  const featured: AssetCardData[] = dbAssets.map((a) => {
+    const mockMatch = getAssetById(a.id);
+    return {
+      id: a.id,
+      title: a.title,
+      creator: a.uploader.name ?? "Unknown",
+      price: a.price,
+      rating: a.avgRating,
+      reviewCount: a.reviewCount,
+      downloads: a.downloads,
+      preview: {
+        shape: mockMatch?.preview.shape ?? FALLBACK_SHAPE,
+        color: mockMatch?.preview.color ?? FALLBACK_COLOR,
+      },
+      previewImage: a.previewKey || undefined,
+    };
+  });
+
   return (
     <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
       <div className="text-center max-w-2xl mx-auto mb-14">
@@ -22,7 +75,7 @@ export function Showcase() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {FEATURED.map((asset) => (
+        {featured.map((asset) => (
           <AssetCard key={asset.id} asset={asset} />
         ))}
       </div>

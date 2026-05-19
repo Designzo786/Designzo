@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,29 @@ import { GoogleButton } from "@/components/auth/GoogleButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+// Static shell shown while the Suspense boundary resolves useSearchParams()
+// during the prerender pass. Mirrors the real header so there's no flash.
+function LoginFallback() {
+  return (
+    <div className="text-center mb-7">
+      <h1 className="text-2xl font-bold text-primary tracking-tight">
+        Welcome back
+      </h1>
+      <p className="mt-1.5 text-sm text-muted">
+        Sign in to continue to GameChanger
+      </p>
+    </div>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";

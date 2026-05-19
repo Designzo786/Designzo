@@ -6,6 +6,7 @@ import { ExploreMenu } from "./ExploreMenu";
 import { SearchBar } from "./SearchBar";
 import { UserMenu } from "./UserMenu";
 import { AuthButtons } from "./AuthButtons";
+import { NotificationBell } from "./NotificationBell";
 
 export async function Navbar() {
   // Don't crash the navbar if auth() fails (e.g. DB not configured yet during dev)
@@ -39,7 +40,14 @@ export async function Navbar() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {session ? <UserMenu session={session} /> : <AuthButtons />}
+            {session ? (
+              <>
+                <NotificationBell />
+                <UserMenu session={session} />
+              </>
+            ) : (
+              <AuthButtons />
+            )}
           </div>
         </div>
       </div>

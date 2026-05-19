@@ -53,8 +53,16 @@ declare module "next-auth" {
 interface AppJWT {
   id?: string;
   role?: Role;
+  name?: string | null;
+  picture?: string | null;
+  profileCheckedAt?: number;
   [key: string]: unknown;
 }
+
+// How often to re-sync role / name / avatar from the DB (ms). Keeps changes
+// — a collaborator approved into a CREATOR, a renamed profile, a new avatar —
+// taking effect without forcing the user to sign out and back in.
+const PROFILE_REFRESH_MS = 60_000;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -131,6 +139,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role = await maybePromoteAdmin(user.email, user.role);
         }
         t.role = role;
+        t.profileCheckedAt = Date.now();
+      } else if (t.id) {
+        // No `user` = a returning request. Periodically re-read role, name
+        // and avatar from the DB so admin-side changes (collaborator
+        // approved) and profile edits propagate without a re-login.
+        const last =
+          typeof t.profileCheckedAt === "number" ? t.profileCheckedAt : 0;
+        if (Date.now() - last > PROFILE_REFRESH_MS) {
+          const fresh = await prisma.user
+            .findUnique({
+              where: { id: t.id },
+              select: { role: true, name: true, image: true },
+            })
+            .catch(() => null);
+          if (fresh) {
+            t.role = fresh.role;
+            t.name = fresh.name;
+            t.picture = fresh.image;
+          }
+          t.profileCheckedAt = Date.now();
+        }
       }
       return t as typeof token;
     },
@@ -139,6 +168,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const t = token as AppJWT;
       if (t.id) session.user.id = t.id;
       if (t.role) session.user.role = t.role;
+      // Surface the refreshed name/avatar so the navbar reflects profile edits.
+      if (t.name !== undefined) session.user.name = t.name;
+      if (t.picture !== undefined) session.user.image = t.picture;
       return session;
     },
   },

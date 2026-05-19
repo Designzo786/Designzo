@@ -3,16 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  ShoppingBag,
+  Upload,
+  Check,
+} from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
+import { cn } from "@/lib/utils";
+
+type AccountType = "user" | "collaborator";
 
 export default function RegisterPage() {
   const router = useRouter();
 
+  const [accountType, setAccountType] = useState<AccountType>("user");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +57,13 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, acceptedTerms }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          acceptedTerms,
+          accountType,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -80,6 +99,29 @@ export default function RegisterPage() {
 
       <form onSubmit={onSubmit} className="space-y-4">
         <FormError message={error} />
+
+        {/* ─── Account type ──────────────────────────────────────────────── */}
+        <div>
+          <span className="block text-xs font-medium text-secondary mb-2">
+            I want to join as
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <AccountTypeCard
+              selected={accountType === "user"}
+              onSelect={() => setAccountType("user")}
+              icon={ShoppingBag}
+              title="User"
+              description="Browse and buy assets"
+            />
+            <AccountTypeCard
+              selected={accountType === "collaborator"}
+              onSelect={() => setAccountType("collaborator")}
+              icon={Upload}
+              title="Collaborator"
+              description="Upload and sell assets"
+            />
+          </div>
+        </div>
 
         <Input
           label="Full name"
@@ -178,5 +220,49 @@ export default function RegisterPage() {
         </Link>
       </p>
     </>
+  );
+}
+
+function AccountTypeCard({
+  selected,
+  onSelect,
+  icon: Icon,
+  title,
+  description,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  icon: typeof User;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "relative text-left rounded-xl border p-3.5 transition-colors",
+        selected
+          ? "border-accent bg-accent-muted"
+          : "border-border bg-surface hover:border-border-hover"
+      )}
+    >
+      {selected && (
+        <span className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
+          <Check className="w-3 h-3 text-white" />
+        </span>
+      )}
+      <Icon
+        className={cn(
+          "w-5 h-5 mb-2",
+          selected ? "text-accent-light" : "text-muted"
+        )}
+      />
+      <div className="text-sm font-semibold text-primary">{title}</div>
+      <div className="text-[11px] text-muted leading-snug mt-0.5">
+        {description}
+      </div>
+    </button>
   );
 }

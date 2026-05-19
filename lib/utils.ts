@@ -5,13 +5,14 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(cents: number): string {
-  if (cents === 0) return "Free";
-  return new Intl.NumberFormat("en-US", {
+export function formatPrice(paise: number): string {
+  if (paise === 0) return "Free";
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(cents / 100);
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(paise / 100);
 }
 
 export function formatDate(date: Date | string): string {
@@ -81,8 +82,8 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export function commissionCalc(priceCents: number, commissionPct: number) {
-  const platformFee = Math.round(priceCents * (commissionPct / 100));
-  const creatorEarning = priceCents - platformFee;
+export function commissionCalc(priceInPaise: number, commissionPct: number) {
+  const platformFee = Math.round(priceInPaise * (commissionPct / 100));
+  const creatorEarning = priceInPaise - platformFee;
   return { platformFee, creatorEarning };
 }

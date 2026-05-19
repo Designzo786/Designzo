@@ -41,8 +41,6 @@ const SECTIONS = [
     links: [
       { label: "Help Center", href: "/help" },
       { label: "Community", href: "/community" },
-      { label: "Blog", href: "/blog" },
-      { label: "API", href: "/docs/api" },
     ],
   },
   {

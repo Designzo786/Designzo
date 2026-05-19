@@ -1,20 +1,13 @@
 import Link from "next/link";
-import {
-  Box,
-  Image as ImageIcon,
-  Mountain,
-  Layers,
-  Puzzle,
-  Palette,
-  ArrowUpRight,
-} from "lucide-react";
+import { unstable_cache } from "next/cache";
+import { Box, Mountain, Layers, Palette, ArrowUpRight } from "lucide-react";
+import { prisma } from "@/lib/prisma";
 
 const CATEGORIES = [
   {
     slug: "3d-models",
     name: "3D Models",
     description: "Game-ready models, characters, props",
-    count: "2,400+ assets",
     icon: Box,
     accent: "from-violet-500/20 to-purple-500/5",
   },
@@ -22,7 +15,6 @@ const CATEGORIES = [
     slug: "textures",
     name: "Textures",
     description: "PBR textures, surfaces, decals",
-    count: "1,800+ assets",
     icon: Palette,
     accent: "from-fuchsia-500/20 to-pink-500/5",
   },
@@ -30,7 +22,6 @@ const CATEGORIES = [
     slug: "hdris",
     name: "HDRIs",
     description: "Environment maps and skies",
-    count: "500+ assets",
     icon: Mountain,
     accent: "from-amber-500/20 to-orange-500/5",
   },
@@ -38,29 +29,31 @@ const CATEGORIES = [
     slug: "materials",
     name: "Materials",
     description: "Shaders and surface materials",
-    count: "1,200+ assets",
     icon: Layers,
     accent: "from-emerald-500/20 to-teal-500/5",
   },
-  {
-    slug: "2d-graphics",
-    name: "2D Graphics",
-    description: "Illustrations, vectors, sprites",
-    count: "3,000+ assets",
-    icon: ImageIcon,
-    accent: "from-blue-500/20 to-cyan-500/5",
-  },
-  {
-    slug: "plugins",
-    name: "Plugins",
-    description: "Tools and creator add-ons",
-    count: "400+ assets",
-    icon: Puzzle,
-    accent: "from-rose-500/20 to-red-500/5",
-  },
 ];
 
-export function Categories() {
+// Live count of APPROVED assets per category, cached 60s and purged by the
+// "assets" tag on admin approve/reject.
+const fetchCategoryCounts = unstable_cache(
+  async () => {
+    const rows = await prisma.asset.groupBy({
+      by: ["category"],
+      where: { status: "APPROVED" },
+      _count: { _all: true },
+    });
+    const counts: Record<string, number> = {};
+    for (const r of rows) counts[r.category] = r._count._all;
+    return counts;
+  },
+  ["home-category-counts"],
+  { tags: ["assets"], revalidate: 60 }
+);
+
+export async function Categories() {
+  const counts = await fetchCategoryCounts();
+
   return (
     <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
       <div className="flex items-end justify-between mb-10">
@@ -84,6 +77,7 @@ export function Categories() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
+          const count = counts[cat.slug] ?? 0;
           return (
             <Link
               key={cat.slug}
@@ -107,7 +101,7 @@ export function Categories() {
                 {cat.description}
               </p>
               <div className="relative mt-4 text-xs font-medium text-secondary">
-                {cat.count}
+                {count} {count === 1 ? "asset" : "assets"}
               </div>
             </Link>
           );

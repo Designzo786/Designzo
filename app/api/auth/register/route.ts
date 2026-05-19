@@ -26,12 +26,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { name, email, password, acceptedTerms } = (body ?? {}) as {
+  const { name, email, password, acceptedTerms, accountType } = (body ??
+    {}) as {
     name?: string;
     email?: string;
     password?: string;
     acceptedTerms?: boolean;
+    accountType?: string;
   };
+
+  // A Collaborator signup does NOT become a CREATOR immediately — the account
+  // is created as a plain USER with creatorStatus PENDING and waits for an
+  // admin to approve it. A regular signup has creatorStatus NONE.
+  const isCollaborator = accountType === "collaborator";
 
   // Validation
   if (!name || typeof name !== "string" || name.trim().length < 2) {
@@ -86,7 +93,10 @@ export async function POST(req: Request) {
         name: name.trim(),
         email: normalizedEmail,
         passwordHash,
+        creatorStatus: isCollaborator ? "PENDING" : "NONE",
         acceptedTermsAt: new Date(),
+        // role stays the schema default (USER); collaborators are promoted
+        // to CREATOR only on admin approval.
       },
       select: { id: true, email: true, name: true },
     });

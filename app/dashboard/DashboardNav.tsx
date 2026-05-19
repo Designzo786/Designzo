@@ -19,24 +19,31 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
+  // Collaborator-only tabs. Plain USER accounts (buy-only) never see these —
+  // they get just "My Library" and "Profile".
+  creatorOnly?: boolean;
 };
 
 const ITEMS: readonly NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true, creatorOnly: true },
   { href: "/dashboard/library", label: "My Library", icon: Library },
-  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
-  { href: "/dashboard/uploads", label: "My Assets", icon: Upload },
-  { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign },
+  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart, creatorOnly: true },
+  { href: "/dashboard/uploads", label: "My Assets", icon: Upload, creatorOnly: true },
+  { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign, creatorOnly: true },
   { href: "/dashboard/profile", label: "Profile", icon: Settings },
-  { href: "/dashboard/kyc", label: "KYC & Legal", icon: ShieldCheck },
+  { href: "/dashboard/kyc", label: "KYC & Legal", icon: ShieldCheck, creatorOnly: true },
 ];
 
 export function DashboardNav({ role }: { role: Role }) {
   const pathname = usePathname();
 
+  // USER = buy-only account: hide every collaborator tab.
+  const items =
+    role === "USER" ? ITEMS.filter((i) => !i.creatorOnly) : ITEMS;
+
   return (
     <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
-      {ITEMS.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         const active = item.exact
           ? pathname === item.href

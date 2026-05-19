@@ -15,6 +15,8 @@ export interface AssetCardData {
   creator: string;
   price: number;
   rating: number;
+  // Number of reviews — when 0 the card shows "New" instead of a 0.0 rating.
+  reviewCount?: number;
   downloads: number;
   preview: { shape: MockAssetShape; color: string };
   // Set for real user uploads — overrides the 3D fallback preview
@@ -67,10 +69,16 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
         </div>
 
         <div className="mt-3 flex items-center gap-3 text-xs text-muted">
-          <span className="inline-flex items-center gap-1">
-            <Star className="w-3 h-3 fill-gold text-gold" />
-            <span className="text-secondary">{asset.rating.toFixed(1)}</span>
-          </span>
+          {asset.reviewCount && asset.reviewCount > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <Star className="w-3 h-3 fill-gold text-gold" />
+              <span className="text-secondary">
+                {asset.rating.toFixed(1)}
+              </span>
+            </span>
+          ) : (
+            <span className="text-muted">New</span>
+          )}
           <span className="inline-flex items-center gap-1">
             <Download className="w-3 h-3" />
             {formatNumber(asset.downloads)}

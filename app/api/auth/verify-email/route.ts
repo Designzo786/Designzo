@@ -32,12 +32,18 @@ export async function POST(req: Request) {
     );
   }
 
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { email: result.email },
     data: { emailVerified: new Date() },
+    select: { creatorStatus: true },
   });
 
-  return NextResponse.json({ ok: true });
+  // The success screen shows a different message for collaborators whose
+  // account still needs admin approval.
+  return NextResponse.json({
+    ok: true,
+    pendingCreator: user.creatorStatus === "PENDING",
+  });
 }
 
 /**

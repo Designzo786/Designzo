@@ -25,7 +25,7 @@ export function CTA() {
           </h2>
           <p className="mt-5 text-secondary max-w-xl mx-auto text-base sm:text-lg">
             Join 500+ creators earning passive income on GameChanger. Keep 80%
-            of every sale, with weekly payouts to your PayPal.
+            of every sale, with weekly bank payouts via RazorpayX.
           </p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
             <Link

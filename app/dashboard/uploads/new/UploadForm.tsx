@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
 import { CATEGORIES, FILE_TYPES } from "@/lib/mock/assets";
+import { EXTENSIONS_BY_TYPE, getExtension } from "@/lib/upload-validation";
 import { formatFileSize } from "@/lib/utils";
+import type { FileType } from "@prisma/client";
 
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
@@ -31,15 +33,44 @@ export function UploadForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewInputRef = useRef<HTMLInputElement>(null);
 
+  // Extensions valid for the currently-selected file type. Drives both the
+  // file picker's `accept` filter and the instant validation below.
+  const allowedExtensions = EXTENSIONS_BY_TYPE[fileType as FileType] ?? [];
+  const fileAccept = allowedExtensions.map((e) => `.${e}`).join(",");
+  const allowedLabel = allowedExtensions.map((e) => `.${e}`).join(", ");
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const ext = getExtension(f.name);
+    if (!allowedExtensions.includes(ext)) {
+      setError(
+        `A ".${ext}" file isn't valid for this asset type. Accepted: ${allowedLabel}.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     if (f.size > MAX_FILE_BYTES) {
       setError(`Asset file is too large (max ${formatFileSize(MAX_FILE_BYTES)}).`);
       return;
     }
     setError(null);
     setFile(f);
+  }
+
+  // Changing the file type can invalidate an already-picked file — drop it
+  // so the user can't submit a mismatched pair.
+  function onFileTypeChange(next: string) {
+    setFileType(next);
+    if (file) {
+      const allowed = EXTENSIONS_BY_TYPE[next as FileType] ?? [];
+      if (!allowed.includes(getExtension(file.name))) {
+        clearFile();
+        setError(
+          "Your selected file no longer matches the chosen file type — please pick another."
+        );
+      }
+    }
   }
 
   function onPreviewChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -77,6 +108,14 @@ export function UploadForm() {
 
     if (!file) return setError("Please select an asset file.");
     if (!preview) return setError("Please select a preview image.");
+
+    // Final guard — the file extension must match the selected file type.
+    const ext = getExtension(file.name);
+    if (!allowedExtensions.includes(ext)) {
+      return setError(
+        `Your ".${ext}" file doesn't match the selected file type. Accepted: ${allowedLabel}.`
+      );
+    }
 
     const priceUsdNum = Number(priceUsd);
     if (!Number.isFinite(priceUsdNum) || priceUsdNum < 0) {
@@ -169,7 +208,7 @@ export function UploadForm() {
           <select
             id="fileType"
             value={fileType}
-            onChange={(e) => setFileType(e.target.value)}
+            onChange={(e) => onFileTypeChange(e.target.value)}
             className="w-full h-11 px-4 bg-input border border-border rounded-lg text-sm text-primary focus:outline-none focus:bg-surface focus:border-border-focus transition-all"
           >
             {FILE_TYPES.map((t) => (
@@ -217,10 +256,10 @@ export function UploadForm() {
       {/* Asset file picker */}
       <FilePicker
         label="Asset file"
-        sublabel="The actual file customers will download · max 100 MB"
+        sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
         icon={FileBox}
         file={file}
-        accept="*"
+        accept={fileAccept}
         inputRef={fileInputRef}
         onChange={onFileChange}
         onClear={clearFile}

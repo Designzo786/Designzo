@@ -1,10 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { auth } from "@/lib/auth";
 import { UploadForm } from "./UploadForm";
 
 export const metadata = { title: "Upload Asset" };
 
-export default function UploadAssetPage() {
+export default async function UploadAssetPage() {
+  const session = await auth();
+  if (!session) redirect("/login?callbackUrl=/dashboard/uploads/new");
+  // Buy-only USER accounts can't upload — send them to their library.
+  if (session.user.role === "USER") redirect("/dashboard/library");
+
   return (
     <div className="space-y-6 max-w-2xl">
       <header>

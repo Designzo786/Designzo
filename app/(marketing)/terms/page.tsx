@@ -62,7 +62,7 @@ export default function TermsPage() {
 
       <Section number="5" title="Payments & Payouts">
         <p>
-          Payments are processed by third-party providers (e.g. PayPal). We
+          Payments are processed by third-party providers (e.g. Razorpay). We
           take a platform commission, currently {process.env.PLATFORM_COMMISSION_PERCENT ?? 20}% of the sale price.
           The remainder accrues to the creator&apos;s balance, payable on
           request subject to KYC verification and minimum payout thresholds.
@@ -110,7 +110,7 @@ export default function TermsPage() {
         To the maximum extent permitted by law, GameChanger&apos;s total
         liability for any claim arising from the Service is limited to the
         greater of (a) the amount you paid us in the 12 months preceding the
-        claim, or (b) USD 100.
+        claim, or (b) INR 10,000.
       </Section>
 
       <Section number="12" title="Changes to These Terms">

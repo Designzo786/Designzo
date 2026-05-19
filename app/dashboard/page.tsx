@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Library, Upload, DollarSign, ArrowRight } from "lucide-react";
@@ -10,6 +11,8 @@ export const metadata = { title: "Dashboard" };
 export default async function DashboardHome() {
   const session = await auth();
   if (!session) return null;
+  // Buy-only USER accounts have no creator overview — their home is the library.
+  if (session.user.role === "USER") redirect("/dashboard/library");
 
   const [user, purchaseCount, uploadCount] = await Promise.all([
     prisma.user.findUnique({

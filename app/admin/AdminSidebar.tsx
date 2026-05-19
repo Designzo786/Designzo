@@ -6,20 +6,29 @@ import {
   LayoutDashboard,
   FileCheck,
   Users,
+  UserCheck,
   Wallet,
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ITEMS = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const ITEMS: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/assets", label: "Assets", icon: FileCheck },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/creators", label: "Creators", icon: UserCheck },
   { href: "/admin/kyc", label: "KYC", icon: ShieldCheck },
   { href: "/admin/payments", label: "Payouts", icon: Wallet },
   { href: "/admin/logs", label: "Audit Log", icon: ScrollText },
-] as const;
+];
 
 export function AdminSidebar() {
   const pathname = usePathname();

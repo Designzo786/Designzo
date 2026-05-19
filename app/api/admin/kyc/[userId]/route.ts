@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession, writeAdminLog } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,25 @@ export async function PATCH(
     targetType: "USER",
     note: action === "REJECT" ? note?.trim() : undefined,
   });
+
+  // Tell the creator their KYC outcome.
+  if (action === "VERIFY") {
+    await createNotification({
+      userId,
+      type: "KYC_VERIFIED",
+      title: "KYC verified",
+      body: "Your identity is verified — you can now request payouts.",
+      link: "/dashboard/earnings",
+    });
+  } else {
+    await createNotification({
+      userId,
+      type: "KYC_REJECTED",
+      title: "KYC needs attention",
+      body: `Your KYC submission was rejected: ${note!.trim()}`,
+      link: "/dashboard/kyc",
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

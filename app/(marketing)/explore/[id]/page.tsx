@@ -30,6 +30,7 @@ import {
 import { AssetCard } from "@/components/assets/AssetCard";
 import { AssetActionButton } from "@/components/assets/AssetActionButton";
 import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
+import { AssetReviews } from "./AssetReviews";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
@@ -50,6 +51,7 @@ interface UnifiedAsset {
   fileType: string;
   tags: string[];
   rating: number;
+  reviewCount: number;
   downloads: number;
   createdAt: Date;
   format: string;
@@ -96,7 +98,8 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
         category: dbAsset.category,
         fileType: dbAsset.fileType,
         tags: dbAsset.tags,
-        rating: mockMatch?.rating ?? 0,
+        rating: dbAsset.avgRating,
+        reviewCount: dbAsset.reviewCount,
         downloads: dbAsset.downloads,
         createdAt: dbAsset.createdAt,
         format: mockMatch?.format ?? dbAsset.fileType,
@@ -136,6 +139,7 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     fileType: mock.fileType,
     tags: mock.tags,
     rating: mock.rating,
+    reviewCount: 0,
     downloads: mock.downloads,
     createdAt: new Date(mock.createdAt),
     format: mock.format,
@@ -312,6 +316,17 @@ export default async function AssetDetailPage({
               </div>
             </div>
           </section>
+
+          {asset.isReal && (
+            <AssetReviews
+              assetId={asset.id}
+              avgRating={asset.rating}
+              reviewCount={asset.reviewCount}
+              viewerId={session?.user.id ?? null}
+              canReview={hasPurchase && !isOwner}
+              isSignedIn={!!session}
+            />
+          )}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24">
@@ -337,7 +352,7 @@ export default async function AssetDetailPage({
                 {formatPrice(asset.price)}
               </span>
               {!isFree && (
-                <span className="text-sm text-muted">USD · one-time</span>
+                <span className="text-sm text-muted">INR · one-time</span>
               )}
             </div>
 

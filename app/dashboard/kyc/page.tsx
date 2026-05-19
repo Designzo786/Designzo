@@ -24,6 +24,8 @@ export const metadata = { title: "KYC & Legal" };
 export default async function KycPage() {
   const session = await auth();
   if (!session) redirect("/login?callbackUrl=/dashboard/kyc");
+  // KYC exists only to enable creator payouts — buy-only USERs don't need it.
+  if (session.user.role === "USER") redirect("/dashboard/library");
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

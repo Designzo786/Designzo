@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
+  // Pin the workspace root. A stray package-lock.json in the parent directory
+  // otherwise makes Turbopack infer the wrong root and emit a build warning.
+  turbopack: {
+    root: path.join(__dirname),
+  },
+
   // Hide Next.js fingerprint
   poweredByHeader: false,
 

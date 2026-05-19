@@ -95,9 +95,14 @@ export default async function CheckoutPage({
     commissionPct
   );
 
-  const paypalConfigured = !!(
-    process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET
+  const razorpayConfigured = !!(
+    process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
   );
+
+  const buyer = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true },
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
@@ -199,7 +204,9 @@ export default async function CheckoutPage({
             assetId={asset.id}
             assetTitle={asset.title}
             priceCents={asset.price}
-            paypalConfigured={paypalConfigured}
+            razorpayConfigured={razorpayConfigured}
+            buyerName={buyer?.name}
+            buyerEmail={buyer?.email}
           />
         </aside>
       </div>

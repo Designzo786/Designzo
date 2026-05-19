@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled connection — runtime queries
+  directUrl = env("DIRECT_URL")   // unpooled — migrations only
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -19,6 +20,18 @@ enum KycStatus {
   UNVERIFIED
   PENDING
   VERIFIED
+  REJECTED
+}
+
+// Tracks a Collaborator account's path to becoming an active CREATOR.
+//   NONE     — a plain buyer account, never applied
+//   PENDING  — registered as Collaborator, awaiting admin approval
+//   APPROVED — admin approved; the user's role is now CREATOR
+//   REJECTED — admin declined the collaborator application
+enum CreatorStatus {
+  NONE
+  PENDING
+  APPROVED
   REJECTED
 }
 
@@ -55,6 +68,21 @@ enum PayoutStatus {
   FAILED
 }
 
+enum NotificationType {
+  ASSET_APPROVED
+  ASSET_REJECTED
+  SALE
+  PURCHASE
+  PAYOUT_PROCESSING
+  PAYOUT_PAID
+  PAYOUT_FAILED
+  KYC_VERIFIED
+  KYC_REJECTED
+  CREATOR_APPROVED
+  CREATOR_REJECTED
+  REVIEW
+}
+
 // ─── Auth Models (required by @auth/prisma-adapter v2) ────────────────────────
 
 model User {
@@ -71,7 +99,12 @@ model User {
   website      String?
 
   role    Role @default(USER)
-  balance Int  @default(0) // stored in USD cents
+  balance Int  @default(0) // stored in INR paise
+
+  // Collaborator application state. PENDING accounts keep role USER (so they
+  // can't upload) until an admin approves and promotes them to CREATOR.
+  creatorStatus    CreatorStatus @default(NONE)
+  creatorDecidedAt DateTime?
 
   // Legal — proof that the user accepted Terms & Privacy at registration.
   acceptedTermsAt DateTime?
@@ -94,21 +127,30 @@ model User {
   kycVerifiedAt    DateTime?
   kycRejectionNote String?
 
+  // RazorpayX caching — created on first payout, reused on subsequent ones.
+  // Avoids hitting Razorpay's contact/fund_account rate limits and keeps the
+  // payout API call to a single POST.
+  razorpayContactId     String?
+  razorpayFundAccountId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  accounts  Account[]
-  sessions  Session[]
-  assets    Asset[]
-  purchases Purchase[]  @relation("BuyerPurchases")
-  payouts   Payout[]
-  likes     AssetLike[]
-  adminLogs AdminLog[]
+  accounts      Account[]
+  sessions      Session[]
+  assets        Asset[]
+  purchases     Purchase[]     @relation("BuyerPurchases")
+  payouts       Payout[]
+  likes         AssetLike[]
+  reviews       Review[]
+  adminLogs     AdminLog[]
+  notifications Notification[]
 
   @@index([email])
   @@index([role])
   @@index([kycStatus])
+  @@index([creatorStatus])
 }
 
 model Account {
@@ -172,7 +214,7 @@ model Asset {
   previewKey String // thumbnail / preview image
   modelKey   String? // .glb / .gltf for in-browser 3D preview
 
-  price  Int @default(0) // USD cents; 0 = free
+  price  Int @default(0) // INR paise; 0 = free
 
   status        AssetStatus @default(PENDING)
   rejectionNote String?
@@ -180,6 +222,11 @@ model Asset {
   // Metrics
   downloads    Int @default(0)
   likes        Int @default(0)
+
+  // Review aggregates — denormalized so asset-card lists don't each run an
+  // aggregate query. Recomputed whenever a review is created/edited/deleted.
+  avgRating   Float @default(0)
+  reviewCount Int   @default(0)
 
   // Metadata
   polygonCount  Int?
@@ -194,14 +241,16 @@ model Asset {
   uploader   User        @relation(fields: [uploaderId], references: [id])
   purchases  Purchase[]
   assetLikes AssetLike[]
+  reviews    Review[]
 
-  @@index([status])
+  // Composite indexes targeting the actual browse query patterns —
+  // the marketplace filters all hit `status = APPROVED` first.
+  @@index([status, category, createdAt(sort: Desc)])
+  @@index([status, downloads(sort: Desc)])
+  @@index([status, price])
+  @@index([status, fileType, createdAt(sort: Desc)])
   @@index([uploaderId])
-  @@index([category])
-  @@index([fileType])
-  @@index([price])
-  @@index([downloads])
-  @@index([createdAt])
+  @@index([tags], type: Gin) // Postgres GIN for `tags has` lookups
 }
 
 model AssetLike {
@@ -217,18 +266,36 @@ model AssetLike {
   @@index([userId])
 }
 
+// A buyer's star rating + optional written review of an asset they own.
+// One review per user per asset.
+model Review {
+  id        String   @id @default(cuid())
+  assetId   String
+  userId    String
+  rating    Int // 1-5 stars
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@index([assetId])
+}
+
 model Purchase {
   id             String         @id @default(cuid())
   buyerId        String
   assetId        String
-  amount         Int // USD cents (total charged)
-  platformFee    Int // USD cents
-  creatorEarning Int // USD cents
+  amount         Int // INR paise (total charged)
+  platformFee    Int // INR paise
+  creatorEarning Int // INR paise
   licenseKey     String         @unique @default(cuid()) // proof of purchase
 
-  paypalOrderId   String?
-  paypalCaptureId String?
-  status          PurchaseStatus @default(PENDING)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  status            PurchaseStatus @default(PENDING)
 
   createdAt DateTime @default(now())
 
@@ -239,18 +306,19 @@ model Purchase {
   @@index([buyerId])
   @@index([assetId])
   @@index([status])
-  @@index([paypalOrderId])
+  @@index([razorpayOrderId])
 }
 
 model Payout {
   id        String       @id @default(cuid())
   creatorId String
-  amount    Int // USD cents
+  amount    Int // INR paise
   status    PayoutStatus @default(PENDING)
 
-  paypalPayoutBatchId String?
-  paypalItemId        String?
-  failureReason       String?
+  // RazorpayX transaction ID — set when admin triggers the actual payout
+  // via the RazorpayX API. NULL means the payout is still queued in our DB.
+  razorpayPayoutId String?
+  failureReason    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -260,6 +328,26 @@ model Payout {
   @@index([creatorId])
   @@index([status])
   @@index([createdAt])
+  @@index([razorpayPayoutId]) // webhook looks up payouts by RazorpayX ID
+}
+
+// In-app notifications — one row per delivered notification to one user.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String? // in-app path to open when the notification is clicked
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The bell badge query filters by (userId, read); the list query orders
+  // by (userId, createdAt). Both are covered here.
+  @@index([userId, read])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 // Polymorphic audit trail — targetType tells you what targetId refers to

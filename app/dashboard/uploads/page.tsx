@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Upload, Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +18,8 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
 export default async function UploadsPage() {
   const session = await auth();
   if (!session) return null;
+  // Buy-only USER accounts don't have an asset workspace.
+  if (session.user.role === "USER") redirect("/dashboard/library");
 
   const assets = await prisma.asset.findMany({
     where: { uploaderId: session.user.id },

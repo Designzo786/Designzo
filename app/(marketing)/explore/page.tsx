@@ -1,4 +1,5 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
+import { unstable_cache } from "next/cache";
 import {
   CATEGORIES,
   getAssetById,
@@ -17,8 +18,9 @@ export const metadata = {
   title: "Explore — Browse premium assets",
 };
 
-// Don't cache — newly approved assets must show up immediately.
-export const dynamic = "force-dynamic";
+// ISR: serve from edge cache for 60s. Admin approve/reject calls
+// `revalidateTag("assets")` so changes show up instantly anyway.
+export const revalidate = 60;
 
 interface SearchParams {
   q?: string;
@@ -64,14 +66,14 @@ function buildWhere(filters: AssetFilters): Prisma.AssetWhereInput {
     case "free":
       where.price = 0;
       break;
-    case "under-25":
-      where.price = { gt: 0, lt: 2500 };
+    case "under-200":
+      where.price = { gt: 0, lt: 20000 };
       break;
-    case "under-50":
-      where.price = { gt: 0, lt: 5000 };
+    case "under-500":
+      where.price = { gt: 0, lt: 50000 };
       break;
-    case "50-plus":
-      where.price = { gte: 5000 };
+    case "500-plus":
+      where.price = { gte: 50000 };
       break;
   }
 
@@ -86,6 +88,45 @@ function buildWhere(filters: AssetFilters): Prisma.AssetWhereInput {
 
   return where;
 }
+
+// Card-list select: pulls only what AssetCard renders. Description, fileKey,
+// modelKey, KYC fields, etc. stay on the server — keeps the JSON payload small
+// and the wire transfer fast.
+const CARD_SELECT = {
+  id: true,
+  title: true,
+  price: true,
+  downloads: true,
+  avgRating: true,
+  reviewCount: true,
+  category: true,
+  fileType: true,
+  previewKey: true,
+  uploader: { select: { name: true } },
+} satisfies Prisma.AssetSelect;
+
+// Cached, deduped browse query. `cache()` (React) dedupes within one render —
+// `unstable_cache` (Next) persists across requests and is keyed by filters,
+// purged via the "assets" tag when admin approves/rejects an upload.
+const fetchBrowseAssets = cache(
+  (filters: AssetFilters) =>
+    unstable_cache(
+      async () => {
+        const [dbAssets, totalApproved] = await Promise.all([
+          prisma.asset.findMany({
+            where: buildWhere(filters),
+            orderBy: buildOrderBy(filters.sort),
+            select: CARD_SELECT,
+            take: 96,
+          }),
+          prisma.asset.count({ where: { status: "APPROVED" } }),
+        ]);
+        return { dbAssets, totalApproved };
+      },
+      ["explore-browse", JSON.stringify(filters)],
+      { tags: ["assets"], revalidate: 60 }
+    )()
+);
 
 export default async function ExplorePage({
   searchParams,
@@ -107,18 +148,7 @@ export default async function ExplorePage({
     // Non-fatal — proceed with whatever is in the DB
   });
 
-  // One DB round-trip: filtered + sorted + total count for the heading.
-  const [dbAssets, totalApproved] = await Promise.all([
-    prisma.asset.findMany({
-      where: buildWhere(filters),
-      orderBy: buildOrderBy(filters.sort),
-      include: {
-        uploader: { select: { name: true } },
-      },
-      take: 96,
-    }),
-    prisma.asset.count({ where: { status: "APPROVED" } }),
-  ]);
+  const { dbAssets, totalApproved } = await fetchBrowseAssets(filters);
 
   const results: AssetCardData[] = dbAssets.map((a) => {
     const mockMatch = getAssetById(a.id);
@@ -127,7 +157,8 @@ export default async function ExplorePage({
       title: a.title,
       creator: a.uploader.name ?? "Unknown",
       price: a.price,
-      rating: mockMatch?.rating ?? 0,
+      rating: a.avgRating,
+      reviewCount: a.reviewCount,
       downloads: a.downloads,
       preview: {
         shape: mockMatch?.preview.shape ?? FALLBACK_SHAPE,

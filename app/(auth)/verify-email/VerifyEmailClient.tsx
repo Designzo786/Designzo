@@ -15,6 +15,7 @@ export function VerifyEmailClient({
 }) {
   const [status, setStatus] = useState<Status>("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [pendingCreator, setPendingCreator] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +28,8 @@ export function VerifyEmailClient({
       .then(async (res) => {
         if (cancelled) return;
         if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setPendingCreator(!!data.pendingCreator);
           setStatus("success");
         } else {
           const data = await res.json().catch(() => ({}));
@@ -81,9 +84,18 @@ export function VerifyEmailClient({
         <h1 className="text-2xl font-bold tracking-tight text-primary">
           Email verified
         </h1>
-        <p className="text-sm text-secondary">
-          You're all set. Sign in to start using your account.
-        </p>
+        {pendingCreator ? (
+          <p className="text-sm text-secondary max-w-sm mx-auto">
+            Your Collaborator account is now pending review. An admin
+            typically approves new creators within 1 business day — you&apos;ll
+            get a notification once you&apos;re approved. You can sign in and
+            browse the marketplace in the meantime.
+          </p>
+        ) : (
+          <p className="text-sm text-secondary">
+            You&apos;re all set. Sign in to start using your account.
+          </p>
+        )}
         <div className="pt-2">
           <Link
             href="/login"

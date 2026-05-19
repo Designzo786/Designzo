@@ -1,29 +1,31 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { commissionCalc } from "@/lib/utils";
+import { commissionCalc, formatPrice } from "@/lib/utils";
+import { flags } from "@/lib/env";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { createNotifications } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
 /**
- * Single checkout endpoint that supports two payment methods:
+ * Dev-only mock checkout. Creates a COMPLETED Purchase row instantly
+ * without going through Razorpay.
  *
- *   - "paypal" — real PayPal sandbox/live flow. Requires PAYPAL_CLIENT_ID and
- *     PAYPAL_CLIENT_SECRET in env. (Currently returns 501 — full PayPal
- *     create-order/capture-order flow lands in Phase 7.)
- *
- *   - "mock"   — dev-only: creates a COMPLETED Purchase row instantly.
- *     Refused when PayPal IS configured (prevents accidental free purchases
- *     in production).
- *
- * After a successful purchase the route credits the creator's balance and
- * returns the new license key so the client can navigate to the library.
+ * Hard-disabled in production AND when Razorpay is configured — real
+ * payments must go through /api/payments/create-order + verify-payment.
  */
 export async function POST(req: Request) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+
+  const rl = checkRateLimit(req, "checkout", {
+    limit: 20,
+    windowMs: 60 * 1000,
+  });
+  if (!rl.ok) return rl.response;
 
   let body: unknown;
   try {
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
 
   const { assetId, method } = (body ?? {}) as {
     assetId?: string;
-    method?: "paypal" | "mock";
+    method?: "mock";
   };
 
   if (!assetId || typeof assetId !== "string") {
@@ -43,10 +45,17 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  if (method !== "paypal" && method !== "mock") {
+  if (method !== "mock") {
     return NextResponse.json(
       { error: "Invalid payment method." },
       { status: 400 }
+    );
+  }
+
+  if (flags.hasRazorpay && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Mock checkout is disabled in production." },
+      { status: 403 }
     );
   }
 
@@ -54,6 +63,7 @@ export async function POST(req: Request) {
     where: { id: assetId },
     select: {
       id: true,
+      title: true,
       price: true,
       status: true,
       uploaderId: true,
@@ -62,7 +72,6 @@ export async function POST(req: Request) {
   if (!asset) {
     return NextResponse.json({ error: "Asset not found." }, { status: 404 });
   }
-
   if (asset.status !== "APPROVED") {
     return NextResponse.json(
       { error: "This asset is not available for purchase." },
@@ -98,35 +107,6 @@ export async function POST(req: Request) {
     });
   }
 
-  const paypalConfigured = !!(
-    process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET
-  );
-
-  if (method === "paypal") {
-    if (!paypalConfigured) {
-      return NextResponse.json(
-        {
-          error:
-            "PayPal is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET, or use mock-pay during development.",
-        },
-        { status: 501 }
-      );
-    }
-    // TODO Phase 7: real PayPal create-order + capture-order flow.
-    return NextResponse.json(
-      { error: "PayPal checkout integration is not finished yet." },
-      { status: 501 }
-    );
-  }
-
-  // method === "mock"
-  if (paypalConfigured && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Mock checkout is disabled in production." },
-      { status: 403 }
-    );
-  }
-
   const commissionPct = Number(process.env.PLATFORM_COMMISSION_PERCENT ?? "20");
   const { platformFee, creatorEarning } = commissionCalc(
     asset.price,
@@ -147,7 +127,6 @@ export async function POST(req: Request) {
         select: { id: true, licenseKey: true },
       });
 
-      // Credit the creator's pending payout balance
       await tx.user.update({
         where: { id: asset.uploaderId },
         data: { balance: { increment: creatorEarning } },
@@ -155,6 +134,25 @@ export async function POST(req: Request) {
 
       return created;
     });
+
+    await createNotifications([
+      {
+        userId: session.user.id,
+        type: "PURCHASE",
+        title: "Purchase complete",
+        body: `"${asset.title}" is now in your library.`,
+        link: "/dashboard/library",
+      },
+      {
+        userId: asset.uploaderId,
+        type: "SALE",
+        title: "You made a sale!",
+        body: `Someone bought "${asset.title}" — ${formatPrice(
+          creatorEarning
+        )} was added to your balance.`,
+        link: "/dashboard/earnings",
+      },
+    ]);
 
     return NextResponse.json({
       ok: true,

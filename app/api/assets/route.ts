@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { savePublic, savePrivate, deletePublic, deletePrivate } from "@/lib/storage";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  validateAssetFile,
+  validatePreviewImage,
+} from "@/lib/upload-validation";
 import type { FileType } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -24,16 +28,7 @@ const VALID_CATEGORIES = [
   "textures",
   "hdris",
   "materials",
-  "2d-graphics",
-  "plugins",
 ];
-
-const ALLOWED_PREVIEW_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/webp",
-]);
 
 export async function POST(req: Request) {
   // 20 uploads per hour per IP — generous for legitimate creators, hard
@@ -47,6 +42,19 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  // Only Collaborator (CREATOR) and ADMIN accounts may upload. Plain USER
+  // accounts are buy-only — reject server-side so a hidden nav tab can't be
+  // bypassed by posting directly to this endpoint.
+  if (session.user.role === "USER") {
+    return NextResponse.json(
+      {
+        error:
+          "Your account type can't upload assets. Register as a Collaborator to sell.",
+      },
+      { status: 403 }
+    );
   }
 
   let form: FormData;
@@ -129,11 +137,26 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  if (!ALLOWED_PREVIEW_TYPES.has(preview.type)) {
-    return NextResponse.json(
-      { error: "Preview must be a PNG, JPEG, or WebP image." },
-      { status: 400 }
-    );
+
+  // ─── Strong content validation ────────────────────────────────────────────
+  // Read both files once — the buffers are reused below for saving. Magic-byte
+  // checks verify the file's actual contents, not just its extension, so a
+  // renamed executable or a mismatched format is rejected here.
+  const fileBuf = Buffer.from(await file.arrayBuffer());
+  const previewBuf = Buffer.from(await preview.arrayBuffer());
+
+  const fileCheck = validateAssetFile(file.name, fileType, fileBuf);
+  if (!fileCheck.ok) {
+    return NextResponse.json({ error: fileCheck.error }, { status: 400 });
+  }
+
+  const previewCheck = validatePreviewImage(
+    preview.name,
+    preview.type,
+    previewBuf
+  );
+  if (!previewCheck.ok) {
+    return NextResponse.json({ error: previewCheck.error }, { status: 400 });
   }
 
   // Tags: comma-separated, deduplicated, lowercase, max 10
@@ -153,15 +176,12 @@ export async function POST(req: Request) {
   let savedModelUrl: string | null = null;
 
   try {
-    const previewBuf = Buffer.from(await preview.arrayBuffer());
     const previewSaved = await savePublic(
       `previews/${session.user.id}`,
       preview.name || "preview.png",
       previewBuf
     );
     savedPreviewUrl = previewSaved.url;
-
-    const fileBuf = Buffer.from(await file.arrayBuffer());
 
     // If the asset itself is a glTF/GLB, ALSO save a publicly-readable copy so
     // it can be loaded into the in-browser 3D viewer. The private fileKey is

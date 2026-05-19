@@ -29,9 +29,19 @@ interface EnvShape {
 
   // Real payments need these. Without them the checkout falls back to mock-pay,
   // which is hard-disabled in production by /api/payments/checkout.
-  PAYPAL_CLIENT_ID?: string;
-  PAYPAL_CLIENT_SECRET?: string;
-  PAYPAL_MODE?: "sandbox" | "live";
+  RAZORPAY_KEY_ID?: string;
+  RAZORPAY_KEY_SECRET?: string;
+
+  // Secret for verifying inbound Razorpay webhooks. Set this to the same
+  // value configured in the Razorpay dashboard's webhook settings.
+  RAZORPAY_WEBHOOK_SECRET?: string;
+
+  // RazorpayX is a SEPARATE product (and separate API key) used only for
+  // creator payouts. Without these, admin payouts work in manual mode —
+  // admin sends money via bank transfer and marks the row PAID by hand.
+  RAZORPAY_X_KEY_ID?: string;
+  RAZORPAY_X_KEY_SECRET?: string;
+  RAZORPAY_X_ACCOUNT_NUMBER?: string;
 
   // ─── Optional ─────────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID?: string;
@@ -85,11 +95,18 @@ const [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET] = readPair(
   "GOOGLE_CLIENT_SECRET",
   "Google OAuth"
 );
-const [PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET] = readPair(
-  "PAYPAL_CLIENT_ID",
-  "PAYPAL_CLIENT_SECRET",
-  "PayPal"
+const [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET] = readPair(
+  "RAZORPAY_KEY_ID",
+  "RAZORPAY_KEY_SECRET",
+  "Razorpay"
 );
+const [RAZORPAY_X_KEY_ID, RAZORPAY_X_KEY_SECRET] = readPair(
+  "RAZORPAY_X_KEY_ID",
+  "RAZORPAY_X_KEY_SECRET",
+  "RazorpayX"
+);
+const RAZORPAY_X_ACCOUNT_NUMBER = read("RAZORPAY_X_ACCOUNT_NUMBER");
+const RAZORPAY_WEBHOOK_SECRET = read("RAZORPAY_WEBHOOK_SECRET");
 
 // ─── Optional ────────────────────────────────────────────────────────────────
 const R2_ACCOUNT_ID = read("R2_ACCOUNT_ID");
@@ -97,7 +114,6 @@ const R2_ACCESS_KEY_ID = read("R2_ACCESS_KEY_ID");
 const R2_SECRET_ACCESS_KEY = read("R2_SECRET_ACCESS_KEY");
 const R2_BUCKET_NAME = read("R2_BUCKET_NAME");
 const R2_PUBLIC_URL = read("R2_PUBLIC_URL");
-const PAYPAL_MODE = (read("PAYPAL_MODE") as "sandbox" | "live") ?? "sandbox";
 const ADMIN_EMAIL = read("ADMIN_EMAIL");
 const PLATFORM_COMMISSION_PERCENT = read("PLATFORM_COMMISSION_PERCENT");
 const DIRECT_URL = read("DIRECT_URL");
@@ -113,9 +129,12 @@ export const env = {
   R2_SECRET_ACCESS_KEY,
   R2_BUCKET_NAME,
   R2_PUBLIC_URL,
-  PAYPAL_CLIENT_ID,
-  PAYPAL_CLIENT_SECRET,
-  PAYPAL_MODE,
+  RAZORPAY_KEY_ID,
+  RAZORPAY_KEY_SECRET,
+  RAZORPAY_WEBHOOK_SECRET,
+  RAZORPAY_X_KEY_ID,
+  RAZORPAY_X_KEY_SECRET,
+  RAZORPAY_X_ACCOUNT_NUMBER,
   ADMIN_EMAIL,
   PLATFORM_COMMISSION_PERCENT,
   DIRECT_URL,
@@ -130,6 +149,12 @@ export const flags = {
     R2_SECRET_ACCESS_KEY &&
     R2_BUCKET_NAME
   ),
-  hasPayPal: !!(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET),
+  hasRazorpay: !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET),
+  hasRazorpayWebhook: !!RAZORPAY_WEBHOOK_SECRET,
+  hasRazorpayX: !!(
+    RAZORPAY_X_KEY_ID &&
+    RAZORPAY_X_KEY_SECRET &&
+    RAZORPAY_X_ACCOUNT_NUMBER
+  ),
   hasAdminBootstrap: !!ADMIN_EMAIL,
 } as const;
