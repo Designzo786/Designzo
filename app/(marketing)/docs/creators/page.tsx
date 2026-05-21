@@ -54,13 +54,6 @@ export default function CreatorGuidePage() {
             OBJ, BLEND, USDZ, STL, DAE, 3DS, PLY
           </li>
           <li>
-            <strong className="text-primary">Textures:</strong> PNG, JPG, WebP,
-            TGA, TIFF, BMP, EXR
-          </li>
-          <li>
-            <strong className="text-primary">HDRIs:</strong> HDR, EXR
-          </li>
-          <li>
             <strong className="text-primary">Materials:</strong> ZIP, SBSAR,
             MTL, MAT, GLSL
           </li>

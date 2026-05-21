@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
-import { Box, Mountain, Layers, Palette, ArrowUpRight } from "lucide-react";
+import { Box, Layers, ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 const CATEGORIES = [
@@ -10,20 +10,6 @@ const CATEGORIES = [
     description: "Game-ready models, characters, props",
     icon: Box,
     accent: "from-violet-500/20 to-purple-500/5",
-  },
-  {
-    slug: "textures",
-    name: "Textures",
-    description: "PBR textures, surfaces, decals",
-    icon: Palette,
-    accent: "from-fuchsia-500/20 to-pink-500/5",
-  },
-  {
-    slug: "hdris",
-    name: "HDRIs",
-    description: "Environment maps and skies",
-    icon: Mountain,
-    accent: "from-amber-500/20 to-orange-500/5",
   },
   {
     slug: "materials",

@@ -22,16 +22,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "GameChanger — 3D & 2D Asset Marketplace",
+    default: "GameChanger — 3D Asset Marketplace",
     template: "%s | GameChanger",
   },
   description:
-    "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium 3D models, textures, HDRIs, materials, and 2D graphics.",
+    "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium 3D models and materials.",
   keywords: [
     "3D assets",
     "3D models",
-    "textures",
-    "HDRI",
+    "materials",
     "game assets",
     "digital marketplace",
     "AR assets",

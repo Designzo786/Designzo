@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Box, Mountain, Layers, Palette } from "lucide-react";
+import { ChevronDown, Box, Layers } from "lucide-react";
 import { useDropdown } from "@/hooks/useDropdown";
 import { cn } from "@/lib/utils";
 
@@ -11,18 +11,6 @@ const CATEGORIES = [
     name: "3D Models",
     description: "Game-ready models, characters, props",
     icon: Box,
-  },
-  {
-    slug: "textures",
-    name: "Textures",
-    description: "PBR textures, surfaces, decals",
-    icon: Palette,
-  },
-  {
-    slug: "hdris",
-    name: "HDRIs",
-    description: "Environment maps and skies",
-    icon: Mountain,
   },
   {
     slug: "materials",

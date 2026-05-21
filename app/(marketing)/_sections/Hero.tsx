@@ -42,8 +42,8 @@ export function Hero() {
 
           <p className="mt-6 text-base sm:text-lg text-secondary max-w-xl mx-auto leading-relaxed">
             Manage, distribute, and monetize 3D assets. Browse thousands of
-            premium models, textures, and HDRIs crafted by the world&apos;s
-            best creators.
+            premium models and materials crafted by the world&apos;s best
+            creators.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">

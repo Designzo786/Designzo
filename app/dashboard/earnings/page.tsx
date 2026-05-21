@@ -64,6 +64,7 @@ export default async function EarningsPage() {
         status: true,
         createdAt: true,
         razorpayPayoutId: true,
+        transactionRef: true,
         failureReason: true,
       },
     }),
@@ -95,7 +96,8 @@ export default async function EarningsPage() {
           Earnings
         </h1>
         <p className="text-sm text-muted mt-1">
-          Track creator earnings and request bank payouts via RazorpayX.
+          Track creator earnings and request bank payouts. Once approved
+          you&apos;ll receive a transaction reference (UTR) by email.
         </p>
       </header>
 
@@ -175,7 +177,7 @@ export default async function EarningsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-muted text-xs font-mono">
-                        {p.razorpayPayoutId ?? "—"}
+                        {p.transactionRef ?? p.razorpayPayoutId ?? "—"}
                       </td>
                     </tr>
                   );

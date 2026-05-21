@@ -45,13 +45,9 @@ export const MOCK_ASSETS: MockAsset[] = [
   { id: "cube-lattice", title: "Cube Lattice Pack", creator: "harden", price: 14900, category: "3d-models", fileType: "MODEL_3D", tags: ["architecture", "modular"], rating: 4.6, downloads: 421, createdAt: "2026-04-20", preview: { shape: "box", color: "#10b981" }, description: "A modular cube-lattice pack — snap pieces together to build procedural architecture and abstract environments without modeling.", format: ".glb, .fbx, .obj", fileSize: 11_848_909 },
   { id: "donut-ring", title: "Donut Ring", creator: "pixelvault", price: 9900, category: "3d-models", fileType: "MODEL_3D", tags: ["food", "stylized"], rating: 4.5, downloads: 678, createdAt: "2026-04-18", preview: { shape: "torus", color: "#3b82f6" }, description: "A stylized donut model rigged for animation. Includes glaze and sprinkle variants as separate material slots.", format: ".blend, .fbx", fileSize: 3_774_873 },
   { id: "octahedron-set", title: "Crystal Octahedron Set", creator: "radial", price: 22900, category: "3d-models", fileType: "MODEL_3D", tags: ["crystal", "gem"], rating: 4.9, downloads: 1502, createdAt: "2026-04-26", preview: { shape: "octahedron", color: "#ec4899" }, description: "A pack of six crystal octahedrons in low-poly and high-poly variants, each with full PBR materials and dispersion.", format: ".glb, .fbx", fileSize: 19_084_902 },
-  { id: "studio-hdri-1", title: "Studio HDRI - Soft Light", creator: "lumenlab", price: 12900, category: "hdris", fileType: "HDRI", tags: ["studio", "soft"], rating: 4.8, downloads: 980, createdAt: "2026-04-24", preview: { shape: "sphere", color: "#fbbf24" }, description: "Soft three-point studio lighting captured in 8K. Neutral white background — ideal for product renders and clean shots.", format: ".hdr, .exr", fileSize: 91_645_132 },
-  { id: "concrete-pbr", title: "Concrete PBR Pack", creator: "texturefoundry", price: 0, category: "textures", fileType: "TEXTURE", tags: ["pbr", "concrete", "free"], rating: 4.7, downloads: 12400, createdAt: "2026-04-29", preview: { shape: "box", color: "#71717a" }, description: "Eight seamless concrete textures with full PBR maps: albedo, normal, roughness, AO, and displacement at 4K.", format: ".png, .jpg", fileSize: 148_897_792 },
   { id: "iridescent-shader", title: "Iridescent Shader", creator: "matlab", price: 34900, category: "materials", fileType: "MATERIAL", tags: ["shader", "iridescent"], rating: 4.9, downloads: 678, createdAt: "2026-04-27", preview: { shape: "icosahedron", color: "#22d3ee" }, description: "A real-time iridescent shader with full PBR support. Includes GLSL source and a drop-in Three.js example.", format: ".glsl, .js", fileSize: 419_430 },
   { id: "glass-cylinder", title: "Glass Cylinder Vase", creator: "minimal", price: 12900, category: "3d-models", fileType: "MODEL_3D", tags: ["glass", "minimal"], rating: 4.6, downloads: 489, createdAt: "2026-04-19", preview: { shape: "cylinder", color: "#84cc16" }, description: "A minimalist glass cylinder vase with refraction and dispersion. Ideal for product mockups and editorial shots.", format: ".glb, .fbx", fileSize: 2_202_009 },
   { id: "low-poly-tree", title: "Low Poly Tree", creator: "stylized", price: 0, category: "3d-models", fileType: "MODEL_3D", tags: ["nature", "lowpoly", "free"], rating: 4.5, downloads: 8934, createdAt: "2026-04-30", preview: { shape: "cone", color: "#22c55e" }, description: "Five low-poly tree variants with stylized canopies. Free for personal and commercial use, no attribution required.", format: ".glb, .fbx", fileSize: 1_782_579 },
-  { id: "outdoor-hdri", title: "Outdoor Sunset HDRI", creator: "lumenlab", price: 17900, category: "hdris", fileType: "HDRI", tags: ["outdoor", "sunset"], rating: 4.9, downloads: 1840, createdAt: "2026-04-21", preview: { shape: "sphere", color: "#fb7185" }, description: "A golden-hour sunset captured at 12K. Strong directional sun with warm ambient skylight for cinematic shots.", format: ".hdr, .exr", fileSize: 130_023_424 },
-  { id: "metal-textures", title: "Metal Textures Vol. 2", creator: "texturefoundry", price: 15900, category: "textures", fileType: "TEXTURE", tags: ["metal", "pbr"], rating: 4.7, downloads: 1230, createdAt: "2026-04-17", preview: { shape: "box", color: "#94a3b8" }, description: "Sixteen metal textures with full PBR maps. Includes brushed, polished, oxidized, and worn variants at 4K.", format: ".png", fileSize: 192_937_984 },
   { id: "cloth-material", title: "Cloth Material Bundle", creator: "matlab", price: 24900, category: "materials", fileType: "MATERIAL", tags: ["cloth", "fabric"], rating: 4.8, downloads: 745, createdAt: "2026-04-14", preview: { shape: "sphere", color: "#f43f5e" }, description: "A bundle of eight cloth materials — linen, silk, wool, denim — with PBR and microfiber detail maps.", format: ".png, .jpg", fileSize: 40_475_852 },
 ];
 
@@ -143,15 +139,11 @@ export function getRelatedAssets(asset: MockAsset, limit = 3): MockAsset[] {
 
 export const CATEGORIES = [
   { slug: "3d-models", name: "3D Models" },
-  { slug: "textures", name: "Textures" },
-  { slug: "hdris", name: "HDRIs" },
   { slug: "materials", name: "Materials" },
 ] as const;
 
 export const FILE_TYPES = [
   { slug: "MODEL_3D", name: "3D Model" },
-  { slug: "TEXTURE", name: "Texture" },
-  { slug: "HDRI", name: "HDRI" },
   { slug: "MATERIAL", name: "Material" },
   { slug: "IMAGE_2D", name: "2D Image" },
   { slug: "PLUGIN", name: "Plugin" },

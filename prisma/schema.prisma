@@ -318,6 +318,10 @@ model Payout {
   // RazorpayX transaction ID — set when admin triggers the actual payout
   // via the RazorpayX API. NULL means the payout is still queued in our DB.
   razorpayPayoutId String?
+  // For manual payouts: the bank UTR / IMPS reference the admin records
+  // when marking the payout PAID. Surfaced to the creator so they can
+  // reconcile it against their bank statement.
+  transactionRef   String?
   failureReason    String?
 
   createdAt DateTime @default(now())

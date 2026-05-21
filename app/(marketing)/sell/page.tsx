@@ -37,7 +37,7 @@ const STEPS = [
   {
     n: "2",
     title: "Upload your asset",
-    text: "Add your 3D model, texture, or HDRI with a preview image, description, and price.",
+    text: "Add your 3D model or material with a preview image, description, and price.",
   },
   {
     n: "3",
@@ -62,8 +62,8 @@ export default function SellPage() {
           Turn your 3D work into income
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          Join GameChanger as a Collaborator and sell your models, textures, and
-          HDRIs to creators around the world.
+          Join GameChanger as a Collaborator and sell your models and materials
+          to creators around the world.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <Link

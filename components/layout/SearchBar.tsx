@@ -24,7 +24,7 @@ const MIN_CHARS = 2;
 
 export function SearchBar({
   className,
-  placeholder = "Search 3D models, textures, HDRIs…",
+  placeholder = "Search 3D models, materials…",
   autoFocus = false,
 }: SearchBarProps) {
   const router = useRouter();

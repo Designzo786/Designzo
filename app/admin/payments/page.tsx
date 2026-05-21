@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Building2, AlertCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { maskBankAccount } from "@/lib/kyc";
 import { PayoutActions } from "./PayoutActions";
 import type { PayoutStatus } from "@prisma/client";
 
@@ -34,7 +36,18 @@ export default async function AdminPayoutsPage({
   const payouts = await prisma.payout.findMany({
     where: filter === "ALL" ? {} : { status: filter as PayoutStatus },
     include: {
-      creator: { select: { id: true, name: true, email: true } },
+      creator: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          // Bank fields admin needs to actually send the money for manual payouts
+          bankAccountName: true,
+          bankName: true,
+          bankAccount: true,
+          bankIfsc: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -47,7 +60,9 @@ export default async function AdminPayoutsPage({
           Payouts
         </h1>
         <p className="text-sm text-muted mt-1">
-          Review and process creator payout requests.
+          Review and process creator payout requests. For manual payouts:
+          send the amount to the creator&apos;s bank, then mark the row
+          paid with the transaction reference (UTR / IMPS ref).
         </p>
       </header>
 
@@ -84,6 +99,7 @@ export default async function AdminPayoutsPage({
             <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
               <tr>
                 <th className="text-left font-medium px-4 py-3">Creator</th>
+                <th className="text-left font-medium px-4 py-3">Send to</th>
                 <th className="text-left font-medium px-4 py-3">Amount</th>
                 <th className="text-left font-medium px-4 py-3">Requested</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
@@ -91,38 +107,83 @@ export default async function AdminPayoutsPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {payouts.map((p) => (
-                <tr key={p.id} className="hover:bg-elevated/50">
-                  <td className="px-4 py-3 text-secondary">
-                    <div className="font-medium text-primary truncate max-w-[200px]">
-                      {p.creator.name ?? "—"}
-                    </div>
-                    <div className="text-xs text-muted truncate max-w-[200px]">
-                      {p.creator.email}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-primary">
-                    {formatPrice(p.amount)}
-                  </td>
-                  <td className="px-4 py-3 text-muted text-xs">
-                    {new Intl.DateTimeFormat("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    }).format(p.createdAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[p.status]}`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <PayoutActions payoutId={p.id} status={p.status} />
-                  </td>
-                </tr>
-              ))}
+              {payouts.map((p) => {
+                const hasBank =
+                  !!p.creator.bankAccount && !!p.creator.bankIfsc;
+                const isOpen = p.status === "PENDING" || p.status === "PROCESSING";
+                return (
+                  <tr key={p.id} className="hover:bg-elevated/50 align-top">
+                    <td className="px-4 py-3 text-secondary">
+                      <div className="font-medium text-primary truncate max-w-[200px]">
+                        {p.creator.name ?? "—"}
+                      </div>
+                      <div className="text-xs text-muted truncate max-w-[200px]">
+                        {p.creator.email}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {hasBank ? (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-primary font-medium">
+                            <Building2 className="w-3 h-3 text-muted" />
+                            {p.creator.bankName ?? "Bank"}
+                          </div>
+                          <div className="text-secondary">
+                            {p.creator.bankAccountName ?? "—"}
+                          </div>
+                          <div className="font-mono text-muted">
+                            {maskBankAccount(p.creator.bankAccount)}
+                          </div>
+                          <div className="font-mono text-muted">
+                            IFSC: {p.creator.bankIfsc}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-danger">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          KYC incomplete
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-primary whitespace-nowrap">
+                      {formatPrice(p.amount)}
+                    </td>
+                    <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
+                      {new Intl.DateTimeFormat("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }).format(p.createdAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[p.status]}`}
+                        >
+                          {p.status}
+                        </span>
+                        {p.status === "PAID" && p.transactionRef && (
+                          <div className="text-[10px] font-mono text-muted">
+                            Ref: {p.transactionRef}
+                          </div>
+                        )}
+                        {p.status === "FAILED" && p.failureReason && (
+                          <div className="text-[10px] text-danger max-w-[160px]">
+                            {p.failureReason}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <PayoutActions
+                        payoutId={p.id}
+                        status={p.status}
+                        canPay={hasBank || !isOpen}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

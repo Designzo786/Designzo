@@ -23,7 +23,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What file formats do you support?",
-    a: "3D models: GLTF, GLB, FBX, OBJ, BLEND, USDZ. Textures: PNG, JPG, WEBP, EXR. HDRIs: HDR, EXR. Materials: standard PBR map sets. If your format isn't listed, contact us and we'll consider adding it.",
+    a: "3D models: GLTF, GLB, FBX, OBJ, BLEND, USDZ. Materials: standard PBR map sets. If your format isn't listed, contact us and we'll consider adding it.",
   },
   {
     q: "Are downloads time-limited?",

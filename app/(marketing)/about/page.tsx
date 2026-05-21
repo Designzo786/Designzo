@@ -48,7 +48,7 @@ export default function AboutPage() {
           buying and selling it has long been clunky and unfair to the people
           who actually make it. We built GameChanger to fix that: a clean,
           fast marketplace that treats creators as partners and gives buyers a
-          dependable place to source models, textures, and HDRIs.
+          dependable place to source models and materials.
         </p>
         <p className="mt-3 text-secondary leading-relaxed">
           Every asset is human-reviewed, every download is licensed clearly,

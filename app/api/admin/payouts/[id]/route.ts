@@ -7,7 +7,9 @@ import {
   mapRazorpayXStatus,
 } from "@/lib/razorpay-payouts";
 import { createNotification } from "@/lib/notifications";
+import { sendEmail, renderPayoutPaidEmail } from "@/lib/email";
 import { formatPrice } from "@/lib/utils";
+import { getPublicBaseUrl } from "@/lib/env";
 import type { PayoutStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -21,9 +23,12 @@ const VALID: PayoutStatus[] = ["PENDING", "PROCESSING", "PAID", "FAILED"];
  *                         API call; otherwise just flip the status (admin
  *                         sends money manually in offline mode).
  *
- *   PROCESSING → PAID:    final settled state. Irreversible.
+ *   * → PAID:             final settled state. The admin records the bank
+ *                         UTR / IMPS reference (`transactionRef`) so the
+ *                         creator can reconcile the deposit on their
+ *                         statement; we email it to them too.
  *
- *   *           → FAILED: admin marks a payout failed (e.g. RazorpayX
+ *   * → FAILED:           admin marks a payout failed (e.g. RazorpayX
  *                         rejected, bank bounced). Refunds the amount back
  *                         to the creator's balance so they can retry.
  */
@@ -45,9 +50,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { status, failureReason } = (body ?? {}) as {
+  const { status, failureReason, transactionRef } = (body ?? {}) as {
     status?: PayoutStatus;
     failureReason?: string;
+    transactionRef?: string;
   };
 
   if (!status || !VALID.includes(status)) {
@@ -62,6 +68,7 @@ export async function PATCH(
       amount: true,
       creatorId: true,
       razorpayPayoutId: true,
+      creator: { select: { name: true, email: true } },
     },
   });
   if (!existing) {
@@ -106,6 +113,14 @@ export async function PATCH(
     resolvedFailureReason = failureReason ?? null;
   }
 
+  // Trim and only persist the transaction reference when actually marking PAID.
+  // Other transitions don't touch the field, so an earlier ref survives a
+  // back-and-forth.
+  const refToSave =
+    resolvedStatus === "PAID"
+      ? (transactionRef?.trim() || null)
+      : undefined;
+
   // FAILED transitions need to credit the amount back to the creator's
   // balance so they don't permanently lose it. Bundle that with the
   // status update in a single transaction.
@@ -131,6 +146,7 @@ export async function PATCH(
         status: resolvedStatus,
         failureReason: resolvedFailureReason,
         razorpayPayoutId,
+        ...(refToSave !== undefined ? { transactionRef: refToSave } : {}),
       },
     });
   }
@@ -140,7 +156,10 @@ export async function PATCH(
     action: `PAYOUT_${resolvedStatus}`,
     targetId: id,
     targetType: "PAYOUT",
-    note: failureReason ?? (razorpayPayoutId ? `RX: ${razorpayPayoutId}` : undefined),
+    note:
+      failureReason ??
+      refToSave ??
+      (razorpayPayoutId ? `RX: ${razorpayPayoutId}` : undefined),
   });
 
   // Keep the creator informed of where their payout stands.
@@ -154,13 +173,29 @@ export async function PATCH(
       link: "/dashboard/earnings",
     });
   } else if (resolvedStatus === "PAID") {
+    const refSuffix = refToSave ? ` Reference: ${refToSave}.` : "";
     await createNotification({
       userId: existing.creatorId,
       type: "PAYOUT_PAID",
       title: "Payout sent",
-      body: `${amount} has been sent to your registered bank account.`,
+      body: `${amount} has been sent to your registered bank account.${refSuffix}`,
       link: "/dashboard/earnings",
     });
+
+    // Best-effort email — never let a mail failure block the response.
+    if (existing.creator.email) {
+      try {
+        const { subject, html } = renderPayoutPaidEmail(
+          existing.creator.name ?? "there",
+          amount,
+          refToSave ?? null,
+          `${getPublicBaseUrl()}/dashboard/earnings`
+        );
+        await sendEmail({ to: existing.creator.email, subject, html });
+      } catch (err) {
+        console.error("[admin/payouts] PAID email failed:", err);
+      }
+    }
   } else if (resolvedStatus === "FAILED") {
     await createNotification({
       userId: existing.creatorId,

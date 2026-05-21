@@ -26,7 +26,7 @@ export default async function UploadAssetPage() {
           Upload an asset
         </h1>
         <p className="text-sm text-muted mt-1">
-          Submit a 3D model, texture, HDRI, or other digital asset. An admin
+          Submit a 3D model, material, or other digital asset. An admin
           will review and approve it before it appears in the marketplace.
         </p>
       </header>
