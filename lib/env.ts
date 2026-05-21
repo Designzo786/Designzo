@@ -141,6 +141,23 @@ export const env = {
   IS_PROD: isProd,
 } as const;
 
+/**
+ * Returns the site's public base URL — used for email links, sitemap, robots.
+ * Resolution order:
+ *   1. NEXTAUTH_URL  (explicit; works everywhere)
+ *   2. VERCEL_URL    (auto-set by Vercel as "host.vercel.app" with no scheme)
+ *   3. localhost     (dev fallback)
+ *
+ * Strips a trailing slash so callers can confidently append paths.
+ */
+export function getPublicBaseUrl(): string {
+  const raw =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "http://localhost:3000";
+  return raw.replace(/\/$/, "");
+}
+
 export const flags = {
   hasGoogleAuth: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
   hasR2: !!(

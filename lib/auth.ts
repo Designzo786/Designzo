@@ -69,6 +69,12 @@ const PROFILE_REFRESH_MS = 60_000;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
+  // Use the incoming request's host instead of NEXTAUTH_URL. Vercel sits
+  // behind a proxy that sets X-Forwarded-Host; with this on, sign-in
+  // callbacks resolve to the live domain instead of a stale localhost URL
+  // baked into env vars.
+  trustHost: true,
+
   session: { strategy: "jwt" },
 
   providers: [

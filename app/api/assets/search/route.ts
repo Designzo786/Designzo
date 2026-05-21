@@ -25,12 +25,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: [] });
   }
 
+  // `mode: "insensitive"` makes Postgres use ILIKE, so capitalisation never
+  // matters. Tags are stored normalised to lowercase at upload time, so a
+  // simple `has` with `q.toLowerCase()` matches case-insensitively too.
+  const needle = q.toLowerCase();
   const results = await prisma.asset.findMany({
     where: {
       status: "APPROVED",
       OR: [
         { title: { contains: q, mode: "insensitive" } },
-        { tags: { has: q.toLowerCase() } },
+        { description: { contains: q, mode: "insensitive" } },
+        { tags: { has: needle } },
       ],
     },
     orderBy: { downloads: "desc" },

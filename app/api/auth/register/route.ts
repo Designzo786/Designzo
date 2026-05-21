@@ -5,6 +5,7 @@ import { maybePromoteAdmin } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { issueToken } from "@/lib/auth-tokens";
 import { sendEmail, renderVerifyEmail } from "@/lib/email";
+import { getPublicBaseUrl } from "@/lib/env";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -108,9 +109,7 @@ export async function POST(req: Request) {
     // if email fails (user can hit "resend" later).
     try {
       const secret = await issueToken("verify", user.email);
-      const baseUrl =
-        process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-      const verifyUrl = `${baseUrl}/verify-email?email=${encodeURIComponent(user.email)}&token=${secret}`;
+      const verifyUrl = `${getPublicBaseUrl()}/verify-email?email=${encodeURIComponent(user.email)}&token=${secret}`;
       const { subject, html } = renderVerifyEmail(user.name ?? "there", verifyUrl);
       await sendEmail({ to: user.email, subject, html });
     } catch (err) {

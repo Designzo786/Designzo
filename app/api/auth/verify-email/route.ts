@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { consumeToken, issueToken } from "@/lib/auth-tokens";
 import { sendEmail, renderVerifyEmail } from "@/lib/email";
+import { getPublicBaseUrl } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -79,8 +80,7 @@ export async function PUT(req: Request) {
 
   try {
     const secret = await issueToken("verify", user.email);
-    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-    const verifyUrl = `${baseUrl}/verify-email?email=${encodeURIComponent(user.email)}&token=${secret}`;
+    const verifyUrl = `${getPublicBaseUrl()}/verify-email?email=${encodeURIComponent(user.email)}&token=${secret}`;
     const { subject, html } = renderVerifyEmail(user.name ?? "there", verifyUrl);
     await sendEmail({ to: user.email, subject, html });
   } catch (err) {

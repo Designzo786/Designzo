@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { MOCK_ASSETS } from "@/lib/mock/assets";
+import { getPublicBaseUrl } from "@/lib/env";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const base = getPublicBaseUrl();
   const now = new Date();
 
   // Static high-value pages

@@ -17,18 +17,31 @@ import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 import type { Session } from "next-auth";
 
-const ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+type MenuItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  // Collaborator-only entries. Plain USER accounts (buy-only) never see these
+  // — they just get "My Library" and "Profile", matching the dashboard nav.
+  creatorOnly?: boolean;
+};
+
+const ITEMS: MenuItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, creatorOnly: true },
   { href: "/dashboard/library", label: "My Library", icon: Library },
-  { href: "/dashboard/uploads", label: "My Assets", icon: Upload },
-  { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign },
+  { href: "/dashboard/uploads", label: "My Assets", icon: Upload, creatorOnly: true },
+  { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign, creatorOnly: true },
   { href: "/dashboard/profile", label: "Profile", icon: Settings },
-  { href: "/dashboard/kyc", label: "KYC & Legal", icon: ShieldCheck },
+  { href: "/dashboard/kyc", label: "KYC & Legal", icon: ShieldCheck, creatorOnly: true },
 ];
 
 export function UserMenu({ session }: { session: Session }) {
   const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
   const isAdmin = session.user.role === "ADMIN";
+  const items =
+    session.user.role === "USER"
+      ? ITEMS.filter((i) => !i.creatorOnly)
+      : ITEMS;
 
   return (
     <div ref={ref} className="relative">
@@ -65,7 +78,7 @@ export function UserMenu({ session }: { session: Session }) {
             </div>
           </div>
 
-          {ITEMS.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             return (
               <Link

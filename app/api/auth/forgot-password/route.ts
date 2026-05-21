@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { issueToken } from "@/lib/auth-tokens";
 import { sendEmail, renderResetEmail } from "@/lib/email";
+import { getPublicBaseUrl } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,8 +47,7 @@ export async function POST(req: Request) {
   if (user && user.passwordHash) {
     try {
       const secret = await issueToken("reset", user.email);
-      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-      const resetUrl = `${baseUrl}/reset-password?email=${encodeURIComponent(user.email)}&token=${secret}`;
+      const resetUrl = `${getPublicBaseUrl()}/reset-password?email=${encodeURIComponent(user.email)}&token=${secret}`;
       const { subject, html } = renderResetEmail(user.name ?? "there", resetUrl);
       await sendEmail({ to: user.email, subject, html });
     } catch (err) {
