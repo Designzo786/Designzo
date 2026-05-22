@@ -14,12 +14,7 @@ export const runtime = "nodejs";
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 
-const VALID_FILE_TYPES: FileType[] = [
-  "MODEL_3D",
-  "MATERIAL",
-  "PLUGIN",
-  "IMAGE_2D",
-];
+const VALID_FILE_TYPES: FileType[] = ["MODEL_3D", "MATERIAL"];
 
 const VALID_CATEGORIES = ["3d-models", "materials"];
 

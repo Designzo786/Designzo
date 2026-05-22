@@ -145,8 +145,6 @@ export const CATEGORIES = [
 export const FILE_TYPES = [
   { slug: "MODEL_3D", name: "3D Model" },
   { slug: "MATERIAL", name: "Material" },
-  { slug: "IMAGE_2D", name: "2D Image" },
-  { slug: "PLUGIN", name: "Plugin" },
 ] as const;
 
 export const PRICE_RANGES = [

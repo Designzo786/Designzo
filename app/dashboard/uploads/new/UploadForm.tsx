@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X, Image as ImageIcon, FileBox } from "lucide-react";
+import { Upload, X, Image as ImageIcon, FileBox, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
@@ -13,6 +13,40 @@ import type { FileType } from "@prisma/client";
 
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
+
+interface UploadResult {
+  ok: boolean;
+  data: { error?: string; id?: string };
+}
+
+// fetch() can't report upload progress — XMLHttpRequest can. This wraps an
+// XHR POST so the form can show a real progress bar for large asset files.
+function uploadWithProgress(
+  url: string,
+  formData: FormData,
+  onProgress: (pct: number) => void
+): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      let data: UploadResult["data"] = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON response — leave data empty
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, data });
+    });
+    xhr.addEventListener("error", () => reject(new Error("Network error")));
+    xhr.send(formData);
+  });
+}
 
 export function UploadForm() {
   const router = useRouter();
@@ -29,6 +63,7 @@ export function UploadForm() {
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +159,7 @@ export function UploadForm() {
     const priceCents = Math.round(priceUsdNum * 100);
 
     setLoading(true);
+    setProgress(0);
     try {
       const fd = new FormData();
       fd.append("title", title.trim());
@@ -135,20 +171,22 @@ export function UploadForm() {
       fd.append("file", file);
       fd.append("preview", preview);
 
-      const res = await fetch("/api/assets", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
+      const res = await uploadWithProgress("/api/assets", fd, setProgress);
 
       if (!res.ok) {
-        setError(data.error ?? "Upload failed. Please try again.");
+        setError(res.data.error ?? "Upload failed. Please try again.");
         setLoading(false);
+        setProgress(0);
         return;
       }
 
+      // Keep the form locked while we navigate away — success.
       router.push("/dashboard/uploads");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
+      setProgress(0);
     }
   }
 
@@ -266,11 +304,37 @@ export function UploadForm() {
       />
 
       <div className="pt-2">
-        <Button type="submit" disabled={loading} className="min-w-[160px]">
-          {loading ? "Uploading…" : "Submit for review"}
+        {loading && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-secondary">
+                {progress < 100
+                  ? "Uploading your asset…"
+                  : "Processing — almost done…"}
+              </span>
+              <span className="font-medium text-primary">{progress}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-elevated overflow-hidden">
+              <div
+                className="h-full gradient-accent transition-all duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+        <Button type="submit" disabled={loading} className="min-w-[180px]">
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {progress < 100 ? `Uploading… ${progress}%` : "Processing…"}
+            </>
+          ) : (
+            "Submit for review"
+          )}
         </Button>
         <p className="text-xs text-muted mt-2">
-          Your asset will be reviewed by an admin before going live.
+          Your asset will be reviewed by an admin before going live. Large
+          files may take a moment to upload — keep this tab open.
         </p>
       </div>
     </form>

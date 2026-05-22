@@ -28,14 +28,14 @@ export const EXTENSIONS_BY_TYPE: Record<FileType, string[]> = {
     "3ds",
     "ply",
   ],
-  // TEXTURE and HDRI are kept on the Prisma enum so any legacy rows still
-  // type-check, but they're not accepted for new uploads (omitted from
-  // VALID_FILE_TYPES) and not exposed in the UI's FILE_TYPES list.
+  // TEXTURE, HDRI, IMAGE_2D and PLUGIN are kept on the Prisma enum so any
+  // legacy rows still type-check, but they're not accepted for new uploads
+  // (omitted from VALID_FILE_TYPES) and not shown in the UI's FILE_TYPES list.
   TEXTURE: [],
   HDRI: [],
+  IMAGE_2D: [],
+  PLUGIN: [],
   MATERIAL: ["zip", "sbsar", "mtl", "mat", "glsl"],
-  IMAGE_2D: ["png", "jpg", "jpeg", "webp", "svg", "gif"],
-  PLUGIN: ["zip"],
 };
 
 // Extensions that are never acceptable — listed explicitly so a misconfigured
