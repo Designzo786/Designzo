@@ -29,7 +29,7 @@ export function CTA() {
           </p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/register"
+              href="/register?type=collaborator"
               className="group h-12 px-7 rounded-xl text-sm font-semibold text-black gradient-text-gold bg-gold flex items-center justify-center gap-2 shadow-[0_0_36px_rgba(245,158,11,0.35)] hover:shadow-[0_0_48px_rgba(245,158,11,0.55)] transition-all"
             >
               Become a creator

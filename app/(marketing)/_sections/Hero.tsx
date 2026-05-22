@@ -55,7 +55,7 @@ export function Hero() {
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href="/register"
+              href="/register?type=collaborator"
               className="h-12 px-6 rounded-xl text-sm font-semibold text-primary bg-elevated border border-border-hover flex items-center justify-center hover:bg-overlay hover:border-accent transition-all"
             >
               Become a creator

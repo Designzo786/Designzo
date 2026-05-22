@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -23,9 +23,23 @@ import { cn } from "@/lib/utils";
 type AccountType = "user" | "collaborator";
 
 export default function RegisterPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
 
-  const [accountType, setAccountType] = useState<AccountType>("user");
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // A "Become a creator" link arrives with ?type=collaborator — pre-select
+  // that tab so the user doesn't have to switch it themselves.
+  const initialType: AccountType =
+    searchParams.get("type") === "collaborator" ? "collaborator" : "user";
+
+  const [accountType, setAccountType] = useState<AccountType>(initialType);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

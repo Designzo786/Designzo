@@ -67,7 +67,7 @@ export default function SellPage() {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/register"
+            href="/register?type=collaborator"
             className="group h-12 px-7 rounded-xl text-sm font-semibold text-white gradient-accent flex items-center justify-center gap-2 shadow-[0_0_32px_rgba(124,58,237,0.35)] hover:shadow-[0_0_48px_rgba(124,58,237,0.55)] transition-all"
           >
             Become a creator
@@ -137,7 +137,7 @@ export default function SellPage() {
           It takes a few minutes to list an asset and start earning.
         </p>
         <Link
-          href="/register"
+          href="/register?type=collaborator"
           className="inline-flex items-center gap-2 mt-6 h-11 px-6 rounded-xl text-sm font-semibold text-white gradient-accent shadow-[0_0_24px_rgba(124,58,237,0.3)] hover:shadow-[0_0_36px_rgba(124,58,237,0.5)] transition-all"
         >
           Get started
