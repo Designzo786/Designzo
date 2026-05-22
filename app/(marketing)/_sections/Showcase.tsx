@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getAssetById } from "@/lib/mock/assets";
+import { creatorDisplayName } from "@/lib/utils";
 import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 
 // Fallback preview for real uploads with no matching mock entry — keeps the
@@ -26,7 +27,7 @@ const fetchFeatured = unstable_cache(
         avgRating: true,
         reviewCount: true,
         previewKey: true,
-        uploader: { select: { name: true } },
+        uploader: { select: { name: true, role: true } },
       },
     });
   },
@@ -46,7 +47,7 @@ export async function Showcase() {
     return {
       id: a.id,
       title: a.title,
-      creator: a.uploader.name ?? "Unknown",
+      creator: creatorDisplayName(a.uploader.name, a.uploader.role),
       price: a.price,
       rating: a.avgRating,
       reviewCount: a.reviewCount,

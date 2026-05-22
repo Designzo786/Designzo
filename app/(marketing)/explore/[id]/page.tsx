@@ -26,6 +26,7 @@ import {
   formatNumber,
   formatFileSize,
   formatDate,
+  creatorDisplayName,
 } from "@/lib/utils";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { AssetActionButton } from "@/components/assets/AssetActionButton";
@@ -79,7 +80,7 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
   try {
     const dbAsset = await prisma.asset.findUnique({
       where: { id },
-      include: { uploader: { select: { id: true, name: true } } },
+      include: { uploader: { select: { id: true, name: true, role: true } } },
     });
     if (dbAsset) {
       // Seeded sample assets keep an empty previewKey and rely on the mock
@@ -92,7 +93,10 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
       return {
         id: dbAsset.id,
         title: dbAsset.title,
-        creatorName: dbAsset.uploader.name ?? "Unknown",
+        creatorName: creatorDisplayName(
+          dbAsset.uploader.name,
+          dbAsset.uploader.role
+        ),
         creatorId: dbAsset.uploaderId,
         description: dbAsset.description,
         category: dbAsset.category,

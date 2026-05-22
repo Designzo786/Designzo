@@ -1,8 +1,22 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Role } from "@prisma/client";
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Public-facing creator name for an asset. Assets uploaded by an ADMIN are
+ * shown as official "GameChanger" listings rather than under the admin's
+ * personal name.
+ */
+export function creatorDisplayName(
+  name: string | null | undefined,
+  role: Role
+): string {
+  if (role === "ADMIN") return "GameChanger";
+  return name ?? "Unknown";
 }
 
 export function formatPrice(paise: number): string {

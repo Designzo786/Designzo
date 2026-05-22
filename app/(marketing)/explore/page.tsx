@@ -11,6 +11,7 @@ import { FilterSidebar } from "./_components/FilterSidebar";
 import { SortDropdown } from "./_components/SortDropdown";
 import { EmptyState } from "./_components/EmptyState";
 import { prisma } from "@/lib/prisma";
+import { creatorDisplayName } from "@/lib/utils";
 import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
 import type { Prisma } from "@prisma/client";
 
@@ -102,7 +103,7 @@ const CARD_SELECT = {
   category: true,
   fileType: true,
   previewKey: true,
-  uploader: { select: { name: true } },
+  uploader: { select: { name: true, role: true } },
 } satisfies Prisma.AssetSelect;
 
 // Cached, deduped browse query. `cache()` (React) dedupes within one render —
@@ -155,7 +156,7 @@ export default async function ExplorePage({
     return {
       id: a.id,
       title: a.title,
-      creator: a.uploader.name ?? "Unknown",
+      creator: creatorDisplayName(a.uploader.name, a.uploader.role),
       price: a.price,
       rating: a.avgRating,
       reviewCount: a.reviewCount,
