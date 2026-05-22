@@ -27,7 +27,7 @@ interface LogInput {
   adminId: string;
   action: string;
   targetId: string;
-  targetType: "ASSET" | "USER" | "PAYOUT";
+  targetType: "ASSET" | "USER" | "PAYOUT" | "PURCHASE";
   note?: string;
   metadata?: Record<string, unknown>;
 }

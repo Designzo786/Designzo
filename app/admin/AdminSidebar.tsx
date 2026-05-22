@@ -7,6 +7,7 @@ import {
   FileCheck,
   Users,
   UserCheck,
+  ShoppingBag,
   Wallet,
   ScrollText,
   ShieldCheck,
@@ -26,6 +27,7 @@ const ITEMS: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/creators", label: "Creators", icon: UserCheck },
   { href: "/admin/kyc", label: "KYC", icon: ShieldCheck },
+  { href: "/admin/purchases", label: "Purchases", icon: ShoppingBag },
   { href: "/admin/payments", label: "Payouts", icon: Wallet },
   { href: "/admin/logs", label: "Audit Log", icon: ScrollText },
 ];
