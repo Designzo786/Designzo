@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Building2, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { maskBankAccount } from "@/lib/kyc";
 import { PayoutActions } from "./PayoutActions";
+import { CreatePayoutButton } from "./CreatePayoutButton";
 import type { PayoutStatus } from "@prisma/client";
 
 const TABS: { value: PayoutStatus | "ALL"; label: string }[] = [
@@ -33,25 +34,36 @@ export default async function AdminPayoutsPage({
       : "PENDING"
   ) as PayoutStatus | "ALL";
 
-  const payouts = await prisma.payout.findMany({
-    where: filter === "ALL" ? {} : { status: filter as PayoutStatus },
-    include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          // Bank fields admin needs to actually send the money for manual payouts
-          bankAccountName: true,
-          bankName: true,
-          bankAccount: true,
-          bankIfsc: true,
+  const [payouts, payableCreators] = await Promise.all([
+    prisma.payout.findMany({
+      where: filter === "ALL" ? {} : { status: filter as PayoutStatus },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            // Bank fields admin needs to actually send the money for manual payouts
+            bankAccountName: true,
+            bankName: true,
+            bankAccount: true,
+            bankIfsc: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    // Creators sitting on an un-withdrawn balance — the admin can start a
+    // payout for them directly. A balance > 0 means no payout is in flight
+    // (creating one drains the balance to 0).
+    prisma.user.findMany({
+      where: { balance: { gt: 0 } },
+      select: { id: true, name: true, email: true, balance: true },
+      orderBy: { balance: "desc" },
+      take: 50,
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -65,6 +77,52 @@ export default async function AdminPayoutsPage({
           paid with the transaction reference (UTR / IMPS ref).
         </p>
       </header>
+
+      {/* Admin-initiated payouts — pay a creator without waiting for a request */}
+      <section className="rounded-xl border border-border bg-surface p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Wallet className="w-4 h-4 text-accent-light" />
+          <h2 className="text-sm font-semibold text-primary">
+            Pay a creator
+          </h2>
+        </div>
+        <p className="text-xs text-muted mb-4">
+          Creators with an un-withdrawn balance. Start a payout to move their
+          balance into the queue below, then process it.
+        </p>
+        {payableCreators.length === 0 ? (
+          <p className="text-xs text-muted">
+            No creators have a withdrawable balance right now.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {payableCreators.map((c) => (
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-4 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-primary truncate max-w-[220px]">
+                    {c.name ?? "—"}
+                  </div>
+                  <div className="text-xs text-muted truncate max-w-[220px]">
+                    {c.email}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-sm font-semibold text-primary">
+                    {formatPrice(c.balance)}
+                  </span>
+                  <CreatePayoutButton
+                    creatorId={c.id}
+                    amountLabel={formatPrice(c.balance)}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="flex gap-1 border-b border-border">
         {TABS.map((t) => {
