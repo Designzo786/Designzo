@@ -1,100 +1,93 @@
+/**
+ * Cloudflare R2 storage backend.
+ *
+ * R2 is S3-compatible, so we drive it with the AWS S3 SDK pointed at the
+ * R2 endpoint. This module holds the low-level put/get/delete; `lib/storage.ts`
+ * decides whether to use R2 (production) or local disk (dev) based on
+ * `flags.hasR2`.
+ *
+ * Required env: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+ *               R2_BUCKET_NAME, and R2_PUBLIC_URL (public bucket / CDN base
+ *               used to build browser-facing URLs for previews & avatars).
+ */
 import {
   S3Client,
-  GetObjectCommand,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// ─── Client singleton ─────────────────────────────────────────────────────────
+let _client: S3Client | null = null;
 
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID!}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
-
-export const R2_BUCKET = process.env.R2_BUCKET_NAME!;
-
-// ─── Key generation ───────────────────────────────────────────────────────────
-
-const ALLOWED_EXTENSIONS: Record<string, string[]> = {
-  assets: ["glb", "gltf", "fbx", "obj", "zip", "blend", "png", "jpg", "jpeg", "hdr", "exr"],
-  previews: ["png", "jpg", "jpeg", "webp"],
-  models: ["glb", "gltf"],
-  avatars: ["png", "jpg", "jpeg", "webp"],
-  kyc: ["png", "jpg", "jpeg", "pdf"],
-};
-
-export function generateR2Key(
-  folder: keyof typeof ALLOWED_EXTENSIONS,
-  originalFilename: string,
-  uploaderId: string
-): string {
-  const ext = originalFilename.split(".").pop()?.toLowerCase() ?? "bin";
-  if (!ALLOWED_EXTENSIONS[folder].includes(ext)) {
-    throw new Error(`File type .${ext} not allowed in ${folder}`);
+// Lazy — never construct the client (or read its env) until something
+// actually stores/reads a file, so importing this module is safe in dev.
+function client(): S3Client {
+  if (_client) return _client;
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    throw new Error("R2 is not configured.");
   }
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 10);
-  return `${folder}/${uploaderId}/${timestamp}-${random}.${ext}`;
+  _client = new S3Client({
+    region: "auto",
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+  return _client;
 }
 
-// ─── Signed URLs ──────────────────────────────────────────────────────────────
+function bucket(): string {
+  const name = process.env.R2_BUCKET_NAME;
+  if (!name) throw new Error("R2_BUCKET_NAME is not set.");
+  return name;
+}
 
-/** Signed URL for uploading a file directly from the browser to R2 (5 min) */
-export async function getUploadSignedUrl(
+export async function r2Put(
   key: string,
+  body: Buffer,
   contentType: string
-): Promise<string> {
-  const command = new PutObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: key,
-    ContentType: contentType,
-  });
-  return getSignedUrl(r2, command, { expiresIn: 300 });
+): Promise<void> {
+  await client().send(
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
 }
 
-/** Signed URL for downloading an asset file (15 min) */
-export async function getDownloadSignedUrl(key: string): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: key,
-  });
-  return getSignedUrl(r2, command, { expiresIn: 900 });
+export async function r2Get(key: string): Promise<Buffer> {
+  const res = await client().send(
+    new GetObjectCommand({ Bucket: bucket(), Key: key })
+  );
+  if (!res.Body) throw new Error(`R2 object has no body: ${key}`);
+  const bytes = await res.Body.transformToByteArray();
+  return Buffer.from(bytes);
 }
 
-/** Signed URL for reading a preview image in the browser (1 hour) */
-export async function getPreviewSignedUrl(key: string): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: key,
-  });
-  return getSignedUrl(r2, command, { expiresIn: 3600 });
+export async function r2Delete(key: string): Promise<void> {
+  await client().send(
+    new DeleteObjectCommand({ Bucket: bucket(), Key: key })
+  );
+}
+
+/** Browser-facing URL for an object (used for public previews / avatars). */
+export function r2PublicUrl(key: string): string {
+  const base = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+  return `${base}/${key}`;
 }
 
 /**
- * Public CDN URL for preview images (only works if R2_PUBLIC_URL is configured).
- * Use this instead of signed URLs for publicly accessible previews.
+ * Extracts the object key from a stored public URL. Returns null when the
+ * URL isn't one of ours (e.g. a Google OAuth avatar) so `deletePublic` can
+ * safely ignore it.
  */
-export function getPublicUrl(key: string): string {
-  const base = process.env.R2_PUBLIC_URL;
-  if (!base) {
-    throw new Error("R2_PUBLIC_URL is not configured");
+export function r2KeyFromUrl(url: string): string | null {
+  const base = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+  if (base && url.startsWith(base + "/")) {
+    return url.slice(base.length + 1);
   }
-  return `${base.replace(/\/$/, "")}/${key}`;
+  return null;
 }
-
-/** Permanent deletion — only call when an asset record is also being deleted */
-export async function deleteObject(key: string): Promise<void> {
-  const command = new DeleteObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: key,
-  });
-  await r2.send(command);
-}
-
-export { r2 };

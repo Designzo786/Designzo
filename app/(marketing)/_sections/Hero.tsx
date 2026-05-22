@@ -61,25 +61,6 @@ export function Hero() {
               Become a creator
             </Link>
           </div>
-
-          <div className="mt-12 flex items-center justify-center gap-6 text-xs text-muted">
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {["#7c3aed", "#a855f7", "#f59e0b", "#10b981"].map((c) => (
-                  <div
-                    key={c}
-                    className="w-6 h-6 rounded-full border-2 border-canvas"
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-              <span>Trusted by 500+ creators</span>
-            </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-gold">★★★★★</span>
-              <span>4.9/5 average</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>

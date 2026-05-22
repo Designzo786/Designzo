@@ -1,28 +1,36 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { flags } from "./env";
+import { r2Put, r2Get, r2Delete, r2PublicUrl, r2KeyFromUrl } from "./r2";
 
 /**
- * Local-disk storage backend for development.
+ * File storage with two backends, chosen automatically:
  *
- * In production, swap these helpers for Cloudflare R2 (signed PUT URLs for
- * uploads, signed GET URLs for protected downloads). The `key` returned by
- * `savePrivate` and the URL returned by `savePublic` should remain the
- * shape of identifiers used elsewhere in the app — that way only this file
- * needs to change when migrating to R2.
+ *   • Cloudflare R2 — used when R2 env vars are set (`flags.hasR2`).
+ *     This is the production backend: durable, survives deploys.
+ *
+ *   • Local disk — the dev fallback when R2 isn't configured.
+ *     NOT safe for serverless production (filesystem is ephemeral) — it
+ *     exists so the app runs end-to-end locally without an R2 account.
+ *
+ * Every export keeps the same signature regardless of backend, so callers
+ * (upload routes, avatar route, download route) never need to know which
+ * one is active.
  *
  * Layout:
- *   public/uploads/previews/<nonce>-<file>   ← directly served by Next, used for thumbnails
- *   private-uploads/files/<nonce>-<file>     ← outside public/, accessed only via /api/assets/[id]/download
+ *   public  — previews, avatars, model files. Browser-readable.
+ *             local: public/uploads/<subdir>/...   R2: public/<subdir>/...
+ *   private — the actual sellable asset file. Served only via the gated
+ *             /api/assets/[id]/download route.
+ *             local: private-uploads/<subdir>/...  R2: private/<subdir>/...
  */
 
 const PUBLIC_DIR = path.join(process.cwd(), "public", "uploads");
 const PRIVATE_DIR = path.join(process.cwd(), "private-uploads");
 
 function safeFilename(name: string): string {
-  // Strip any path components and dodgy characters
   const base = path.basename(name).replace(/[^a-zA-Z0-9._-]+/g, "_");
-  // Cap length so we don't blow ext4/NTFS limits
   return base.slice(0, 120) || "file";
 }
 
@@ -34,55 +42,94 @@ async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
 }
 
+// Content type for public files so the browser renders previews/avatars
+// correctly when fetched straight from R2.
+function contentTypeFor(filename: string): string {
+  const ext = filename.toLowerCase().split(".").pop() ?? "";
+  switch (ext) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "svg":
+      return "image/svg+xml";
+    case "glb":
+      return "model/gltf-binary";
+    case "gltf":
+      return "model/gltf+json";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 export interface SavedPublic {
-  url: string; // browser-accessible URL like /uploads/previews/abc-foo.png
-  key: string; // same as url (for symmetry with private)
+  url: string; // browser-accessible URL
+  key: string; // storage key (R2) or the URL (local)
   bytes: number;
 }
 
 export interface SavedPrivate {
-  key: string; // opaque key like files/abc-bar.glb (no leading slash)
+  key: string; // opaque key, resolved by readPrivate
   bytes: number;
 }
 
 /**
- * Save a publicly accessible file (e.g. preview thumbnail) under public/uploads/<subdir>/.
- * The returned URL can be used directly in <img src>.
+ * Save a publicly-readable file (preview thumbnail, avatar, model).
+ * Returns a URL usable directly in <img src> / the 3D viewer.
  */
 export async function savePublic(
   subdir: string,
   filename: string,
   buffer: Buffer
 ): Promise<SavedPublic> {
+  const safe = `${nonce()}-${safeFilename(filename)}`;
+  const bytes = buffer.length;
+
+  if (flags.hasR2) {
+    const key = `public/${subdir}/${safe}`;
+    await r2Put(key, buffer, contentTypeFor(filename));
+    return { url: r2PublicUrl(key), key, bytes };
+  }
+
   const dir = path.join(PUBLIC_DIR, subdir);
   await ensureDir(dir);
-  const safe = `${nonce()}-${safeFilename(filename)}`;
-  const fullPath = path.join(dir, safe);
-  await fs.writeFile(fullPath, buffer);
+  await fs.writeFile(path.join(dir, safe), buffer);
   const url = `/uploads/${subdir}/${safe}`;
-  return { url, key: url, bytes: buffer.length };
+  return { url, key: url, bytes };
 }
 
 /**
- * Save a protected file (the actual sellable asset). Stored outside public/
- * so it cannot be served by Next directly. Use `streamPrivate` to read it.
+ * Save a protected file (the actual sellable asset). Never browser-readable
+ * directly — only reachable through the gated download route via readPrivate.
  */
 export async function savePrivate(
   subdir: string,
   filename: string,
   buffer: Buffer
 ): Promise<SavedPrivate> {
+  const safe = `${nonce()}-${safeFilename(filename)}`;
+  const bytes = buffer.length;
+
+  if (flags.hasR2) {
+    const key = `private/${subdir}/${safe}`;
+    await r2Put(key, buffer, "application/octet-stream");
+    return { key, bytes };
+  }
+
   const dir = path.join(PRIVATE_DIR, subdir);
   await ensureDir(dir);
-  const safe = `${nonce()}-${safeFilename(filename)}`;
-  const fullPath = path.join(dir, safe);
-  await fs.writeFile(fullPath, buffer);
-  return { key: `${subdir}/${safe}`, bytes: buffer.length };
+  await fs.writeFile(path.join(dir, safe), buffer);
+  return { key: `${subdir}/${safe}`, bytes };
 }
 
 /**
- * Resolve a private key to an absolute path. Refuses any key that escapes
- * the private dir (path-traversal protection).
+ * Resolve a local private key to an absolute path. Refuses any key that
+ * escapes the private dir (path-traversal protection). Local backend only.
  */
 export function resolvePrivatePath(key: string): string {
   const resolved = path.join(PRIVATE_DIR, key);
@@ -93,19 +140,26 @@ export function resolvePrivatePath(key: string): string {
 }
 
 /**
- * Read a private file as a buffer. The caller is responsible for auth checks
- * BEFORE calling this — there is no permission check here.
+ * Read a private file as a buffer. The caller MUST do auth checks before
+ * calling — there is no permission check here.
  */
 export async function readPrivate(key: string): Promise<Buffer> {
-  const fullPath = resolvePrivatePath(key);
-  return await fs.readFile(fullPath);
+  if (flags.hasR2) {
+    return r2Get(key);
+  }
+  return fs.readFile(resolvePrivatePath(key));
 }
 
 /**
- * Best-effort delete (won't throw if file is already gone). Used when a
- * record is deleted or rolled back during upload.
+ * Best-effort delete of a public file. Accepts the stored URL. Silently
+ * ignores anything it doesn't own (e.g. Google OAuth avatar URLs).
  */
 export async function deletePublic(url: string): Promise<void> {
+  if (flags.hasR2) {
+    const key = r2KeyFromUrl(url);
+    if (key) await r2Delete(key).catch(() => {});
+    return;
+  }
   if (!url.startsWith("/uploads/")) return;
   const rel = url.slice("/uploads/".length);
   const fullPath = path.join(PUBLIC_DIR, rel);
@@ -113,10 +167,14 @@ export async function deletePublic(url: string): Promise<void> {
   await fs.unlink(fullPath).catch(() => {});
 }
 
+/** Best-effort delete of a private file. */
 export async function deletePrivate(key: string): Promise<void> {
+  if (flags.hasR2) {
+    await r2Delete(key).catch(() => {});
+    return;
+  }
   try {
-    const fullPath = resolvePrivatePath(key);
-    await fs.unlink(fullPath).catch(() => {});
+    await fs.unlink(resolvePrivatePath(key)).catch(() => {});
   } catch {
     // Invalid key — silently ignore
   }

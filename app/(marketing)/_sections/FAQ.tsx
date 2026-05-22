@@ -177,10 +177,9 @@ export function FAQ() {
             />
             <SidebarLink
               icon={MessageCircle}
-              title="Join our Discord"
-              subtitle="Chat with creators & the team"
-              href="https://discord.gg/"
-              external
+              title="Community"
+              subtitle="Connect with other creators"
+              href="/community"
             />
           </div>
 

@@ -71,9 +71,10 @@ export async function POST(req: Request) {
       data: { image: saved.url, avatarKey: saved.url },
     });
 
-    // Best-effort cleanup of the old avatar (only if we previously uploaded
-    // it ourselves — never touch OAuth provider URLs that start with http).
-    if (existing?.avatarKey && existing.avatarKey.startsWith("/uploads/")) {
+    // Best-effort cleanup of the old avatar. deletePublic only acts on files
+    // it owns (local /uploads or our R2 bucket) — it safely ignores OAuth
+    // provider URLs like Google's.
+    if (existing?.avatarKey) {
       await deletePublic(existing.avatarKey);
     }
 
@@ -104,7 +105,7 @@ export async function DELETE() {
     data: { image: null, avatarKey: null },
   });
 
-  if (existing?.avatarKey && existing.avatarKey.startsWith("/uploads/")) {
+  if (existing?.avatarKey) {
     await deletePublic(existing.avatarKey);
   }
 
