@@ -20,8 +20,8 @@ export async function GET(req: Request) {
 
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
 
-  // Need at least 2 chars — single letters match almost everything.
-  if (q.length < 2) {
+  // Search starts at the first character typed.
+  if (q.length < 1) {
     return NextResponse.json({ results: [] });
   }
 

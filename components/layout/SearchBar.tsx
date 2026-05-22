@@ -20,7 +20,7 @@ interface SearchResult {
 }
 
 const DEBOUNCE_MS = 250;
-const MIN_CHARS = 2;
+const MIN_CHARS = 1;
 
 export function SearchBar({
   className,
