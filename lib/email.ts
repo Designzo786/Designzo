@@ -120,25 +120,28 @@ export function renderResetEmail(name: string, resetUrl: string): { subject: str
   return { subject, html };
 }
 
-export function renderPayoutPaidEmail(
+/**
+ * Generic notification email — the email twin of every in-app notification.
+ * `createNotification` calls this so each notification reaches the user both
+ * in the bell and in their inbox.
+ */
+export function renderNotificationEmail(
   name: string,
-  amount: string,
-  transactionRef: string | null,
-  dashboardUrl: string
+  title: string,
+  body: string,
+  link: string | null
 ): { subject: string; html: string } {
-  const subject = `Your payout of ${amount} has been sent`;
-  const refRow = transactionRef
-    ? `<tr><td style="padding:6px 0;color:#7d7d8a;font-size:13px;">Reference</td><td style="padding:6px 0;color:#e8e8ed;font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;">${escapeHtml(transactionRef)}</td></tr>`
-    : "";
+  const subject = `${title} — GameChanger`;
   const html = shell(
-    `Hi ${name}, your payout is on its way`,
-    `<p style="line-height:1.6;color:#cfcfd8;">We've sent your earnings to your registered bank account. Funds typically arrive within 1-3 business days.</p>
-     <table cellspacing="0" cellpadding="0" style="margin:20px 0;width:100%;background:#15151d;border:1px solid #2a2a35;border-radius:8px;padding:16px;">
-       <tr><td style="padding:6px 0;color:#7d7d8a;font-size:13px;">Amount</td><td style="padding:6px 0;color:#fff;font-weight:600;">${escapeHtml(amount)}</td></tr>
-       ${refRow}
-     </table>
-     <p style="margin:24px 0;">${button(dashboardUrl, "View payout history")}</p>
-     <p style="color:#7d7d8a;font-size:13px;">If the amount doesn't reach your account within 3 business days, reply to this email so we can investigate.</p>`
+    title,
+    `<p style="line-height:1.6;color:#cfcfd8;">Hi ${escapeHtml(name)},</p>
+     <p style="line-height:1.6;color:#cfcfd8;">${escapeHtml(body)}</p>
+     ${
+       link
+         ? `<p style="margin:24px 0;">${button(link, "Open GameChanger")}</p>`
+         : ""
+     }
+     <p style="color:#7d7d8a;font-size:13px;">You can see all your notifications any time from the bell icon in the GameChanger menu.</p>`
   );
   return { subject, html };
 }

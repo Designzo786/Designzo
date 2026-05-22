@@ -1,12 +1,17 @@
 /**
- * In-app notification helpers.
+ * In-app + email notification helpers.
  *
- * `createNotification` is intentionally best-effort: a failed notification
- * insert must never break the operation that triggered it (an asset approval,
- * a completed purchase, a payout update). All failures are logged and
- * swallowed, so callers can fire-and-forget.
+ * Every notification is delivered TWO ways:
+ *   1. An in-app Notification row (the navbar bell).
+ *   2. An email to the user's address, via Resend.
+ *
+ * Both are best-effort: a failure in either path is logged and swallowed so
+ * it never breaks the operation that triggered the notification (an asset
+ * approval, a completed purchase, a payout update, …). Callers fire-and-forget.
  */
 import { prisma } from "./prisma";
+import { sendEmail, renderNotificationEmail } from "./email";
+import { getPublicBaseUrl } from "./env";
 import type { NotificationType } from "@prisma/client";
 
 interface NotificationInput {
@@ -20,6 +25,7 @@ interface NotificationInput {
 export async function createNotification(
   input: NotificationInput
 ): Promise<void> {
+  // 1. In-app notification row.
   try {
     await prisma.notification.create({
       data: {
@@ -33,27 +39,38 @@ export async function createNotification(
   } catch (err) {
     console.error("[notifications] create failed:", err);
   }
+
+  // 2. Email twin — look up the recipient and send.
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { email: true, name: true },
+    });
+    if (user?.email) {
+      // Notification links are app-relative; emails need an absolute URL.
+      const absoluteLink = input.link
+        ? `${getPublicBaseUrl()}${input.link}`
+        : null;
+      const { subject, html } = renderNotificationEmail(
+        user.name ?? "there",
+        input.title,
+        input.body,
+        absoluteLink
+      );
+      await sendEmail({ to: user.email, subject, html });
+    }
+  } catch (err) {
+    console.error("[notifications] email failed:", err);
+  }
 }
 
 /**
- * Creates many notifications at once (e.g. notifying a buyer and a creator
- * about the same sale). Best-effort, like the single-row helper.
+ * Creates several notifications at once (e.g. notifying a buyer and a creator
+ * about the same sale). Runs them in parallel; each still delivers in-app
+ * and by email, best-effort.
  */
 export async function createNotifications(
   inputs: NotificationInput[]
 ): Promise<void> {
-  if (inputs.length === 0) return;
-  try {
-    await prisma.notification.createMany({
-      data: inputs.map((i) => ({
-        userId: i.userId,
-        type: i.type,
-        title: i.title,
-        body: i.body,
-        link: i.link ?? null,
-      })),
-    });
-  } catch (err) {
-    console.error("[notifications] createMany failed:", err);
-  }
+  await Promise.all(inputs.map((i) => createNotification(i)));
 }

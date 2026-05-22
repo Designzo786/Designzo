@@ -7,9 +7,7 @@ import {
   mapRazorpayXStatus,
 } from "@/lib/razorpay-payouts";
 import { createNotification } from "@/lib/notifications";
-import { sendEmail, renderPayoutPaidEmail } from "@/lib/email";
 import { formatPrice } from "@/lib/utils";
-import { getPublicBaseUrl } from "@/lib/env";
 import type { PayoutStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -68,7 +66,6 @@ export async function PATCH(
       amount: true,
       creatorId: true,
       razorpayPayoutId: true,
-      creator: { select: { name: true, email: true } },
     },
   });
   if (!existing) {
@@ -174,6 +171,7 @@ export async function PATCH(
     });
   } else if (resolvedStatus === "PAID") {
     const refSuffix = refToSave ? ` Reference: ${refToSave}.` : "";
+    // createNotification also emails the creator (in-app + email together).
     await createNotification({
       userId: existing.creatorId,
       type: "PAYOUT_PAID",
@@ -181,21 +179,6 @@ export async function PATCH(
       body: `${amount} has been sent to your registered bank account.${refSuffix}`,
       link: "/dashboard/earnings",
     });
-
-    // Best-effort email — never let a mail failure block the response.
-    if (existing.creator.email) {
-      try {
-        const { subject, html } = renderPayoutPaidEmail(
-          existing.creator.name ?? "there",
-          amount,
-          refToSave ?? null,
-          `${getPublicBaseUrl()}/dashboard/earnings`
-        );
-        await sendEmail({ to: existing.creator.email, subject, html });
-      } catch (err) {
-        console.error("[admin/payouts] PAID email failed:", err);
-      }
-    }
   } else if (resolvedStatus === "FAILED") {
     await createNotification({
       userId: existing.creatorId,
