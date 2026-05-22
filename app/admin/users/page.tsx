@@ -1,11 +1,27 @@
 import { prisma } from "@/lib/prisma";
 import { Avatar } from "@/components/ui/Avatar";
 import { UserRoleSelect } from "./UserRoleSelect";
+import { UserSearch } from "./UserSearch";
 import { auth } from "@/lib/auth";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const query = q?.trim() ?? "";
+
   const session = await auth();
   const users = await prisma.user.findMany({
+    where: query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { email: { contains: query, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
     select: {
       id: true,
       name: true,
@@ -21,15 +37,27 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-primary">
-          Users
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          {users.length} user{users.length === 1 ? "" : "s"} on the platform.
-        </p>
+      <header className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-primary">
+            Users
+          </h1>
+          <p className="text-sm text-muted mt-1">
+            {query
+              ? `${users.length} result${users.length === 1 ? "" : "s"} for "${query}"`
+              : `${users.length} user${users.length === 1 ? "" : "s"} on the platform.`}
+          </p>
+        </div>
+        <UserSearch initialQuery={query} />
       </header>
 
+      {users.length === 0 ? (
+        <div className="rounded-xl border border-border border-dashed bg-surface/50 p-12 text-center text-sm text-muted">
+          {query
+            ? `No users match "${query}".`
+            : "No users on the platform yet."}
+        </div>
+      ) : (
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
@@ -84,6 +112,7 @@ export default async function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
