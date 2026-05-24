@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, ImageOff } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatPrice, formatRelativeTime } from "@/lib/utils";
+import { DeleteAssetButton } from "./DeleteAssetButton";
 import type { AssetStatus } from "@prisma/client";
 
 export const metadata = { title: "My Assets" };
@@ -75,6 +76,7 @@ export default async function UploadsPage() {
                 <th className="text-left font-medium px-4 py-3">Downloads</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
                 <th className="text-left font-medium px-4 py-3">Uploaded</th>
+                <th className="text-right font-medium px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -83,21 +85,29 @@ export default async function UploadsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {a.previewKey ? (
+                        // Public preview URL is stored directly in previewKey
+                        // (R2 public URL or `/uploads/...` in local dev), so
+                        // it can be used as <img src> unmodified. Plain <img>
+                        // intentional — Next/Image needs domain config and
+                        // these are already small CDN-served thumbnails.
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={a.previewKey}
-                          alt=""
-                          className="w-12 h-12 rounded-md object-cover bg-canvas shrink-0"
+                          alt={a.title}
+                          loading="lazy"
+                          className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-md bg-canvas shrink-0" />
+                        <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border flex items-center justify-center text-subtle">
+                          <ImageOff className="w-5 h-5" />
+                        </div>
                       )}
                       <div className="min-w-0">
-                        <div className="font-medium text-primary truncate max-w-[260px]">
+                        <div className="font-medium text-primary truncate max-w-65">
                           {a.title}
                         </div>
                         {a.status === "REJECTED" && a.rejectionNote && (
-                          <div className="text-xs text-danger truncate max-w-[260px] mt-0.5">
+                          <div className="text-xs text-danger truncate max-w-65 mt-0.5">
                             {a.rejectionNote}
                           </div>
                         )}
@@ -119,6 +129,9 @@ export default async function UploadsPage() {
                   </td>
                   <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
                     {formatRelativeTime(a.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <DeleteAssetButton assetId={a.id} title={a.title} />
                   </td>
                 </tr>
               ))}

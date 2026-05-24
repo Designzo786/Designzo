@@ -65,10 +65,12 @@
   --shadow-glow-strong: 0 0 80px rgba(124, 58, 237, 0.35);
   --shadow-gold:  0 0 40px rgba(245, 158, 11, 0.2);
 
-  /* Named animations */
+  /* Named animations — every one points at a GPU-composited keyframe
+     (translate / opacity / scale only) so animating doesn't trigger
+     paint or layout. */
   --animate-float:      float 6s ease-in-out infinite;
-  --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
-  --animate-shimmer:    shimmer 1.8s linear infinite;
+  --animate-glow-pulse: glow-pulse-opacity 3s ease-in-out infinite;
+  --animate-shimmer:    shimmer-slide 1.8s linear infinite;
   --animate-slide-up:   slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-fade-in:    fade-in 0.35s ease-out;
   --animate-scale-in:   scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -122,20 +124,54 @@ html {
 }
 
 body {
+  /* Solid canvas + a barely-there violet vignette top-centre that adds depth
+     to long-scroll pages without competing with content. `background-attachment:
+     fixed` keeps the glow anchored as you scroll. */
   background-color: #080808;
+  background-image: radial-gradient(
+    ellipse 80% 60% at 50% -10%,
+    rgba(124, 58, 237, 0.10) 0%,
+    rgba(124, 58, 237, 0)  70%
+  );
+  background-attachment: fixed;
   color: #f4f4f5;
   font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11", "calt";
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
 }
 
+/* Tighter, more confident headings — slightly negative tracking and balanced
+   wrapping so titles break into pleasing shapes instead of orphan words. */
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* Paragraphs read better with pretty wrapping (last line not too short). */
+p {
+  text-wrap: pretty;
+}
+
 /* ─── Scrollbar ───────────────────────────────────────────────────────────────── */
 
-::-webkit-scrollbar            { width: 5px; height: 5px; }
+::-webkit-scrollbar            { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: rgba(255,255,255,0.1); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,0.18); }
+::-webkit-scrollbar-thumb      {
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  /* Inset so the thumb feels recessed inside the track — softer than a flat bar. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover{
+  background: linear-gradient(180deg, rgba(168,85,247,0.45), rgba(124,58,237,0.45));
+  background-clip: padding-box;
+}
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
 
 /* ─── Selection ───────────────────────────────────────────────────────────────── */
 
@@ -146,10 +182,12 @@ body {
 
 /* ─── Focus ───────────────────────────────────────────────────────────────────── */
 
+/* A soft accent ring that follows the element's own shape. The previous rule
+   set `border-radius` on the outline (a no-op — outlines inherit the element
+   shape) and used a slightly tighter offset. */
 *:focus-visible {
-  outline: 2px solid rgba(124, 58, 237, 0.65);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: 2px solid rgba(124, 58, 237, 0.7);
+  outline-offset: 3px;
 }
 
 /* ─── Reusable Utility Classes ───────────────────────────────────────────────── */
@@ -224,16 +262,28 @@ body {
   background: linear-gradient(135deg, #6d28d9, #9333ea);
 }
 
-/* Skeleton loader */
+/* Skeleton loader — solid dim base with a thin highlight band that translates
+   across via a pseudo-element. Pure transform animation = composited, no
+   per-frame paint, no layout. */
 .skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #181818;
+  isolation: isolate;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: linear-gradient(
     90deg,
-    #1a1a1a 25%,
-    #242424 50%,
-    #1a1a1a 75%
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
   );
-  background-size: 200% 100%;
-  animation: shimmer 1.8s linear infinite;
+  animation: shimmer-slide 1.8s linear infinite;
+  pointer-events: none;
 }
 
 /* Glow effects */
@@ -303,3 +353,38 @@ body {
 .badge-rejected { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
 .badge-free     { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
 .badge-premium  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+
+/* Tabular figures — for price grids, balance columns, percentages: every digit
+   takes the same width, so columns of numbers line up cleanly. Geist supports
+   this natively. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cv11";
+}
+
+/* Subtle lift on hover for clickable cards. Pure transform → composited, no
+   layout work. Pair with `transition-transform` on the element if needed. */
+.hover-lift {
+  transition: translate 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+  translate: 0 -3px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(124, 58, 237, 0.18);
+}
+
+/* ─── Accessibility ─────────────────────────────────────────────────────────── */
+
+/* Respect the OS-level reduced-motion preference: kill the decorative loops
+   (float, glow pulse, shimmer, auto-rotate, fade-in/slide-up) so users with
+   vestibular sensitivities or low-power devices aren't fighting animations.
+   `!important` is the canonical override pattern for this query. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

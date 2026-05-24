@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImageOff } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { AssetActions } from "./AssetActions";
@@ -88,14 +89,51 @@ export default async function AdminAssetsPage({
               {assets.map((a) => (
                 <tr key={a.id} className="hover:bg-elevated/50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-primary truncate max-w-[260px]">
-                      {a.title}
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Preview thumbnail — links through to the public
+                          asset page so admins can review in full before
+                          approving or rejecting. previewKey already stores
+                          a fully-qualified URL (R2 public or /uploads/...
+                          in local dev), so it's used as-is. */}
+                      <Link
+                        href={`/explore/${a.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 group"
+                        title="Open asset in new tab"
+                      >
+                        {a.previewKey ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.previewKey}
+                            alt={a.title}
+                            loading="lazy"
+                            className="w-20 h-14 rounded-lg object-cover bg-canvas ring-1 ring-border group-hover:ring-accent transition-shadow"
+                          />
+                        ) : (
+                          <div className="w-20 h-14 rounded-lg bg-canvas ring-1 ring-border group-hover:ring-accent transition-shadow flex items-center justify-center text-subtle">
+                            <ImageOff className="w-5 h-5" />
+                          </div>
+                        )}
+                      </Link>
+                      <div className="min-w-0">
+                        <div className="font-medium text-primary truncate max-w-65">
+                          {a.title}
+                        </div>
+                        <div className="text-xs text-muted">
+                          {a.category} · {a.fileType}
+                        </div>
+                        {a.status === "REJECTED" && a.rejectionNote && (
+                          <div className="text-xs text-danger truncate max-w-65 mt-0.5">
+                            {a.rejectionNote}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted">{a.category} · {a.fileType}</div>
                   </td>
                   <td className="px-4 py-3 text-secondary">
-                    <div className="truncate max-w-[180px]">{a.uploader.name ?? "—"}</div>
-                    <div className="text-xs text-muted truncate max-w-[180px]">{a.uploader.email}</div>
+                    <div className="truncate max-w-45">{a.uploader.name ?? "—"}</div>
+                    <div className="text-xs text-muted truncate max-w-45">{a.uploader.email}</div>
                   </td>
                   <td className="px-4 py-3 text-secondary">{formatPrice(a.price)}</td>
                   <td className="px-4 py-3">

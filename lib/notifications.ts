@@ -53,6 +53,7 @@ export async function createNotification(
         : null;
       const { subject, html } = renderNotificationEmail(
         user.name ?? "there",
+        input.type,
         input.title,
         input.body,
         absoluteLink

@@ -9,7 +9,28 @@ interface SearchBarProps {
   className?: string;
   placeholder?: string;
   autoFocus?: boolean;
+  /** `sm` = navbar/tight inputs · `lg` = hero / prominent surfaces */
+  size?: "sm" | "lg";
 }
+
+const SIZE = {
+  sm: {
+    input:
+      "h-10 pl-10 pr-9 text-sm bg-input rounded-lg border-border focus:bg-surface",
+    iconLeft: "left-3 w-4 h-4",
+    iconRight: "right-3 w-4 h-4",
+  },
+  lg: {
+    // Hero variant: rounded-2xl pill, slightly more opaque surface for
+    // legibility against the violet hero glow, a baked-in soft accent halo so
+    // it reads as "lifted", deeper on focus. Self-contained — callers do NOT
+    // need to wrap it in their own glow div.
+    input:
+      "h-14 pl-12 pr-12 text-base bg-surface/80 rounded-2xl border-border-hover shadow-[0_0_60px_-18px_rgba(124,58,237,0.4)] hover:border-accent/40 focus:bg-surface focus:border-accent focus:shadow-[0_0_80px_-12px_rgba(124,58,237,0.65)]",
+    iconLeft: "left-4 w-5 h-5",
+    iconRight: "right-4 w-5 h-5",
+  },
+} as const;
 
 interface SearchResult {
   id: string;
@@ -26,7 +47,9 @@ export function SearchBar({
   className,
   placeholder = "Search 3D models, materials…",
   autoFocus = false,
+  size = "sm",
 }: SearchBarProps) {
+  const sz = SIZE[size];
   const router = useRouter();
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -125,9 +148,19 @@ export function SearchBar({
   return (
     <div ref={wrapRef} className={cn("relative w-full", className)}>
       <form onSubmit={onSubmit} role="search">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+        <Search
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none",
+            sz.iconLeft
+          )}
+        />
         {loading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted animate-spin" />
+          <Loader2
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 text-muted animate-spin",
+              sz.iconRight
+            )}
+          />
         )}
         <input
           type="search"
@@ -143,7 +176,10 @@ export function SearchBar({
           autoFocus={autoFocus}
           aria-label="Search assets"
           autoComplete="off"
-          className="w-full h-10 pl-10 pr-9 bg-input border border-border rounded-lg text-sm text-primary placeholder:text-muted focus:outline-none focus:border-border-focus focus:bg-surface transition-all"
+          className={cn(
+            "w-full border text-primary placeholder:text-muted focus:outline-none transition-all",
+            sz.input
+          )}
         />
       </form>
 

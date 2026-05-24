@@ -9,6 +9,7 @@
  *   local testing. NEVER ships an email — safe to use against real addresses
  *   without spamming them.
  */
+import type { NotificationType } from "@prisma/client";
 
 interface SendArgs {
   to: string;
@@ -121,27 +122,136 @@ export function renderResetEmail(name: string, resetUrl: string): { subject: str
 }
 
 /**
+ * Per-type presentation for notification emails: an icon, an accent colour and
+ * a call-to-action label. The accent drives the top strip, the icon ring and
+ * the button. Accent colours are the -600 shades so white button text stays
+ * legible on every one of them.
+ */
+const NOTIFICATION_STYLE: Record<
+  NotificationType,
+  { icon: string; accent: string; cta: string }
+> = {
+  ASSET_APPROVED:    { icon: "🎉", accent: "#16a34a", cta: "View your asset" },
+  ASSET_REJECTED:    { icon: "📝", accent: "#d97706", cta: "Review feedback" },
+  SALE:              { icon: "💰", accent: "#16a34a", cta: "View your earnings" },
+  PURCHASE:          { icon: "🛒", accent: "#9333ea", cta: "Go to your library" },
+  PAYOUT_PROCESSING: { icon: "⏳", accent: "#2563eb", cta: "Track your payout" },
+  PAYOUT_PAID:       { icon: "💸", accent: "#16a34a", cta: "View your payouts" },
+  PAYOUT_FAILED:     { icon: "⚠️", accent: "#dc2626", cta: "View your payouts" },
+  KYC_VERIFIED:      { icon: "🛡️", accent: "#16a34a", cta: "Open your account" },
+  KYC_REJECTED:      { icon: "⚠️", accent: "#d97706", cta: "Review & resubmit" },
+  CREATOR_APPROVED:  { icon: "🎨", accent: "#16a34a", cta: "Open creator dashboard" },
+  CREATOR_REJECTED:  { icon: "📝", accent: "#d97706", cta: "Review feedback" },
+  REVIEW:            { icon: "⭐", accent: "#9333ea", cta: "View the review" },
+};
+
+/**
  * Generic notification email — the email twin of every in-app notification.
  * `createNotification` calls this so each notification reaches the user both
- * in the bell and in their inbox.
+ * in the bell and in their inbox. The notification `type` drives the accent
+ * colour, icon and call-to-action label so a sale, a rejection and a payout
+ * each feel distinct at a glance.
  */
 export function renderNotificationEmail(
   name: string,
+  type: NotificationType,
   title: string,
   body: string,
   link: string | null
 ): { subject: string; html: string } {
+  const style = NOTIFICATION_STYLE[type] ?? {
+    icon: "🔔",
+    accent: "#9333ea",
+    cta: "Open GameChanger",
+  };
   const subject = `${title} — GameChanger`;
-  const html = shell(
-    title,
-    `<p style="line-height:1.6;color:#cfcfd8;">Hi ${escapeHtml(name)},</p>
-     <p style="line-height:1.6;color:#cfcfd8;">${escapeHtml(body)}</p>
-     ${
-       link
-         ? `<p style="margin:24px 0;">${button(link, "Open GameChanger")}</p>`
-         : ""
-     }
-     <p style="color:#7d7d8a;font-size:13px;">You can see all your notifications any time from the bell icon in the GameChanger menu.</p>`
-  );
+  const safeBody = escapeHtml(body).replace(/\n/g, "<br/>");
+  const year = new Date().getFullYear();
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="dark"/>
+<title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#08080c;-webkit-text-size-adjust:100%;">
+  <!-- preheader: the grey preview line inbox apps show next to the subject -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#08080c;">${escapeHtml(body)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#08080c;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;background:#101019;border:1px solid #23232f;border-radius:16px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+          <tr><td style="height:4px;line-height:4px;font-size:0;background:${style.accent};">&nbsp;</td></tr>
+
+          <tr>
+            <td style="padding:28px 40px 0;">
+              <span style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#a855f7;">Game<span style="color:#ffffff;">Changer</span></span>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:26px 40px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" valign="middle" width="74" height="74" style="width:74px;height:74px;background:#17171f;border:1px solid ${style.accent};border-radius:50%;font-size:32px;line-height:74px;mso-line-height-rule:exactly;">${style.icon}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:22px 44px 0;">
+              <h1 style="margin:0;font-size:22px;line-height:1.35;font-weight:700;color:#ffffff;">${escapeHtml(title)}</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 44px 0;">
+              <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#c6c6d2;">Hi ${escapeHtml(name)},</p>
+              <p style="margin:0;font-size:15px;line-height:1.65;color:#c6c6d2;">${safeBody}</p>
+            </td>
+          </tr>
+          ${
+            link
+              ? `
+          <tr>
+            <td align="center" style="padding:30px 44px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="${style.accent}" style="border-radius:10px;">
+                    <a href="${link}" style="display:inline-block;padding:13px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">${escapeHtml(style.cta)} &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+              : ""
+          }
+          <tr>
+            <td style="padding:34px 44px 0;">
+              <div style="border-top:1px solid #23232f;font-size:0;line-height:0;">&nbsp;</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 44px 32px;">
+              <p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:#6b6b78;">
+                You're receiving this because you have a GameChanger account. Every notification also waits for you under the bell icon when you're signed in.
+              </p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#6b6b78;">
+                © ${year} GameChanger — the digital asset marketplace.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   return { subject, html };
 }

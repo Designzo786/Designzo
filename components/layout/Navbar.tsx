@@ -3,7 +3,6 @@ import { Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { Logo } from "@/components/ui/Logo";
 import { ExploreMenu } from "./ExploreMenu";
-import { SearchBar } from "./SearchBar";
 import { UserMenu } from "./UserMenu";
 import { AuthButtons } from "./AuthButtons";
 import { NotificationBell } from "./NotificationBell";
@@ -34,10 +33,6 @@ export async function Navbar() {
             <Sparkles className="w-3.5 h-3.5" />
             AI Generate
           </Link>
-
-          <div className="hidden md:flex flex-1 max-w-md mx-auto">
-            <SearchBar />
-          </div>
 
           <div className="ml-auto flex items-center gap-2">
             {session ? (

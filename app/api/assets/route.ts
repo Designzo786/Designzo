@@ -95,7 +95,16 @@ export async function POST(req: Request) {
   const priceCents = Number(priceCentsRaw);
   if (!Number.isInteger(priceCents) || priceCents < 0 || priceCents > 999999) {
     return NextResponse.json(
-      { error: "Price must be a whole number of cents (0–999999)." },
+      { error: "Price must be a whole number of paise (0–999999)." },
+      { status: 400 }
+    );
+  }
+  // Razorpay's minimum order is ₹1 (100 paise). Anything in (0, 100) would
+  // pass our validation here only to fail at checkout time. Reject up-front so
+  // the creator can't accidentally publish an unsellable price.
+  if (priceCents > 0 && priceCents < 100) {
+    return NextResponse.json(
+      { error: "Price must be either 0 (free) or at least ₹1 (100 paise)." },
       { status: 400 }
     );
   }

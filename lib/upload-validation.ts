@@ -15,19 +15,15 @@
 import type { FileType } from "@prisma/client";
 
 // Extensions accepted for each asset FileType.
+//
+// MODEL_3D is restricted to glTF (.glb / .gltf) on purpose: it's the web
+// standard for 3D, and it's the only format the in-browser AssetViewer can
+// actually render. Accepting .fbx / .obj / .blend etc. here would let a
+// creator upload an asset whose preview silently falls back to the static
+// image — broken UX. Every modern DCC tool (Blender, Maya, 3ds Max, Unity)
+// exports glTF, so the restriction is mild: "File → Export → glTF (.glb)".
 export const EXTENSIONS_BY_TYPE: Record<FileType, string[]> = {
-  MODEL_3D: [
-    "glb",
-    "gltf",
-    "fbx",
-    "obj",
-    "blend",
-    "usdz",
-    "stl",
-    "dae",
-    "3ds",
-    "ply",
-  ],
+  MODEL_3D: ["glb", "gltf"],
   // TEXTURE, HDRI, IMAGE_2D and PLUGIN are kept on the Prisma enum so any
   // legacy rows still type-check, but they're not accepted for new uploads
   // (omitted from VALID_FILE_TYPES) and not shown in the UI's FILE_TYPES list.

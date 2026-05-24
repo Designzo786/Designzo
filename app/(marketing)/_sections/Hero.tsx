@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { SearchBar } from "@/components/layout/SearchBar";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
+    // No `overflow-hidden` here — the SearchBar's results dropdown needs to be
+    // free to extend below the hero into the next section.
+    // `min-h-[calc(100dvh-4rem)]` makes the hero fill the visible viewport
+    // below the 4rem navbar, and `flex items-center` vertically centres the
+    // content block within whatever space remains after the inner padding.
+    <section className="relative min-h-[calc(100dvh-4rem)] flex items-center">
       {/* ambient gradient backdrop */}
       <div
         aria-hidden
@@ -26,7 +32,7 @@ export function Hero() {
         }}
       />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-32 lg:pb-40">
+      <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
         <div className="max-w-3xl mx-auto text-center animate-[fade-in_0.8s_ease-out]">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border text-xs font-medium text-secondary mb-6">
             <Sparkles className="w-3.5 h-3.5 text-accent-light" />
@@ -34,10 +40,7 @@ export function Hero() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05]">
-            The leading platform
-            <br className="hidden sm:block" />
-            for{" "}
-            <span className="gradient-text-hero">3D &amp; AR</span> on the web
+            Premium <span className="gradient-text-hero">3D</span> for the web
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-secondary max-w-xl mx-auto leading-relaxed">
@@ -45,6 +48,50 @@ export function Hero() {
             premium models and materials crafted by the world&apos;s best
             creators.
           </p>
+
+          {/* Primary action — search. The SearchBar `lg` variant already
+              carries its own accent halo and focus glow, so no extra wrapper
+              decoration is needed. `text-left` resets the hero's centred
+              alignment for the input + chip row inside. */}
+          <div className="mt-10 mx-auto max-w-2xl text-left">
+            <SearchBar
+              size="lg"
+              placeholder="Search 3D models, materials, scenes…"
+            />
+            {/* Popular-search chips — gives users browsing without intent
+                a one-click path in, and makes the search area feel anchored
+                rather than floating. */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span className="text-secondary font-medium">Try:</span>
+              <Link
+                href="/explore?q=low-poly"
+                className="hover:text-accent-light transition-colors"
+              >
+                low-poly
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?q=sci-fi"
+                className="hover:text-accent-light transition-colors"
+              >
+                sci-fi
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?q=character"
+                className="hover:text-accent-light transition-colors"
+              >
+                characters
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?q=textures"
+                className="hover:text-accent-light transition-colors"
+              >
+                textures
+              </Link>
+            </div>
+          </div>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link

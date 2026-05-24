@@ -55,7 +55,7 @@ export function UploadForm() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0].slug);
   const [fileType, setFileType] = useState<string>(FILE_TYPES[0].slug);
-  const [priceUsd, setPriceUsd] = useState("0");
+  const [priceInr, setPriceInr] = useState("0");
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<File | null>(null);
@@ -152,11 +152,17 @@ export function UploadForm() {
       );
     }
 
-    const priceUsdNum = Number(priceUsd);
-    if (!Number.isFinite(priceUsdNum) || priceUsdNum < 0) {
+    const priceInrNum = Number(priceInr);
+    if (!Number.isFinite(priceInrNum) || priceInrNum < 0) {
       return setError("Price must be 0 or higher.");
     }
-    const priceCents = Math.round(priceUsdNum * 100);
+    // Razorpay rejects any order under ₹1, so anything in (0, 1) would silently
+    // fail at checkout. Block it at the form to keep the error close to where
+    // the creator can fix it.
+    if (priceInrNum > 0 && priceInrNum < 1) {
+      return setError("Price must be either 0 (free) or at least ₹1.");
+    }
+    const priceCents = Math.round(priceInrNum * 100);
 
     setLoading(true);
     setProgress(0);
@@ -258,15 +264,15 @@ export function UploadForm() {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Input
-          label="Price (USD)"
+          label="Price (INR)"
           type="number"
           inputMode="decimal"
           min="0"
-          step="0.01"
-          value={priceUsd}
-          onChange={(e) => setPriceUsd(e.target.value)}
-          placeholder="0.00"
-          hint="Use 0 for free assets"
+          step="1"
+          value={priceInr}
+          onChange={(e) => setPriceInr(e.target.value)}
+          placeholder="0"
+          hint="₹ — use 0 for free assets, minimum ₹1 otherwise"
         />
 
         <Input
@@ -302,6 +308,14 @@ export function UploadForm() {
         onChange={onFileChange}
         onClear={clearFile}
       />
+      {allowedExtensions.includes("glb") && (
+        <p className="text-xs text-muted leading-relaxed">
+          <span className="text-secondary font-medium">Have a .fbx, .obj or .blend?</span>{" "}
+          glTF (<code className="text-primary">.glb</code>) is required so buyers get
+          a rotatable 3D preview in-browser. Export from Blender / Maya / 3ds Max via{" "}
+          <span className="text-primary">File → Export → glTF 2.0 (.glb)</span>.
+        </p>
+      )}
 
       <div className="pt-2">
         {loading && (

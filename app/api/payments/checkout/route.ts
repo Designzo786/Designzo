@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { commissionCalc, formatPrice } from "@/lib/utils";
-import { flags } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createNotifications } from "@/lib/notifications";
 
@@ -52,7 +51,11 @@ export async function POST(req: Request) {
     );
   }
 
-  if (flags.hasRazorpay && process.env.NODE_ENV === "production") {
+  // Mock checkout is a DEV-ONLY convenience — it instantly creates a Purchase
+  // without going through Razorpay. Hard-block in production regardless of
+  // whether Razorpay env vars happen to be set, so a misconfigured prod deploy
+  // can never let users grab paid assets for free.
+  if (process.env.NODE_ENV === "production") {
     return NextResponse.json(
       { error: "Mock checkout is disabled in production." },
       { status: 403 }

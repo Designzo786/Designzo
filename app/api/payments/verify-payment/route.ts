@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { verifyPaymentSignature } from "@/lib/razorpay";
+import { verifyPaymentSignature, getRazorpay } from "@/lib/razorpay";
 import { commissionCalc, formatPrice } from "@/lib/utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createNotifications } from "@/lib/notifications";
@@ -94,6 +94,60 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Asset is no longer available." },
       { status: 400 }
+    );
+  }
+
+  // ─── Authoritative cross-check with Razorpay ──────────────────────────────
+  // The HMAC signature proves the response was minted by Razorpay, but it
+  // ONLY binds order_id + payment_id — not the asset, amount, or buyer.
+  // A malicious client could pair a cheap real payment with the assetId of an
+  // expensive asset in this request body and get the expensive asset credited.
+  //
+  // To close that gap we re-fetch the order from Razorpay (whose response we
+  // trust because it comes from an authenticated API call with our secret)
+  // and confirm every field matches: the asset bought, the amount actually
+  // charged, the buyer who signed in, and that the order is in the `paid`
+  // state. Any mismatch → reject and never credit anyone.
+  let order: {
+    amount: number | string;
+    status: string;
+    notes?: Record<string, unknown> | null;
+  };
+  try {
+    order = (await getRazorpay().orders.fetch(razorpay_order_id)) as never;
+  } catch (err) {
+    console.error("[verify-payment] order fetch failed:", err);
+    return NextResponse.json(
+      { error: "Could not verify payment with Razorpay." },
+      { status: 502 }
+    );
+  }
+
+  if (order.status !== "paid") {
+    return NextResponse.json(
+      { error: "Order has not been paid." },
+      { status: 400 }
+    );
+  }
+  if (Number(order.amount) !== asset.price) {
+    return NextResponse.json(
+      { error: "Payment amount does not match the asset price." },
+      { status: 400 }
+    );
+  }
+  const notes = order.notes ?? {};
+  const orderAssetId = typeof notes === "object" ? (notes as Record<string, unknown>).assetId : undefined;
+  const orderBuyerId = typeof notes === "object" ? (notes as Record<string, unknown>).buyerId : undefined;
+  if (orderAssetId !== asset.id) {
+    return NextResponse.json(
+      { error: "Payment is for a different asset." },
+      { status: 400 }
+    );
+  }
+  if (orderBuyerId !== session.user.id) {
+    return NextResponse.json(
+      { error: "Payment does not match the signed-in buyer." },
+      { status: 403 }
     );
   }
 
