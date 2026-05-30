@@ -2,34 +2,42 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getAssetById } from "@/lib/mock/assets";
 import { creatorDisplayName } from "@/lib/utils";
 import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 
-// Fallback preview for real uploads with no matching mock entry — keeps the
-// 3D card from looking broken when there's no preview image.
+// Default preview shape/color used when an uploaded asset has no preview
+// image and no .glb model — the 3D card always renders *something*.
 const FALLBACK_SHAPE = "icosahedron" as const;
 const FALLBACK_COLOR = "#7c3aed";
 
 // Cached across requests, keyed nothing-special, purged by the "assets" tag
 // whenever an admin approves/rejects an upload — same tag the Explore page uses.
+//
+// The DB call is wrapped in a try/catch so a Neon outage / cold start
+// doesn't crash the home page — the showcase simply hides itself when
+// it returns an empty array (handled below).
 const fetchFeatured = unstable_cache(
   async () => {
-    return prisma.asset.findMany({
-      where: { status: "APPROVED" },
-      orderBy: { downloads: "desc" },
-      take: 6,
-      select: {
-        id: true,
-        title: true,
-        price: true,
-        downloads: true,
-        avgRating: true,
-        reviewCount: true,
-        previewKey: true,
-        uploader: { select: { name: true, role: true } },
-      },
-    });
+    try {
+      return await prisma.asset.findMany({
+        where: { status: "APPROVED" },
+        orderBy: { downloads: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          title: true,
+          price: true,
+          downloads: true,
+          avgRating: true,
+          reviewCount: true,
+          previewKey: true,
+          uploader: { select: { name: true, role: true } },
+        },
+      });
+    } catch (err) {
+      console.error("[home/Showcase] fetch failed:", err);
+      return [];
+    }
   },
   ["home-featured"],
   { tags: ["assets"], revalidate: 60 }
@@ -42,23 +50,17 @@ export async function Showcase() {
   // empty grid under a "Stunning 3D" headline.
   if (dbAssets.length === 0) return null;
 
-  const featured: AssetCardData[] = dbAssets.map((a) => {
-    const mockMatch = getAssetById(a.id);
-    return {
-      id: a.id,
-      title: a.title,
-      creator: creatorDisplayName(a.uploader.name, a.uploader.role),
-      price: a.price,
-      rating: a.avgRating,
-      reviewCount: a.reviewCount,
-      downloads: a.downloads,
-      preview: {
-        shape: mockMatch?.preview.shape ?? FALLBACK_SHAPE,
-        color: mockMatch?.preview.color ?? FALLBACK_COLOR,
-      },
-      previewImage: a.previewKey || undefined,
-    };
-  });
+  const featured: AssetCardData[] = dbAssets.map((a) => ({
+    id: a.id,
+    title: a.title,
+    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    price: a.price,
+    rating: a.avgRating,
+    reviewCount: a.reviewCount,
+    downloads: a.downloads,
+    preview: { shape: FALLBACK_SHAPE, color: FALLBACK_COLOR },
+    previewImage: a.previewKey || undefined,
+  }));
 
   return (
     <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">

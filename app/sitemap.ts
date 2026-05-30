@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-import { MOCK_ASSETS } from "@/lib/mock/assets";
 import { getPublicBaseUrl } from "@/lib/env";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -14,19 +13,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/ai-generate`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
   ];
 
-  // Approved assets — pull from DB if available, otherwise fall back to the
-  // mock list so the sitemap still produces something useful pre-seeding.
-  let assets: { id: string; updatedAt: Date }[] = [];
-  try {
-    assets = await prisma.asset.findMany({
+  // Approved assets from the DB. If the DB is unreachable, the sitemap
+  // simply omits the asset entries rather than serving stale mock data.
+  const assets = await prisma.asset
+    .findMany({
       where: { status: "APPROVED" },
       select: { id: true, updatedAt: true },
       take: 5000,
       orderBy: { updatedAt: "desc" },
-    });
-  } catch {
-    assets = MOCK_ASSETS.map((m) => ({ id: m.id, updatedAt: now }));
-  }
+    })
+    .catch(() => [] as { id: string; updatedAt: Date }[]);
 
   const assetEntries: MetadataRoute.Sitemap = assets.map((a) => ({
     url: `${base}/explore/${a.id}`,

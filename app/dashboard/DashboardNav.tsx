@@ -27,7 +27,10 @@ type NavItem = {
 const ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true, creatorOnly: true },
   { href: "/dashboard/library", label: "My Library", icon: Library },
-  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart, creatorOnly: true },
+  // Wishlist is available to every signed-in user. Buyers (USER role) need
+  // it the most — it's where they bookmark assets to come back to before
+  // they're ready to buy.
+  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
   { href: "/dashboard/uploads", label: "My Assets", icon: Upload, creatorOnly: true },
   { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign, creatorOnly: true },
   { href: "/dashboard/profile", label: "Profile", icon: Settings },

@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Heart, ShoppingCart, Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 
 export const metadata = { title: "Wishlist" };
 
 export default async function WishlistPage() {
   const session = await auth();
   if (!session) return null;
-  if (session.user.role === "USER") redirect("/dashboard/library");
+  // Wishlist is open to every role — buyers, creators, admins. They all
+  // bookmark assets they want to come back to.
 
   // Pull saved likes joined with their assets. Filter out anything that
   // got unpublished after the user saved it (status !== APPROVED).

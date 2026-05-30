@@ -22,15 +22,25 @@ const CATEGORIES = [
 
 // Live count of APPROVED assets per category, cached 60s and purged by the
 // "assets" tag on admin approve/reject.
+//
+// The DB call is wrapped in a try/catch so a database outage degrades the
+// home page gracefully — categories render with zero counts instead of
+// crashing the whole route. This matters most during a Neon free-tier
+// auto-suspend cold start, where the first request after idle can take
+// 10+ seconds and sometimes times out.
 const fetchCategoryCounts = unstable_cache(
   async () => {
-    const rows = await prisma.asset.groupBy({
-      by: ["category"],
-      where: { status: "APPROVED" },
-      _count: { _all: true },
-    });
     const counts: Record<string, number> = {};
-    for (const r of rows) counts[r.category] = r._count._all;
+    try {
+      const rows = await prisma.asset.groupBy({
+        by: ["category"],
+        where: { status: "APPROVED" },
+        _count: { _all: true },
+      });
+      for (const r of rows) counts[r.category] = r._count._all;
+    } catch (err) {
+      console.error("[home/Categories] count failed:", err);
+    }
     return counts;
   },
   ["home-category-counts"],

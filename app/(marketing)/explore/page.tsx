@@ -2,7 +2,6 @@ import { Suspense, cache } from "react";
 import { unstable_cache } from "next/cache";
 import {
   CATEGORIES,
-  getAssetById,
   type AssetFilters,
   type MockAssetShape,
 } from "@/lib/mock/assets";
@@ -12,7 +11,6 @@ import { SortDropdown } from "./_components/SortDropdown";
 import { EmptyState } from "./_components/EmptyState";
 import { prisma } from "@/lib/prisma";
 import { creatorDisplayName } from "@/lib/utils";
-import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
 import type { Prisma } from "@prisma/client";
 
 export const metadata = {
@@ -31,8 +29,8 @@ interface SearchParams {
   sort?: string;
 }
 
-// Fallback shape/color for real user uploads that don't match a seed entry —
-// keeps the card preview from looking broken if the previewKey ever fails.
+// Default preview shape/color for uploads with no preview image and no
+// model — keeps the card preview from rendering blank.
 const FALLBACK_SHAPE: MockAssetShape = "icosahedron";
 const FALLBACK_COLOR = "#7c3aed";
 
@@ -109,20 +107,28 @@ const CARD_SELECT = {
 // Cached, deduped browse query. `cache()` (React) dedupes within one render —
 // `unstable_cache` (Next) persists across requests and is keyed by filters,
 // purged via the "assets" tag when admin approves/rejects an upload.
+// DB calls wrapped so a Neon outage degrades the explore page to an empty
+// listing instead of crashing — the page renders with "0 results" and the
+// filter sidebar / sort dropdown still work.
 const fetchBrowseAssets = cache(
   (filters: AssetFilters) =>
     unstable_cache(
       async () => {
-        const [dbAssets, totalApproved] = await Promise.all([
-          prisma.asset.findMany({
-            where: buildWhere(filters),
-            orderBy: buildOrderBy(filters.sort),
-            select: CARD_SELECT,
-            take: 96,
-          }),
-          prisma.asset.count({ where: { status: "APPROVED" } }),
-        ]);
-        return { dbAssets, totalApproved };
+        try {
+          const [dbAssets, totalApproved] = await Promise.all([
+            prisma.asset.findMany({
+              where: buildWhere(filters),
+              orderBy: buildOrderBy(filters.sort),
+              select: CARD_SELECT,
+              take: 96,
+            }),
+            prisma.asset.count({ where: { status: "APPROVED" } }),
+          ]);
+          return { dbAssets, totalApproved };
+        } catch (err) {
+          console.error("[explore] fetch failed:", err);
+          return { dbAssets: [], totalApproved: 0 };
+        }
       },
       ["explore-browse", JSON.stringify(filters)],
       { tags: ["assets"], revalidate: 60 }
@@ -144,30 +150,19 @@ export default async function ExplorePage({
     sort: sp.sort as AssetFilters["sort"],
   };
 
-  // Make sure the seeded sample assets exist before we query (no-op if already done).
-  await ensureSampleAssetsSeeded().catch(() => {
-    // Non-fatal — proceed with whatever is in the DB
-  });
-
   const { dbAssets, totalApproved } = await fetchBrowseAssets(filters);
 
-  const results: AssetCardData[] = dbAssets.map((a) => {
-    const mockMatch = getAssetById(a.id);
-    return {
-      id: a.id,
-      title: a.title,
-      creator: creatorDisplayName(a.uploader.name, a.uploader.role),
-      price: a.price,
-      rating: a.avgRating,
-      reviewCount: a.reviewCount,
-      downloads: a.downloads,
-      preview: {
-        shape: mockMatch?.preview.shape ?? FALLBACK_SHAPE,
-        color: mockMatch?.preview.color ?? FALLBACK_COLOR,
-      },
-      previewImage: a.previewKey || undefined,
-    };
-  });
+  const results: AssetCardData[] = dbAssets.map((a) => ({
+    id: a.id,
+    title: a.title,
+    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    price: a.price,
+    rating: a.avgRating,
+    reviewCount: a.reviewCount,
+    downloads: a.downloads,
+    preview: { shape: FALLBACK_SHAPE, color: FALLBACK_COLOR },
+    previewImage: a.previewKey || undefined,
+  }));
 
   const categoryName = sp.category
     ? CATEGORIES.find((c) => c.slug === sp.category)?.name

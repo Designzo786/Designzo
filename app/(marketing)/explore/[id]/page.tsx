@@ -12,15 +12,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import {
-  getAssetById,
-  getRelatedAssets,
   CATEGORIES,
   FILE_TYPES,
-  MOCK_ASSETS,
   type MockAssetShape,
 } from "@/lib/mock/assets";
-
-const MOCK_IDS = new Set(MOCK_ASSETS.map((m) => m.id));
 import {
   formatPrice,
   formatNumber,
@@ -28,25 +23,29 @@ import {
   formatDate,
   creatorDisplayName,
 } from "@/lib/utils";
-import { AssetCard } from "@/components/assets/AssetCard";
+import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 import { AssetActionButton } from "@/components/assets/AssetActionButton";
 import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
 import { AssetReviews } from "./AssetReviews";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ensureSampleAssetsSeeded } from "@/lib/auto-seed";
+
+// Default preview shape/color for uploads that have no preview image and
+// no .glb model — keeps the 3D viewer from rendering empty.
+const FALLBACK_SHAPE: MockAssetShape = "icosahedron";
+const FALLBACK_COLOR = "#7c3aed";
 
 const AssetViewer = dynamic(
   () => import("@/components/assets/AssetViewer"),
   { loading: () => <div className="absolute inset-0 skeleton" /> }
 );
 
-// Unified asset shape so the page renders DB-backed and mock assets the same way.
+// Detail-page asset shape. Every asset is a real DB row.
 interface UnifiedAsset {
   id: string;
   title: string;
   creatorName: string;
-  creatorId: string | null; // null for mock assets
+  creatorId: string;
   description: string;
   category: string;
   fileType: string;
@@ -58,7 +57,6 @@ interface UnifiedAsset {
   format: string;
   fileSizeBytes: number;
   price: number;
-  isReal: boolean;
   // Preview sources, in priority order: modelUrl > shape/shapeColor > previewImage
   modelUrl?: string;
   shape?: MockAssetShape;
@@ -67,91 +65,43 @@ interface UnifiedAsset {
 }
 
 async function loadAsset(id: string): Promise<UnifiedAsset | null> {
-  // Self-heal: if a mock asset ID is requested, make sure it exists in the
-  // DB. Runs once per process — cheap on every subsequent call.
-  if (MOCK_IDS.has(id)) {
-    await ensureSampleAssetsSeeded().catch(() => {
-      // If auto-seed fails (e.g. read-only filesystem), fall back to mock data
-    });
-  }
-
-  // 1. Try real DB row (any status — uploaders should still see their own
-  //    pending/rejected listings). Access checks happen at action time.
-  try {
-    const dbAsset = await prisma.asset.findUnique({
+  const dbAsset = await prisma.asset
+    .findUnique({
       where: { id },
       include: { uploader: { select: { id: true, name: true, role: true } } },
-    });
-    if (dbAsset) {
-      // Seeded sample assets keep an empty previewKey and rely on the mock
-      // entry's shape/color for the 3D viewer. Real user uploads have a
-      // previewImage URL — and possibly a modelKey if they uploaded a glTF/GLB.
-      const mockMatch = getAssetById(dbAsset.id);
-      const hasModelUrl = !!dbAsset.modelKey;
-      const hasPreviewImage = !!dbAsset.previewKey;
+    })
+    .catch(() => null);
+  if (!dbAsset) return null;
 
-      return {
-        id: dbAsset.id,
-        title: dbAsset.title,
-        creatorName: creatorDisplayName(
-          dbAsset.uploader.name,
-          dbAsset.uploader.role
-        ),
-        creatorId: dbAsset.uploaderId,
-        description: dbAsset.description,
-        category: dbAsset.category,
-        fileType: dbAsset.fileType,
-        tags: dbAsset.tags,
-        rating: dbAsset.avgRating,
-        reviewCount: dbAsset.reviewCount,
-        downloads: dbAsset.downloads,
-        createdAt: dbAsset.createdAt,
-        format: mockMatch?.format ?? dbAsset.fileType,
-        fileSizeBytes: dbAsset.fileSizeBytes ?? 0,
-        price: dbAsset.price,
-        isReal: true,
-        // Real .glb upload → load it in the 3D viewer.
-        // Otherwise: mock match → mock shape; else preview image only.
-        modelUrl: hasModelUrl ? dbAsset.modelKey ?? undefined : undefined,
-        shape:
-          !hasModelUrl && !hasPreviewImage
-            ? mockMatch?.preview.shape
-            : undefined,
-        shapeColor:
-          !hasModelUrl && !hasPreviewImage
-            ? mockMatch?.preview.color
-            : undefined,
-        previewImage: !hasModelUrl && hasPreviewImage ? dbAsset.previewKey : undefined,
-      };
-    }
-  } catch {
-    // DB might not be configured during early dev — fall through to mock
-  }
-
-  // 2. Fall back to mock data (used to populate the marketplace UI before
-  //    real creators upload anything).
-  const mock = getAssetById(id);
-  if (!mock) return null;
+  const hasModelUrl = !!dbAsset.modelKey;
+  const hasPreviewImage = !!dbAsset.previewKey;
 
   return {
-    id: mock.id,
-    title: mock.title,
-    creatorName: mock.creator,
-    creatorId: null,
-    description: mock.description,
-    category: mock.category,
-    fileType: mock.fileType,
-    tags: mock.tags,
-    rating: mock.rating,
-    reviewCount: 0,
-    downloads: mock.downloads,
-    createdAt: new Date(mock.createdAt),
-    format: mock.format,
-    fileSizeBytes: mock.fileSize,
-    price: mock.price,
-    isReal: false,
-    shape: mock.preview.shape,
-    shapeColor: mock.preview.color,
+    id: dbAsset.id,
+    title: dbAsset.title,
+    creatorName: creatorDisplayName(
+      dbAsset.uploader.name,
+      dbAsset.uploader.role
+    ),
+    creatorId: dbAsset.uploaderId,
+    description: dbAsset.description,
+    category: dbAsset.category,
+    fileType: dbAsset.fileType,
+    tags: dbAsset.tags,
+    rating: dbAsset.avgRating,
+    reviewCount: dbAsset.reviewCount,
+    downloads: dbAsset.downloads,
+    createdAt: dbAsset.createdAt,
+    format: dbAsset.fileType,
+    fileSizeBytes: dbAsset.fileSizeBytes ?? 0,
+    price: dbAsset.price,
+    // Priority: a .glb in the viewer first, then a static preview image,
+    // then a generic primitive shape so the card never goes blank.
+    modelUrl: hasModelUrl ? dbAsset.modelKey ?? undefined : undefined,
+    shape: !hasModelUrl && !hasPreviewImage ? FALLBACK_SHAPE : undefined,
+    shapeColor: !hasModelUrl && !hasPreviewImage ? FALLBACK_COLOR : undefined,
+    previewImage:
+      !hasModelUrl && hasPreviewImage ? dbAsset.previewKey : undefined,
   };
 }
 
@@ -184,14 +134,13 @@ export default async function AssetDetailPage({
 
   const isFree = asset.price === 0;
   const isAdmin = session?.user.role === "ADMIN";
-  const isOwner =
-    !!asset.creatorId && asset.creatorId === session?.user.id;
+  const isOwner = asset.creatorId === session?.user.id;
 
   // Has the signed-in user already paid for / claimed this asset, and have
   // they wishlisted it? Both are independent — run in parallel.
   let hasPurchase = false;
   let initialLiked = false;
-  if (asset.isReal && session) {
+  if (session) {
     const [purchaseRow, likeRow] = await Promise.all([
       prisma.purchase
         .findFirst({
@@ -216,26 +165,50 @@ export default async function AssetDetailPage({
     initialLiked = !!likeRow;
   }
 
-  let mode:
-    | "demo"
-    | "demo-signed-in"
-    | "guest-free"
-    | "guest-buy"
-    | "owned"
-    | "free"
-    | "buy";
-  if (!asset.isReal) mode = session ? "demo-signed-in" : "demo";
-  else if (!session) mode = isFree ? "guest-free" : "guest-buy";
+  let mode: "guest-free" | "guest-buy" | "owned" | "free" | "buy";
+  if (!session) mode = isFree ? "guest-free" : "guest-buy";
   else if (isOwner || isAdmin || hasPurchase) mode = "owned";
   else mode = isFree ? "free" : "buy";
 
   const category = CATEGORIES.find((c) => c.slug === asset.category);
   const fileTypeMeta = FILE_TYPES.find((f) => f.slug === asset.fileType);
 
-  // Related assets — for now still pulled from mock pool. Phase 4 will
-  // replace this with DB queries once enough real assets exist.
-  const mockSelf = getAssetById(asset.id);
-  const related = mockSelf ? getRelatedAssets(mockSelf, 3) : [];
+  // Related assets — three most-downloaded APPROVED uploads in the same
+  // category, excluding the current asset. Falls back to empty if the DB
+  // call fails so the page never errors on this side-section.
+  const relatedRows = await prisma.asset
+    .findMany({
+      where: {
+        status: "APPROVED",
+        category: asset.category,
+        NOT: { id: asset.id },
+      },
+      orderBy: { downloads: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        downloads: true,
+        avgRating: true,
+        reviewCount: true,
+        previewKey: true,
+        uploader: { select: { name: true, role: true } },
+      },
+    })
+    .catch(() => []);
+
+  const related: AssetCardData[] = relatedRows.map((a) => ({
+    id: a.id,
+    title: a.title,
+    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    price: a.price,
+    rating: a.avgRating,
+    reviewCount: a.reviewCount,
+    downloads: a.downloads,
+    preview: { shape: FALLBACK_SHAPE, color: FALLBACK_COLOR },
+    previewImage: a.previewKey || undefined,
+  }));
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -321,16 +294,14 @@ export default async function AssetDetailPage({
             </div>
           </section>
 
-          {asset.isReal && (
-            <AssetReviews
-              assetId={asset.id}
-              avgRating={asset.rating}
-              reviewCount={asset.reviewCount}
-              viewerId={session?.user.id ?? null}
-              canReview={hasPurchase && !isOwner}
-              isSignedIn={!!session}
-            />
-          )}
+          <AssetReviews
+            assetId={asset.id}
+            avgRating={asset.rating}
+            reviewCount={asset.reviewCount}
+            viewerId={session?.user.id ?? null}
+            canReview={hasPurchase && !isOwner}
+            isSignedIn={!!session}
+          />
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24">
@@ -368,7 +339,7 @@ export default async function AssetDetailPage({
                 assetTitle={asset.title}
                 initialLiked={initialLiked}
                 isAuthed={!!session}
-                isReal={asset.isReal}
+                isReal={true}
               />
             </div>
 
