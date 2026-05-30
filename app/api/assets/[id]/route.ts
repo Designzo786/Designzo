@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -113,9 +113,17 @@ export async function DELETE(
     });
   }
 
-  // The browse/explore pages cache approved-asset lists by tag — invalidate
-  // so the deleted asset disappears from the marketplace immediately.
+  // Belt-and-suspenders invalidation. The tag bust covers any cached query
+  // that opted into ["assets"] (Showcase + Categories on the home page,
+  // Explore listing). The path busts then force-rerender for the home and
+  // listing routes directly, in case a stale ISR entry would otherwise be
+  // served once more before the tag invalidation takes effect. The detail
+  // path bust ensures the now-deleted asset's page returns notFound on the
+  // very next request instead of serving a cached snapshot of the gone row.
   revalidateTag("assets", { expire: 0 });
+  revalidatePath("/");
+  revalidatePath("/explore");
+  revalidatePath(`/explore/${id}`);
 
   return NextResponse.json({ ok: true });
 }
