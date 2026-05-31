@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPaymentSignature, getRazorpay } from "@/lib/razorpay";
-import { commissionCalc, formatPrice } from "@/lib/utils";
+import { commissionCalc, formatMoney } from "@/lib/utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createNotifications } from "@/lib/notifications";
 
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
         userId: asset.uploaderId,
         type: "SALE",
         title: "You made a sale!",
-        body: `Someone bought "${asset.title}" — ${formatPrice(
+        body: `Someone bought "${asset.title}" — ${formatMoney(
           creatorEarning
         )} was added to your balance.`,
         link: "/dashboard/earnings",

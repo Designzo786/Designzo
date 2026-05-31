@@ -112,7 +112,7 @@ export function Footer() {
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted">
-            © {new Date().getFullYear()} GameChanger. All rights reserved.
+            © {new Date().getFullYear()} Designo. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted">
             <Link

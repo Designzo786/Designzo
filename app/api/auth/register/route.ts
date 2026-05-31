@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { maybePromoteAdmin } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { issueToken } from "@/lib/auth-tokens";
-import { sendEmail, renderVerifyEmail } from "@/lib/email";
-import { getPublicBaseUrl } from "@/lib/env";
+import { sendWelcomeNotification } from "@/lib/notifications";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -76,10 +75,17 @@ export async function POST(req: Request) {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const existing = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true },
-    });
+    // Pre-hash the password BEFORE checking the DB. bcrypt 12-round is ~250ms
+    // and pure CPU work — if Neon happens to be cold-starting, doing this here
+    // gives the DB time to wake up so the lookup that follows is likely warm.
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const existing = await retryOnTransient(() =>
+      prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      })
+    );
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
@@ -87,41 +93,108 @@ export async function POST(req: Request) {
       );
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await retryOnTransient(() =>
+      prisma.user.create({
+        data: {
+          name: name.trim(),
+          email: normalizedEmail,
+          passwordHash,
+          // Accounts are pre-verified at registration — no email confirmation
+          // gate. The credential authorize() flow doesn't check emailVerified
+          // anyway, so this just keeps the column populated for any downstream
+          // tooling that expects it (NextAuth's PrismaAdapter, audit queries).
+          emailVerified: new Date(),
+          creatorStatus: isCollaborator ? "PENDING" : "NONE",
+          acceptedTermsAt: new Date(),
+          // role stays the schema default (USER); collaborators are promoted
+          // to CREATOR only on admin approval.
+        },
+        select: { id: true, email: true, name: true },
+      })
+    );
 
-    const user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: normalizedEmail,
-        passwordHash,
-        creatorStatus: isCollaborator ? "PENDING" : "NONE",
-        acceptedTermsAt: new Date(),
-        // role stays the schema default (USER); collaborators are promoted
-        // to CREATOR only on admin approval.
-      },
-      select: { id: true, email: true, name: true },
-    });
+    // Auto-promote to ADMIN if the email matches ADMIN_EMAIL. Wrapped in
+    // its own try/catch so a transient failure here doesn't roll back the
+    // newly-created account — the user can sign in and the next sign-in
+    // will run the bootstrap check again.
+    await maybePromoteAdmin(user.email, "USER").catch((e) =>
+      console.error("[register] admin promote check failed:", e)
+    );
 
-    // Auto-promote to ADMIN if the email matches ADMIN_EMAIL.
-    await maybePromoteAdmin(user.email, "USER");
-
-    // Send verification email — best-effort; account creation still succeeds
-    // if email fails (user can hit "resend" later).
-    try {
-      const secret = await issueToken("verify", user.email);
-      const verifyUrl = `${getPublicBaseUrl()}/verify-email?email=${encodeURIComponent(user.email)}&token=${secret}`;
-      const { subject, html } = renderVerifyEmail(user.name ?? "there", verifyUrl);
-      await sendEmail({ to: user.email, subject, html });
-    } catch (err) {
-      console.error("[register] verification email failed:", err);
-    }
+    // Welcome notification — fired as fire-and-forget so the response goes
+    // out immediately. The helper already swallows its own errors. Awaiting
+    // it would mean a slow Resend response or a cold-start DB read on the
+    // notification row blocks the user from seeing "you're registered".
+    void sendWelcomeNotification(user.id, isCollaborator).catch((e) =>
+      console.error("[register] welcome notification failed:", e)
+    );
 
     return NextResponse.json({ id: user.id, email: user.email }, { status: 201 });
   } catch (err) {
+    // P2002 — unique constraint violation. Happens when two register requests
+    // for the same email race past our findUnique check. Treat it as a normal
+    // "account already exists" so the UI matches the no-race path.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "An account with this email already exists." },
+        { status: 409 }
+      );
+    }
+
+    // P1001 (can't reach DB) / P2024 (connection timeout) — the Neon free
+    // tier auto-suspends after idle and the wake-up sometimes outruns our
+    // retry budget. Tell the user what's going on instead of a generic 500.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      (err.code === "P1001" || err.code === "P2024")
+    ) {
+      console.error("[register] DB unreachable:", err.code);
+      return NextResponse.json(
+        {
+          error:
+            "The database is waking up — please try again in a few seconds.",
+        },
+        { status: 503 }
+      );
+    }
+    if (err instanceof Prisma.PrismaClientInitializationError) {
+      console.error("[register] Prisma init failed:", err.message);
+      return NextResponse.json(
+        {
+          error:
+            "The database is waking up — please try again in a few seconds.",
+        },
+        { status: 503 }
+      );
+    }
+
     console.error("[register] failed:", err);
     return NextResponse.json(
       { error: "Could not create account. Please try again." },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Retry a Prisma operation once if the first attempt hits a transient
+ * connectivity error. Catches the Neon-cold-start failure mode where the
+ * compute is mid-resume and the first query lands a fraction of a second
+ * before the server is ready. A 500ms backoff is enough in practice.
+ */
+async function retryOnTransient<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    return await op();
+  } catch (err) {
+    const transient =
+      (err instanceof Prisma.PrismaClientKnownRequestError &&
+        (err.code === "P1001" || err.code === "P2024")) ||
+      err instanceof Prisma.PrismaClientInitializationError;
+    if (!transient) throw err;
+    await new Promise((r) => setTimeout(r, 500));
+    return op();
   }
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -22,6 +23,7 @@ export function ReviewForm({ assetId, initialRating, initialComment }: Props) {
   const [comment, setComment] = useState(initialComment);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +49,13 @@ export function ReviewForm({ assetId, initialRating, initialComment }: Props) {
   }
 
   async function remove() {
-    if (!confirm("Remove your review?")) return;
+    const ok = await confirm({
+      variant: "danger",
+      title: "Remove your review?",
+      body: "Your star rating and comment will be deleted from this asset. You can leave a new review later.",
+      confirmLabel: "Remove review",
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     const res = await fetch(`/api/assets/${assetId}/reviews`, {
@@ -68,6 +76,7 @@ export function ReviewForm({ assetId, initialRating, initialComment }: Props) {
   const shown = hover || rating;
 
   return (
+    <>
     <form
       onSubmit={submit}
       className="rounded-xl border border-border bg-elevated/50 p-4 space-y-3"
@@ -137,5 +146,7 @@ export function ReviewForm({ assetId, initialRating, initialComment }: Props) {
         )}
       </div>
     </form>
+    {dialog}
+    </>
   );
 }

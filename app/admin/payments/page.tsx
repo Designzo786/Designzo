@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Building2, AlertCircle, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import { maskBankAccount } from "@/lib/kyc";
 import { PayoutActions } from "./PayoutActions";
 import { CreatePayoutButton } from "./CreatePayoutButton";
@@ -111,11 +111,11 @@ export default async function AdminPayoutsPage({
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-sm font-semibold text-primary">
-                    {formatPrice(c.balance)}
+                    {formatMoney(c.balance)}
                   </span>
                   <CreatePayoutButton
                     creatorId={c.id}
-                    amountLabel={formatPrice(c.balance)}
+                    amountLabel={formatMoney(c.balance)}
                   />
                 </div>
               </li>
@@ -204,7 +204,7 @@ export default async function AdminPayoutsPage({
                       )}
                     </td>
                     <td className="px-4 py-3 font-semibold text-primary whitespace-nowrap">
-                      {formatPrice(p.amount)}
+                      {formatMoney(p.amount)}
                     </td>
                     <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
                       {new Intl.DateTimeFormat("en-US", {

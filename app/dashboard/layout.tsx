@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/components/layout/Navbar";
 import { DashboardNav } from "./DashboardNav";
+import { ProfileCompletionPrompt } from "./ProfileCompletionPrompt";
+
+// A user counts as "fresh" for ~10 minutes after sign-up — long enough that
+// the post-register dashboard arrival catches it, short enough that a regular
+// return visit never re-triggers the welcome prompt.
+const FRESH_ACCOUNT_MS = 10 * 60 * 1000;
 
 export default async function DashboardLayout({
   children,
@@ -14,13 +20,28 @@ export default async function DashboardLayout({
   if (!session) redirect("/login?callbackUrl=/dashboard");
 
   // Surface the collaborator application state so a pending creator knows
-  // why the upload tools aren't available yet.
+  // why the upload tools aren't available yet. Pull a few profile fields at
+  // the same time so we can decide whether to nudge the user toward the
+  // "complete your profile" modal.
   const me = await prisma.user
     .findUnique({
       where: { id: session.user.id },
-      select: { creatorStatus: true },
+      select: {
+        creatorStatus: true,
+        image: true,
+        bio: true,
+        website: true,
+        createdAt: true,
+      },
     })
     .catch(() => null);
+
+  const isFresh =
+    !!me && Date.now() - me.createdAt.getTime() < FRESH_ACCOUNT_MS;
+  const missingAvatar = !me?.image;
+  const missingBio = !me?.bio || me.bio.trim().length === 0;
+  const missingWebsite = !me?.website || me.website.trim().length === 0;
+  const isIncomplete = missingAvatar || missingBio || missingWebsite;
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -59,6 +80,19 @@ export default async function DashboardLayout({
           <main className="min-w-0">{children}</main>
         </div>
       </div>
+
+      {/* Post-signup nudge — only renders on the client when both conditions
+          (fresh account + missing profile fields) hold, and respects a
+          per-browser dismissal flag so it never feels annoying. */}
+      <ProfileCompletionPrompt
+        isFresh={isFresh}
+        isIncomplete={isIncomplete}
+        missing={{
+          avatar: missingAvatar,
+          bio: missingBio,
+          website: missingWebsite,
+        }}
+      />
     </div>
   );
 }

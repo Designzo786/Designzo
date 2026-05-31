@@ -81,6 +81,7 @@ enum NotificationType {
   CREATOR_APPROVED
   CREATOR_REJECTED
   REVIEW
+  WELCOME
 }
 
 // ─── Auth Models (required by @auth/prisma-adapter v2) ────────────────────────

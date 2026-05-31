@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Library, Upload, DollarSign, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Dashboard" };
 
@@ -42,7 +42,7 @@ export default async function DashboardHome() {
     },
     {
       label: "Available balance",
-      value: formatPrice(user.balance),
+      value: formatMoney(user.balance),
       icon: DollarSign,
       href: "/dashboard/earnings",
     },

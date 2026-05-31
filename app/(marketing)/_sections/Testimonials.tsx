@@ -41,7 +41,7 @@ export function Testimonials() {
           Don&apos;t just take our word for it
         </h2>
         <p className="mt-3 text-secondary">
-          Real feedback from creators and developers shipping with GameChanger.
+          Real feedback from creators and developers shipping with Designo.
         </p>
       </div>
 

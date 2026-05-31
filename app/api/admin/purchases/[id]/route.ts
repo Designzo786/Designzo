@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminSession, writeAdminLog } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { createNotification, createNotifications } from "@/lib/notifications";
-import { formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import type { PurchaseStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -111,7 +111,7 @@ export async function PATCH(
         userId: uploaderId,
         type: "SALE",
         title: "You made a sale!",
-        body: `"${title}" was purchased — ${formatPrice(earning)} added to your balance.`,
+        body: `"${title}" was purchased — ${formatMoney(earning)} added to your balance.`,
         link: "/dashboard/earnings",
       },
     ]);

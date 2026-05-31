@@ -1,21 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Bell,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  DollarSign,
-  ShoppingBag,
-  ShieldCheck,
-  ShieldAlert,
-  Check,
-} from "lucide-react";
+import { Bell, Check, ArrowRight } from "lucide-react";
 import { useDropdown } from "@/hooks/useDropdown";
-import { formatRelativeTime } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatRelativeTime, cn } from "@/lib/utils";
+import { getNotificationStyle } from "@/lib/notification-styles";
 
 interface NotificationItem {
   id: string;
@@ -27,22 +18,7 @@ interface NotificationItem {
   createdAt: string;
 }
 
-// Per-type icon + accent colour for the list rows.
-const TYPE_STYLE: Record<
-  string,
-  { icon: typeof Bell; className: string }
-> = {
-  ASSET_APPROVED: { icon: CheckCircle2, className: "text-accent-light" },
-  ASSET_REJECTED: { icon: XCircle, className: "text-danger" },
-  SALE: { icon: DollarSign, className: "text-gold" },
-  PURCHASE: { icon: ShoppingBag, className: "text-accent-light" },
-  PAYOUT_PROCESSING: { icon: Clock, className: "text-info" },
-  PAYOUT_PAID: { icon: CheckCircle2, className: "text-accent-light" },
-  PAYOUT_FAILED: { icon: XCircle, className: "text-danger" },
-  KYC_VERIFIED: { icon: ShieldCheck, className: "text-accent-light" },
-  KYC_REJECTED: { icon: ShieldAlert, className: "text-danger" },
-};
-
+// Poll every minute so the badge stays roughly fresh without spamming the API.
 const POLL_MS = 60_000;
 
 export function NotificationBell() {
@@ -55,7 +31,7 @@ export function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications?limit=10");
       if (!res.ok) return;
       const data = await res.json();
       setItems(data.notifications ?? []);
@@ -67,14 +43,13 @@ export function NotificationBell() {
     }
   }, []);
 
-  // Initial load + lightweight poll so the badge stays roughly fresh.
   useEffect(() => {
     fetchNotifications();
     const timer = setInterval(fetchNotifications, POLL_MS);
     return () => clearInterval(timer);
   }, [fetchNotifications]);
 
-  // Refresh when the dropdown is opened.
+  // Refresh when opened so the user always sees the latest 10.
   useEffect(() => {
     if (open) fetchNotifications();
   }, [open, fetchNotifications]);
@@ -104,6 +79,7 @@ export function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -114,7 +90,7 @@ export function NotificationBell() {
       >
         <Bell className="w-[18px] h-[18px]" />
         {unread > 0 && (
-          <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_-1px_rgba(124,58,237,0.7)]">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -128,9 +104,15 @@ export function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-sm font-semibold text-primary">
               Notifications
+              {unread > 0 && (
+                <span className="ml-2 text-[11px] font-normal text-muted">
+                  {unread} unread
+                </span>
+              )}
             </span>
             {unread > 0 && (
               <button
+                type="button"
                 onClick={markAllRead}
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent-light hover:text-accent transition-colors"
               >
@@ -148,21 +130,17 @@ export function NotificationBell() {
             ) : items.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <Bell className="w-7 h-7 text-muted mx-auto mb-2" />
-                <p className="text-xs text-muted">
-                  No notifications yet.
-                </p>
+                <p className="text-xs text-muted">No notifications yet.</p>
               </div>
             ) : (
               <ul className="divide-y divide-border">
                 {items.map((n) => {
-                  const style = TYPE_STYLE[n.type] ?? {
-                    icon: Bell,
-                    className: "text-muted",
-                  };
+                  const style = getNotificationStyle(n.type);
                   const Icon = style.icon;
                   return (
                     <li key={n.id}>
                       <button
+                        type="button"
                         onClick={() => onItemClick(n)}
                         className={cn(
                           "w-full flex gap-3 px-4 py-3 text-left transition-colors hover:bg-elevated",
@@ -170,7 +148,10 @@ export function NotificationBell() {
                         )}
                       >
                         <Icon
-                          className={cn("w-4 h-4 shrink-0 mt-0.5", style.className)}
+                          className={cn(
+                            "w-4 h-4 shrink-0 mt-0.5",
+                            style.className
+                          )}
                         />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-primary">
@@ -193,6 +174,16 @@ export function NotificationBell() {
               </ul>
             )}
           </div>
+
+          {/* Footer — link to the full inbox at /dashboard/notifications */}
+          <Link
+            href="/dashboard/notifications"
+            onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-border text-xs font-medium text-accent-light hover:text-accent hover:bg-accent-muted/40 transition-colors"
+          >
+            See all notifications
+            <ArrowRight className="w-3 h-3" />
+          </Link>
         </div>
       )}
     </div>

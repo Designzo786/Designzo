@@ -75,3 +75,34 @@ export async function createNotifications(
 ): Promise<void> {
   await Promise.all(inputs.map((i) => createNotification(i)));
 }
+
+/**
+ * Fires the "Welcome to Designo" notification on first signup.
+ *
+ * Called from BOTH auth entry points so every new account gets it exactly
+ * once regardless of which path they used:
+ *   • Credential register   → app/api/auth/register/route.ts
+ *   • Google OAuth sign-up  → events.createUser in lib/auth.ts
+ *
+ * The double cast to NotificationType is a temporary workaround for the
+ * Prisma client lag — the DB enum already includes "WELCOME" (applied via
+ * migration 20260531023710_add_welcome_notification_type), but a running
+ * Next dev server can hold the Prisma DLL and stop `prisma generate` from
+ * refreshing the TS types. Once `npx prisma generate` runs cleanly, the
+ * cast becomes a redundant identity assertion.
+ */
+export async function sendWelcomeNotification(
+  userId: string,
+  isCollaborator = false
+): Promise<void> {
+  await createNotification({
+    userId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type: "WELCOME" as any,
+    title: "Welcome to Designo 🎉",
+    body: isCollaborator
+      ? "Thanks for joining as a Collaborator. Once an admin approves your application, you can start uploading and selling premium 3D assets."
+      : "Thanks for joining. Browse the marketplace, save assets to your wishlist, and buy what you love.",
+    link: isCollaborator ? "/dashboard" : "/explore",
+  });
+}

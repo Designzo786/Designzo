@@ -24,7 +24,7 @@ export function CTA() {
             <span className="gradient-text-gold">creative work</span>?
           </h2>
           <p className="mt-5 text-secondary max-w-xl mx-auto text-base sm:text-lg">
-            Sell your 3D work on GameChanger and earn passive income. Keep 80%
+            Sell your 3D work on Designo and earn passive income. Keep 80%
             of every sale, with bank payouts straight to your account.
           </p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">

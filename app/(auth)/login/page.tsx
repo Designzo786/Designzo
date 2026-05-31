@@ -8,6 +8,7 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
+import { Alert } from "@/components/ui/Alert";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 
@@ -28,7 +29,7 @@ function LoginFallback() {
         Welcome back
       </h1>
       <p className="mt-1.5 text-sm text-muted">
-        Sign in to continue to GameChanger
+        Sign in to continue to Designo
       </p>
     </div>
   );
@@ -39,7 +40,12 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [email, setEmail] = useState("");
+  // Coming back from /register — show a success banner and pre-fill the email
+  // input so the user only types their password.
+  const justRegistered = searchParams.get("registered") === "1";
+  const prefillEmail = searchParams.get("email") ?? "";
+
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +81,23 @@ function LoginForm() {
     <>
       <div className="text-center mb-7">
         <h1 className="text-2xl font-bold text-primary tracking-tight">
-          Welcome back
+          {justRegistered ? "Account created" : "Welcome back"}
         </h1>
         <p className="mt-1.5 text-sm text-muted">
-          Sign in to continue to GameChanger
+          {justRegistered
+            ? "Sign in below to start using Designo."
+            : "Sign in to continue to Designo"}
         </p>
       </div>
+
+      {justRegistered && (
+        <div className="mb-5">
+          <Alert variant="success" title="You're all set">
+            Your account is ready. Sign in with the email and password you just
+            chose.
+          </Alert>
+        </div>
+      )}
 
       <GoogleButton callbackUrl={callbackUrl} label="Sign in with Google" />
 

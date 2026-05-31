@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 export function KycActions({ userId }: { userId: string }) {
   const router = useRouter();
@@ -12,6 +13,7 @@ export function KycActions({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [showReject, setShowReject] = useState(false);
   const [rejectionNote, setRejectionNote] = useState("");
+  const { confirm, dialog } = useConfirm();
 
   async function update(action: "VERIFY" | "REJECT", note?: string) {
     setError(null);
@@ -28,9 +30,14 @@ export function KycActions({ userId }: { userId: string }) {
     startTransition(() => router.push("/admin/kyc"));
   }
 
-  function onApprove() {
-    if (!confirm("Approve this KYC submission? Creator becomes payout-eligible.")) return;
-    update("VERIFY");
+  async function onApprove() {
+    const ok = await confirm({
+      variant: "info",
+      title: "Approve this KYC submission?",
+      body: "The creator becomes payout-eligible immediately. Their bank details will be used for all future payouts.",
+      confirmLabel: "Approve KYC",
+    });
+    if (ok) await update("VERIFY");
   }
 
   function onSubmitReject(e: React.FormEvent) {
@@ -43,6 +50,7 @@ export function KycActions({ userId }: { userId: string }) {
   }
 
   return (
+    <>
     <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div>
         <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-1">
@@ -109,5 +117,7 @@ export function KycActions({ userId }: { userId: string }) {
         </div>
       )}
     </div>
+    {dialog}
+    </>
   );
 }

@@ -185,8 +185,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async createUser({ user }) {
       // Prisma @default(USER) handles role; this event also runs the
       // ADMIN_EMAIL bootstrap check for OAuth signups.
-      if (user.id && user.email) {
-        await maybePromoteAdmin(user.email, "USER");
+      if (!user.id || !user.email) return;
+
+      await maybePromoteAdmin(user.email, "USER");
+
+      // Fire the welcome notification + email for new OAuth signups (the
+      // credential register route fires its own welcome inline). Imported
+      // lazily so the auth module doesn't pull the notification + Resend
+      // chain into its synchronous import graph.
+      try {
+        const { sendWelcomeNotification } = await import("./notifications");
+        // OAuth users haven't gone through the Collaborator-vs-USER tab
+        // selection, so they always start as buyers (creatorStatus stays NONE).
+        await sendWelcomeNotification(user.id, false);
+      } catch (err) {
+        console.error("[auth] welcome notification failed:", err);
       }
     },
   },

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Terms of Service",
-  description: "GameChanger Terms of Service",
+  description: "Designo Terms of Service",
 };
 
 export default function TermsPage() {
@@ -19,7 +19,7 @@ export default function TermsPage() {
 
       <p className="text-secondary leading-relaxed">
         These Terms of Service (&quot;Terms&quot;) govern your access to and use
-        of GameChanger (&quot;Service&quot;, &quot;we&quot;, &quot;our&quot;).
+        of Designo (&quot;Service&quot;, &quot;we&quot;, &quot;our&quot;).
         By creating an account or using the Service, you agree to be bound by
         these Terms. If you don&apos;t agree, don&apos;t use the Service.
       </p>
@@ -40,7 +40,7 @@ export default function TermsPage() {
       <Section number="3" title="Creator Uploads & Licensing">
         <p>
           When you upload an asset (&quot;Creator Content&quot;), you keep
-          ownership of it. You grant GameChanger a non-exclusive, worldwide,
+          ownership of it. You grant Designo a non-exclusive, worldwide,
           royalty-free licence to host, display, market, and distribute your
           Creator Content as part of operating the Service. You also grant
           buyers the licence terms attached to each purchase.
@@ -107,7 +107,7 @@ export default function TermsPage() {
       </Section>
 
       <Section number="11" title="Limitation of Liability">
-        To the maximum extent permitted by law, GameChanger&apos;s total
+        To the maximum extent permitted by law, Designo&apos;s total
         liability for any claim arising from the Service is limited to the
         greater of (a) the amount you paid us in the 12 months preceding the
         claim, or (b) INR 10,000.

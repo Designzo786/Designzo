@@ -8,19 +8,34 @@ export function cn(...inputs: ClassValue[]): string {
 
 /**
  * Public-facing creator name for an asset. Assets uploaded by an ADMIN are
- * shown as official "GameChanger" listings rather than under the admin's
+ * shown as official "Designo" listings rather than under the admin's
  * personal name.
  */
 export function creatorDisplayName(
   name: string | null | undefined,
   role: Role
 ): string {
-  if (role === "ADMIN") return "GameChanger";
+  if (role === "ADMIN") return "Designo";
   return name ?? "Unknown";
 }
 
+/**
+ * Format an asset's selling price. 0 is shown as the word "Free" because
+ * that's how a free asset reads in product context (cards, checkout). For
+ * account balances / earnings / payouts where 0 means "no money yet",
+ * use formatMoney() instead.
+ */
 export function formatPrice(paise: number): string {
   if (paise === 0) return "Free";
+  return formatMoney(paise);
+}
+
+/**
+ * Format a currency amount in INR. Always renders the rupee symbol, even
+ * for 0 — meant for balances, earnings, payouts and any other "money in
+ * an account" display where "Free" would be misleading.
+ */
+export function formatMoney(paise: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",

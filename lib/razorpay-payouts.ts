@@ -164,7 +164,7 @@ export async function createRazorpayXPayout(params: {
       purpose: "payout",
       queue_if_low_balance: true,
       reference_id: params.payoutId,
-      narration: "GameChanger creator payout",
+      narration: "Designo creator payout",
     }),
   });
 

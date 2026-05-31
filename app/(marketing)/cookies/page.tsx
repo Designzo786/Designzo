@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Cookie Policy",
-  description: "How GameChanger uses cookies.",
+  description: "How Designo uses cookies.",
 };
 
 export default function CookiesPage() {
@@ -16,7 +16,7 @@ export default function CookiesPage() {
       </header>
 
       <p className="text-secondary leading-relaxed">
-        This Cookie Policy explains how GameChanger uses cookies and similar
+        This Cookie Policy explains how Designo uses cookies and similar
         technologies. It should be read alongside our{" "}
         <Link
           href="/privacy"

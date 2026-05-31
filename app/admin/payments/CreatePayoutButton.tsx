@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote } from "lucide-react";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 export function CreatePayoutButton({
   creatorId,
@@ -14,14 +15,16 @@ export function CreatePayoutButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   async function create() {
-    if (
-      !confirm(
-        `Start a payout of ${amountLabel} for this creator? Their balance is moved into a pending payout you can then process.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      variant: "info",
+      title: `Start payout of ${amountLabel}?`,
+      body: "The creator's balance is moved into a pending payout you can then mark as paid (or fail) once the bank transfer settles.",
+      confirmLabel: "Start payout",
+    });
+    if (!ok) return;
     setError(null);
     const res = await fetch("/api/admin/payouts/create", {
       method: "POST",
@@ -37,16 +40,20 @@ export function CreatePayoutButton({
   }
 
   return (
-    <div className="inline-flex items-center gap-2">
-      {error && <span className="text-xs text-danger">{error}</span>}
-      <button
-        onClick={create}
-        disabled={pending}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-accent-light bg-accent-muted hover:bg-accent/20 border border-accent/20 transition-colors disabled:opacity-50"
-      >
-        <Banknote className="w-3.5 h-3.5" />
-        Start payout
-      </button>
-    </div>
+    <>
+      <div className="inline-flex items-center gap-2">
+        {error && <span className="text-xs text-danger">{error}</span>}
+        <button
+          type="button"
+          onClick={create}
+          disabled={pending}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-accent-light bg-accent-muted hover:bg-accent/20 border border-accent/20 transition-colors disabled:opacity-50"
+        >
+          <Banknote className="w-3.5 h-3.5" />
+          Start payout
+        </button>
+      </div>
+      {dialog}
+    </>
   );
 }

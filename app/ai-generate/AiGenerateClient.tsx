@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Sparkles, Wand2, RefreshCw, Save, Trash2, History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { STYLE_OPTIONS, PROMPT_EXAMPLES, type AiStyle } from "@/lib/ai";
 import type { AiGenerationResult } from "@/lib/ai";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ const AssetViewer = dynamic(() => import("@/components/assets/AssetViewer"), {
   loading: () => <div className="absolute inset-0 skeleton" />,
 });
 
-const HISTORY_KEY = "gamechanger.ai-history.v1";
+const HISTORY_KEY = "designo.ai-history.v1";
 const HISTORY_LIMIT = 12;
 
 function loadHistory(): AiGenerationResult[] {
@@ -48,6 +49,7 @@ export function AiGenerateClient() {
   const [result, setResult] = useState<AiGenerationResult | null>(null);
   const [history, setHistory] = useState<AiGenerationResult[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -92,8 +94,14 @@ export function AiGenerateClient() {
     void generate(result.prompt, result.style);
   }
 
-  function clearHistory() {
-    if (!confirm("Clear all generation history?")) return;
+  async function clearHistory() {
+    const ok = await confirm({
+      variant: "danger",
+      title: "Clear all generation history?",
+      body: "All saved AI generation results from this browser will be removed. The actual assets you saved to your library aren't affected.",
+      confirmLabel: "Clear history",
+    });
+    if (!ok) return;
     setHistory([]);
     saveHistory([]);
   }
@@ -380,6 +388,7 @@ export function AiGenerateClient() {
           </p>
         </section>
       )}
+      {dialog}
     </div>
   );
 }

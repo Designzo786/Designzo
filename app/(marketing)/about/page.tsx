@@ -3,7 +3,7 @@ import { ArrowRight, Boxes, Users, Sparkles } from "lucide-react";
 
 export const metadata = {
   title: "About",
-  description: "What GameChanger is and the mission behind it.",
+  description: "What Designo is and the mission behind it.",
 };
 
 const VALUES = [
@@ -32,10 +32,10 @@ export default function AboutPage() {
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
       <header className="text-center max-w-2xl mx-auto">
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-primary">
-          About GameChanger
+          About Designo
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          GameChanger is a marketplace for premium 3D and digital assets — a
+          Designo is a marketplace for premium 3D and digital assets — a
           place where creators sell their best work and buyers find exactly
           what their next project needs.
         </p>
@@ -46,7 +46,7 @@ export default function AboutPage() {
         <p className="mt-3 text-secondary leading-relaxed">
           3D content powers games, films, product design, and the web — but
           buying and selling it has long been clunky and unfair to the people
-          who actually make it. We built GameChanger to fix that: a clean,
+          who actually make it. We built Designo to fix that: a clean,
           fast marketplace that treats creators as partners and gives buyers a
           dependable place to source models and materials.
         </p>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Camera, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { FormError } from "@/components/ui/FormError";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { formatFileSize } from "@/lib/utils";
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
@@ -23,6 +24,7 @@ export function AvatarUpload({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog } = useConfirm();
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -66,7 +68,13 @@ export function AvatarUpload({
   }
 
   async function onRemove() {
-    if (!confirm("Remove your avatar?")) return;
+    const ok = await confirm({
+      variant: "danger",
+      title: "Remove your avatar?",
+      body: "Your profile will fall back to the auto-generated initials avatar. You can upload a new one any time.",
+      confirmLabel: "Remove avatar",
+    });
+    if (!ok) return;
     setError(null);
     setLoading(true);
     try {
@@ -134,6 +142,7 @@ export function AvatarUpload({
           <FormError message={error} />
         </div>
       )}
+      {dialog}
     </div>
   );
 }

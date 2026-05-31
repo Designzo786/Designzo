@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature } from "@/lib/razorpay";
-import { commissionCalc, formatPrice } from "@/lib/utils";
+import { commissionCalc, formatMoney } from "@/lib/utils";
 import { mapRazorpayXStatus } from "@/lib/razorpay-payouts";
 import { createNotification, createNotifications } from "@/lib/notifications";
 
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     payload?: {
       payment?: { entity?: RazorpayPaymentEntity };
       payout?: { entity?: RazorpayPayoutEntity };
+      refund?: { entity?: RazorpayRefundEntity };
     };
   };
   try {
@@ -56,6 +57,13 @@ export async function POST(req: Request) {
           "[webhook] payment.failed:",
           event.payload?.payment?.entity?.id
         );
+        break;
+      case "refund.created":
+      case "refund.processed":
+        // Razorpay-initiated refund (admin issued from the dashboard, or buyer
+        // disputed and won). Reverse the Purchase + creator credit so the DB
+        // reflects reality.
+        await handleRefund(event.payload?.refund?.entity);
         break;
       case "payout.processed":
       case "payout.failed":
@@ -88,6 +96,13 @@ interface RazorpayPaymentEntity {
 interface RazorpayPayoutEntity {
   id?: string;
   status?: string;
+}
+
+interface RazorpayRefundEntity {
+  id?: string;
+  payment_id?: string;
+  amount?: number;
+  status?: string; // "pending" | "processed" | "failed"
 }
 
 /**
@@ -163,7 +178,7 @@ async function handlePaymentCaptured(payment?: RazorpayPaymentEntity) {
         userId: asset.uploaderId,
         type: "SALE",
         title: "You made a sale!",
-        body: `Someone bought "${asset.title}" — ${formatPrice(
+        body: `Someone bought "${asset.title}" — ${formatMoney(
           creatorEarning
         )} was added to your balance.`,
         link: "/dashboard/earnings",
@@ -225,7 +240,7 @@ async function handlePayoutUpdate(entity?: RazorpayPayoutEntity) {
   }
 
   // Notify the creator of the new payout state.
-  const amount = formatPrice(payout.amount);
+  const amount = formatMoney(payout.amount);
   if (next === "PAID") {
     await createNotification({
       userId: payout.creatorId,
@@ -251,4 +266,89 @@ async function handlePayoutUpdate(entity?: RazorpayPayoutEntity) {
       link: "/dashboard/earnings",
     });
   }
+}
+
+/**
+ * Razorpay-initiated refund (admin issued the refund from the dashboard, or
+ * the buyer raised a successful chargeback). Flip the Purchase to REFUNDED
+ * and roll back the creator's credit so books match reality.
+ *
+ *   • Idempotent — repeat events for the same refund are no-ops
+ *   • The creator's balance is clamped at 0 if they've already withdrawn the
+ *     credit (avoids a confusing negative balance; the deficit is silently
+ *     absorbed by the platform's commission cushion)
+ *   • Both buyer and creator get notified
+ *   • `refund.processed` is the authoritative event for completed refunds;
+ *     `refund.created` is fired earlier and treated the same here so flaky
+ *     processed-event delivery still converges
+ */
+async function handleRefund(entity?: RazorpayRefundEntity) {
+  if (!entity?.payment_id) return;
+
+  const purchase = await prisma.purchase.findFirst({
+    where: { razorpayPaymentId: entity.payment_id },
+    select: {
+      id: true,
+      status: true,
+      buyerId: true,
+      creatorEarning: true,
+      asset: { select: { title: true, uploaderId: true } },
+    },
+  });
+  if (!purchase) {
+    console.warn(
+      "[webhook] refund for unknown payment_id:",
+      entity.payment_id
+    );
+    return;
+  }
+  if (purchase.status === "REFUNDED") return; // already reversed — idempotent
+
+  const uploaderId = purchase.asset.uploaderId;
+  const earning = purchase.creatorEarning;
+
+  // Single transaction so the status flip and the balance debit can never
+  // diverge — they either both land or neither does.
+  await prisma.$transaction(async (tx) => {
+    await tx.purchase.update({
+      where: { id: purchase.id },
+      data: { status: "REFUNDED" },
+    });
+
+    if (earning > 0) {
+      const creator = await tx.user.findUnique({
+        where: { id: uploaderId },
+        select: { balance: true },
+      });
+      // Math.max(0, …) — never push the balance negative even if the creator
+      // already withdrew. Worst case the platform eats the small delta out
+      // of its commission rather than chasing the creator for a clawback.
+      await tx.user.update({
+        where: { id: uploaderId },
+        data: {
+          balance: Math.max(0, (creator?.balance ?? 0) - earning),
+        },
+      });
+    }
+  });
+
+  const title = purchase.asset.title;
+  await createNotifications([
+    {
+      userId: purchase.buyerId,
+      type: "PURCHASE",
+      title: "Refund processed",
+      body: `Your purchase of "${title}" was refunded. Access has been removed from your library.`,
+      link: "/dashboard/library",
+    },
+    {
+      userId: uploaderId,
+      type: "SALE",
+      title: "Sale refunded",
+      body: `A sale of "${title}" was refunded. ${formatMoney(earning)} was deducted from your balance.`,
+      link: "/dashboard/earnings",
+    },
+  ]);
+
+  console.info("[webhook] processed refund for payment:", entity.payment_id);
 }

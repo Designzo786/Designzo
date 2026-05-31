@@ -88,8 +88,11 @@ function RegisterForm() {
         return;
       }
 
-      // Don't auto-sign-in — push them through email verification first.
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      // Account is pre-verified — drop them straight on the login page with
+      // a friendly confirmation banner. They can sign in immediately.
+      router.push(
+        `/login?registered=1&email=${encodeURIComponent(email)}`
+      );
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

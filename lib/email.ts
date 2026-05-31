@@ -20,7 +20,7 @@ interface SendArgs {
 
 export async function sendEmail({ to, subject, html, text }: SendArgs): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "GameChanger <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM ?? "Designo <onboarding@resend.dev>";
 
   if (!apiKey) {
     // Dev fallback — log so the developer can grab the link from the terminal.
@@ -73,11 +73,11 @@ function shell(title: string, bodyHtml: string): string {
 <!doctype html>
 <html><body style="margin:0;background:#0b0b10;color:#e8e8ed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-    <div style="font-size:20px;font-weight:700;background:linear-gradient(90deg,#a855f7,#7c3aed);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:24px;">GameChanger</div>
+    <div style="font-size:20px;font-weight:700;background:linear-gradient(90deg,#a855f7,#7c3aed);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:24px;">Designo</div>
     <h1 style="font-size:22px;font-weight:600;color:#fff;margin:0 0 16px;">${escapeHtml(title)}</h1>
     ${bodyHtml}
     <div style="margin-top:32px;padding-top:24px;border-top:1px solid #2a2a35;color:#7d7d8a;font-size:12px;line-height:1.6;">
-      You're receiving this because someone (hopefully you) used your email at GameChanger.
+      You're receiving this because someone (hopefully you) used your email at Designo.
       If this wasn't you, you can safely ignore this message — no changes were made.
     </div>
   </div>
@@ -98,7 +98,7 @@ function button(href: string, label: string): string {
 }
 
 export function renderVerifyEmail(name: string, verifyUrl: string): { subject: string; html: string } {
-  const subject = "Verify your email — GameChanger";
+  const subject = "Verify your email — Designo";
   const html = shell(
     `Hi ${name}, please verify your email`,
     `<p style="line-height:1.6;color:#cfcfd8;">Click the button below to confirm your email and finish setting up your account.</p>
@@ -110,7 +110,7 @@ export function renderVerifyEmail(name: string, verifyUrl: string): { subject: s
 }
 
 export function renderResetEmail(name: string, resetUrl: string): { subject: string; html: string } {
-  const subject = "Reset your password — GameChanger";
+  const subject = "Reset your password — Designo";
   const html = shell(
     `Hi ${name}, reset your password`,
     `<p style="line-height:1.6;color:#cfcfd8;">We received a request to reset your password. Click the button below to set a new one.</p>
@@ -127,9 +127,16 @@ export function renderResetEmail(name: string, resetUrl: string): { subject: str
  * the button. Accent colours are the -600 shades so white button text stays
  * legible on every one of them.
  */
-const NOTIFICATION_STYLE: Record<
-  NotificationType,
-  { icon: string; accent: string; cta: string }
+// Partial<…> while the Prisma client is one generate behind the schema —
+// WELCOME exists in the DB enum (and the schema) but a running Next dev
+// server can block `prisma generate` from refreshing TS types. The render
+// function below falls back to a generic style for any missing key, so this
+// is always safe at runtime.
+const NOTIFICATION_STYLE: Partial<
+  Record<
+    NotificationType | "WELCOME",
+    { icon: string; accent: string; cta: string }
+  >
 > = {
   ASSET_APPROVED:    { icon: "🎉", accent: "#16a34a", cta: "View your asset" },
   ASSET_REJECTED:    { icon: "📝", accent: "#d97706", cta: "Review feedback" },
@@ -143,7 +150,14 @@ const NOTIFICATION_STYLE: Record<
   CREATOR_APPROVED:  { icon: "🎨", accent: "#16a34a", cta: "Open creator dashboard" },
   CREATOR_REJECTED:  { icon: "📝", accent: "#d97706", cta: "Review feedback" },
   REVIEW:            { icon: "⭐", accent: "#9333ea", cta: "View the review" },
+  WELCOME:           { icon: "🎉", accent: "#7c3aed", cta: "Get started" },
 };
+
+const FALLBACK_NOTIFICATION_STYLE = {
+  icon: "🔔",
+  accent: "#7c3aed",
+  cta: "Open Designo",
+} as const;
 
 /**
  * Generic notification email — the email twin of every in-app notification.
@@ -159,12 +173,8 @@ export function renderNotificationEmail(
   body: string,
   link: string | null
 ): { subject: string; html: string } {
-  const style = NOTIFICATION_STYLE[type] ?? {
-    icon: "🔔",
-    accent: "#9333ea",
-    cta: "Open GameChanger",
-  };
-  const subject = `${title} — GameChanger`;
+  const style = NOTIFICATION_STYLE[type] ?? FALLBACK_NOTIFICATION_STYLE;
+  const subject = `${title} — Designo`;
   const safeBody = escapeHtml(body).replace(/\n/g, "<br/>");
   const year = new Date().getFullYear();
 
@@ -239,10 +249,10 @@ export function renderNotificationEmail(
           <tr>
             <td style="padding:18px 44px 32px;">
               <p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:#6b6b78;">
-                You're receiving this because you have a GameChanger account. Every notification also waits for you under the bell icon when you're signed in.
+                You're receiving this because you have a Designo account. Every notification also waits for you under the bell icon when you're signed in.
               </p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#6b6b78;">
-                © ${year} GameChanger — the digital asset marketplace.
+                © ${year} Designo — the digital asset marketplace.
               </p>
             </td>
           </tr>

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, formatRelativeTime } from "@/lib/utils";
+import { formatMoney, formatRelativeTime } from "@/lib/utils";
 import { RequestPayoutButton } from "./RequestPayoutButton";
 import type { PayoutStatus } from "@prisma/client";
 
@@ -105,13 +105,13 @@ export default async function EarningsPage() {
         <StatCard
           icon={DollarSign}
           label="Available balance"
-          value={formatPrice(user.balance)}
+          value={formatMoney(user.balance)}
           accent="text-accent-light"
         />
         <StatCard
           icon={Banknote}
           label="Lifetime earned"
-          value={formatPrice(lifetimeEarned)}
+          value={formatMoney(lifetimeEarned)}
           accent="text-primary"
         />
         <StatCard
@@ -139,7 +139,7 @@ export default async function EarningsPage() {
         {payouts.length === 0 ? (
           <div className="rounded-xl border border-border border-dashed bg-surface/50 p-10 text-center text-sm text-muted">
             No payouts yet. Once your balance hits{" "}
-            {formatPrice(MIN_PAYOUT_PAISE)}, you can request your first one.
+            {formatMoney(MIN_PAYOUT_PAISE)}, you can request your first one.
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-surface overflow-hidden">
@@ -161,7 +161,7 @@ export default async function EarningsPage() {
                         {formatRelativeTime(p.createdAt)}
                       </td>
                       <td className="px-4 py-3 font-semibold text-primary">
-                        {formatPrice(p.amount)}
+                        {formatMoney(p.amount)}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -278,10 +278,10 @@ function PayoutPanel({
         <Banknote className="w-5 h-5 text-muted shrink-0 mt-0.5" />
         <div>
           <div className="text-sm font-semibold text-primary">
-            Minimum payout is {formatPrice(MIN_PAYOUT_PAISE)}
+            Minimum payout is {formatMoney(MIN_PAYOUT_PAISE)}
           </div>
           <p className="text-xs text-muted mt-1 leading-relaxed">
-            You need {formatPrice(need)} more before you can request a payout.
+            You need {formatMoney(need)} more before you can request a payout.
           </p>
         </div>
       </div>

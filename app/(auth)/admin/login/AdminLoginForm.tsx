@@ -43,9 +43,7 @@ export function AdminLoginForm() {
       if (session?.user?.role !== "ADMIN") {
         // Sign them out so they're not stuck in a half-authenticated state
         await signOut({ redirect: false });
-        setError(
-          "This account is not an administrator. Set ADMIN_EMAIL in your environment to your account's email and sign in again."
-        );
+        setError("This account does not have admin access.");
         setLoading(false);
         return;
       }
@@ -121,6 +119,15 @@ export function AdminLoginForm() {
           }
         />
 
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-xs text-muted hover:text-gold transition-colors"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         <Button
           type="submit"
           variant="gold"
@@ -131,7 +138,7 @@ export function AdminLoginForm() {
         </Button>
       </form>
 
-      <div className="mt-6 pt-6 border-t border-border space-y-2 text-center">
+      <div className="mt-6 pt-6 border-t border-border text-center">
         <p className="text-xs text-muted">
           Not an admin?{" "}
           <Link
@@ -140,14 +147,6 @@ export function AdminLoginForm() {
           >
             Use regular sign in
           </Link>
-        </p>
-        <p className="text-[11px] text-muted leading-relaxed">
-          Bootstrap an admin by setting{" "}
-          <code className="px-1 py-0.5 rounded bg-elevated text-secondary text-[10px]">
-            ADMIN_EMAIL
-          </code>{" "}
-          in your <code className="text-secondary">.env.local</code>, then
-          register or sign in with that email.
         </p>
       </div>
     </>

@@ -22,8 +22,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "GameChanger — 3D Asset Marketplace",
-    template: "%s | GameChanger",
+    default: "Designo — 3D Asset Marketplace",
+    template: "%s | Designo",
   },
   description:
     "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium 3D models and materials.",
@@ -36,8 +36,8 @@ export const metadata: Metadata = {
     "AR assets",
     "3D graphics",
   ],
-  authors: [{ name: "GameChanger" }],
-  creator: "GameChanger",
+  authors: [{ name: "Designo" }],
+  creator: "Designo",
   metadataBase: new URL(
     process.env.NEXTAUTH_URL ?? "http://localhost:3000"
   ),
@@ -49,14 +49,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "GameChanger — 3D & 2D Asset Marketplace",
+    title: "Designo — 3D & 2D Asset Marketplace",
     description:
       "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium digital assets.",
-    siteName: "GameChanger",
+    siteName: "Designo",
   },
   twitter: {
     card: "summary_large_image",
-    title: "GameChanger — 3D & 2D Asset Marketplace",
+    title: "Designo — 3D & 2D Asset Marketplace",
     description:
       "The leading platform for 3D & AR assets on the web.",
   },

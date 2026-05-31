@@ -10,6 +10,8 @@ import {
   Settings,
   ShieldCheck,
   Heart,
+  Bell,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@prisma/client";
@@ -22,6 +24,9 @@ type NavItem = {
   // Collaborator-only tabs. Plain USER accounts (buy-only) never see these —
   // they get just "My Library" and "Profile".
   creatorOnly?: boolean;
+  // Inverse — only USER role sees it. Used for the "upgrade to Collaborator"
+  // flow that doesn't make sense once you already are one.
+  userOnly?: boolean;
 };
 
 const ITEMS: readonly NavItem[] = [
@@ -31,18 +36,28 @@ const ITEMS: readonly NavItem[] = [
   // it the most — it's where they bookmark assets to come back to before
   // they're ready to buy.
   { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
+  // Inbox of every system event for this user — mirrors what the navbar
+  // bell shows, plus full history, filtering, and bulk cleanup.
+  { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/uploads", label: "My Assets", icon: Upload, creatorOnly: true },
   { href: "/dashboard/earnings", label: "Earnings", icon: DollarSign, creatorOnly: true },
   { href: "/dashboard/profile", label: "Profile", icon: Settings },
   { href: "/dashboard/kyc", label: "KYC & Legal", icon: ShieldCheck, creatorOnly: true },
+  // Upgrade path — USER accounts only. After the application is approved,
+  // role flips to CREATOR and this tab disappears (replaced by the creator
+  // tabs above).
+  { href: "/dashboard/become-creator", label: "Become a Creator", icon: Sparkles, userOnly: true },
 ];
 
 export function DashboardNav({ role }: { role: Role }) {
   const pathname = usePathname();
 
-  // USER = buy-only account: hide every collaborator tab.
+  // USER = buy-only: hide creatorOnly tabs, keep userOnly tabs.
+  // CREATOR/ADMIN: hide userOnly tabs (they're already past that step).
   const items =
-    role === "USER" ? ITEMS.filter((i) => !i.creatorOnly) : ITEMS;
+    role === "USER"
+      ? ITEMS.filter((i) => !i.creatorOnly)
+      : ITEMS.filter((i) => !i.userOnly);
 
   return (
     <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">

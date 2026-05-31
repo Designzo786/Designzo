@@ -7,7 +7,7 @@ import {
   mapRazorpayXStatus,
 } from "@/lib/razorpay-payouts";
 import { createNotification } from "@/lib/notifications";
-import { formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 import type { PayoutStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -160,7 +160,7 @@ export async function PATCH(
   });
 
   // Keep the creator informed of where their payout stands.
-  const amount = formatPrice(existing.amount);
+  const amount = formatMoney(existing.amount);
   if (resolvedStatus === "PROCESSING") {
     await createNotification({
       userId: existing.creatorId,

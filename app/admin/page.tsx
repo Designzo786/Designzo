@@ -8,7 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 
 export default async function AdminOverview() {
   const [pendingAssets, totalUsers, pendingKyc, pendingPayouts, totalRevenueRow] =
@@ -56,7 +56,7 @@ export default async function AdminOverview() {
     },
     {
       label: "Platform revenue",
-      value: formatPrice(totalRevenue),
+      value: formatMoney(totalRevenue),
       icon: AlertCircle,
       href: "/admin/logs",
       tone: "ok",

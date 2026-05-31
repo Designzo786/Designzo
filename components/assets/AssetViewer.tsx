@@ -12,11 +12,15 @@ import {
   Lightformer,
   useProgress,
 } from "@react-three/drei";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ACESFilmicToneMapping } from "three";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sun, Moon } from "lucide-react";
 import { ShapeMesh } from "@/components/three/ShapeMesh";
+import { cn } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
+
+type LightingMode = "studio" | "ambience";
+const LIGHTING_STORAGE_KEY = "designo.viewer.lighting";
 
 interface Props {
   // Either a real GLTF/GLB model URL (used when the user uploaded a 3D file)
@@ -41,9 +45,8 @@ function GltfModel({ url }: { url: string }) {
 }
 
 /**
- * Neutral studio lighting for REAL uploaded models.
+ * Neutral STUDIO lighting — bright, evaluation-grade.
  *
- * Pipeline:
  *  • <hemisphereLight> + ambient = soft fill from the whole sky so even
  *    cavities never go black.
  *  • Three directional lights (key, fill, rim) — classic 3-point setup,
@@ -51,26 +54,20 @@ function GltfModel({ url }: { url: string }) {
  *  • <Environment> built from Lightformers (no HDRI download — works
  *    offline) gives PBR materials proper image-based lighting; metals
  *    reflect realistically, roughness reads correctly.
- *  • All lights are white so the model shows its TRUE colours instead
- *    of the brand-purple tint used for the decorative fallback shapes.
+ *  • All lights are WHITE so the model shows its true colours — ideal
+ *    for evaluating a model's material work before approving.
  */
 function StudioLighting() {
   return (
     <>
-      {/* Sky/ground hemisphere — lifts deep shadows without flattening detail */}
       <hemisphereLight args={["#ffffff", "#1a1a22", 0.55]} />
       <ambientLight intensity={0.45} />
 
-      {/* Key light — top-front, casts the main definition */}
       <directionalLight position={[5, 8, 5]} intensity={3.0} color="#ffffff" />
-      {/* Fill light — softer, opposite side, lifts the shadows */}
       <directionalLight position={[-6, 3, -4]} intensity={1.2} color="#ffffff" />
-      {/* Rim/back light — bright edge separates the model from the background */}
       <directionalLight position={[0, 4, -6]} intensity={1.4} color="#ffffff" />
 
-      {/* Image-based lighting — the reason PBR metals look real */}
       <Environment resolution={256}>
-        {/* Large soft key softbox above */}
         <Lightformer
           form="rect"
           intensity={3.5}
@@ -78,7 +75,6 @@ function StudioLighting() {
           scale={[10, 5, 1]}
           rotation={[-Math.PI / 3, 0, 0]}
         />
-        {/* Side fills */}
         <Lightformer
           form="rect"
           intensity={1.8}
@@ -93,14 +89,12 @@ function StudioLighting() {
           scale={[4, 8, 1]}
           rotation={[0, -Math.PI / 2, 0]}
         />
-        {/* Rim softbox from behind — separates the model from the background */}
         <Lightformer
           form="rect"
           intensity={2.5}
           position={[0, 3, -6]}
           scale={[10, 5, 1]}
         />
-        {/* Soft underglow — keeps the underside of the model from going pitch black */}
         <Lightformer
           form="rect"
           intensity={0.8}
@@ -114,8 +108,75 @@ function StudioLighting() {
 }
 
 /**
- * Stylised purple lighting for the decorative mock primitives. Intentionally
- * brand-tinted — these aren't real assets, they're abstract showcase shapes.
+ * AMBIENCE lighting — warm, soft, cinematic.
+ *
+ *  • Half the directional intensity of studio mode so contrast and shape
+ *    do the heavy lifting instead of raw brightness.
+ *  • Subtle warm key (slightly amber, like late-afternoon sun) + cool
+ *    rim (slightly blue) for a complementary push-pull that flatters
+ *    almost any material.
+ *  • One large overhead lightformer + a single back rim — same shape
+ *    language as a photography product set with one diffuser and one
+ *    bounce card.
+ *  • Reduced underglow so the lower half drops into honest shadow,
+ *    giving the model weight and grounding it.
+ */
+function AmbienceLighting() {
+  return (
+    <>
+      {/* Soft, slightly warm overall fill — feels like sunset bouncing
+          around a room rather than a clinical studio. */}
+      <hemisphereLight args={["#ffe4cc", "#0d0815", 0.4]} />
+      <ambientLight intensity={0.3} />
+
+      {/* Warm key (low intensity) */}
+      <directionalLight
+        position={[4, 6, 4]}
+        intensity={1.6}
+        color="#ffd9a8"
+      />
+      {/* Cool rim — adds a subtle complementary push along the back edge */}
+      <directionalLight
+        position={[-3, 3, -5]}
+        intensity={0.9}
+        color="#9bb8ff"
+      />
+
+      <Environment resolution={256}>
+        {/* Single big soft overhead — like a diffused window light */}
+        <Lightformer
+          form="rect"
+          intensity={2.2}
+          position={[0, 5, 1]}
+          scale={[12, 4, 1]}
+          rotation={[-Math.PI / 2.5, 0, 0]}
+          color="#fff4e0"
+        />
+        {/* Cool rim from behind for separation */}
+        <Lightformer
+          form="rect"
+          intensity={1.4}
+          position={[0, 2, -6]}
+          scale={[8, 5, 1]}
+          color="#cfd9ff"
+        />
+        {/* Very gentle warm side fill */}
+        <Lightformer
+          form="rect"
+          intensity={0.6}
+          position={[5, 1, 0]}
+          scale={[3, 6, 1]}
+          rotation={[0, -Math.PI / 2, 0]}
+          color="#ffe7c8"
+        />
+      </Environment>
+    </>
+  );
+}
+
+/**
+ * Stylised purple lighting for the decorative fallback primitives.
+ * Intentionally brand-tinted — these aren't real assets.
  */
 function MockLighting() {
   return (
@@ -130,9 +191,6 @@ function MockLighting() {
 
 /**
  * Loading overlay shown while a real 3D model downloads and parses.
- * `useProgress` tracks every asset going through Three's loading manager —
- * `active` is true only while something is in flight, so the overlay
- * appears for slow GLTF/GLB files and vanishes the moment they're ready.
  */
 function ViewerLoader() {
   const { active, progress } = useProgress();
@@ -148,8 +206,93 @@ function ViewerLoader() {
   );
 }
 
+/**
+ * Tiny segmented control floating in the corner of the viewer that lets the
+ * viewer flip between Studio (bright, neutral) and Ambience (warm, soft)
+ * lighting. The choice is persisted in localStorage so users see the same
+ * preset next time they open ANY 3D viewer in the app.
+ */
+function LightingToggle({
+  mode,
+  onChange,
+}: {
+  mode: LightingMode;
+  onChange: (m: LightingMode) => void;
+}) {
+  return (
+    <div
+      className="absolute top-3 right-3 inline-flex items-center gap-0.5 p-0.5 rounded-full bg-canvas/70 backdrop-blur border border-border shadow-sm"
+      role="radiogroup"
+      aria-label="Lighting mode"
+    >
+      <LightingButton
+        active={mode === "studio"}
+        onClick={() => onChange("studio")}
+        icon={<Sun className="w-3.5 h-3.5" />}
+        label="Studio"
+      />
+      <LightingButton
+        active={mode === "ambience"}
+        onClick={() => onChange("ambience")}
+        icon={<Moon className="w-3.5 h-3.5" />}
+        label="Ambience"
+      />
+    </div>
+  );
+}
+
+function LightingButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active ? "true" : "false"}
+      onClick={onClick}
+      title={`${label} lighting`}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all",
+        active
+          ? "bg-accent text-white shadow-[0_0_12px_-2px_rgba(124,58,237,0.6)]"
+          : "text-muted hover:text-primary"
+      )}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
 export default function AssetViewer({ modelUrl, shape, color }: Props) {
   const hasModel = !!modelUrl;
+  // Lighting preference, persisted across sessions. Studio is the default
+  // because it's the most useful for evaluation (no warm/cool tint hiding
+  // the real material colors).
+  const [lighting, setLighting] = useState<LightingMode>("studio");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(
+      LIGHTING_STORAGE_KEY
+    ) as LightingMode | null;
+    if (saved === "studio" || saved === "ambience") setLighting(saved);
+  }, []);
+
+  function updateLighting(next: LightingMode) {
+    setLighting(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LIGHTING_STORAGE_KEY, next);
+    }
+  }
 
   return (
     <div className="relative w-full h-full">
@@ -163,11 +306,20 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
           // use; PBR materials render with cinematic highlight rolloff instead
           // of the default washed-out linear mapping.
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.15,
+          // Ambience drops exposure slightly for a softer, less-blown look.
+          toneMappingExposure: lighting === "ambience" ? 1.0 : 1.15,
         }}
         dpr={[1, 1.5]}
       >
-        {hasModel ? <StudioLighting /> : <MockLighting />}
+        {hasModel ? (
+          lighting === "studio" ? (
+            <StudioLighting />
+          ) : (
+            <AmbienceLighting />
+          )
+        ) : (
+          <MockLighting />
+        )}
 
         <Suspense fallback={null}>
           {hasModel ? (
@@ -187,13 +339,14 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
 
           {/* Ground shadow — grounds the model so it doesn't look like it's
               floating. Real uploads need a wider, softer shadow than the mock
-              primitives because their bounds can be much larger. */}
+              primitives because their bounds can be much larger. Ambience mode
+              gets a slightly darker shadow for extra weight. */}
           {hasModel ? (
             <ContactShadows
               position={[0, -1.4, 0]}
-              opacity={0.55}
+              opacity={lighting === "ambience" ? 0.7 : 0.55}
               scale={12}
-              blur={2.8}
+              blur={lighting === "ambience" ? 3.2 : 2.8}
               far={6}
               resolution={1024}
             />
@@ -209,7 +362,6 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
         </Suspense>
 
         {hasModel ? (
-          // Real models: full freedom. No polar lock, pan enabled, generous zoom range.
           <OrbitControls
             enablePan
             enableZoom
@@ -220,7 +372,6 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
             makeDefault
           />
         ) : (
-          // Mock primitives: keep the original cinematic constraints.
           <OrbitControls
             enablePan={false}
             enableZoom
@@ -233,6 +384,12 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
           />
         )}
       </Canvas>
+
+      {/* Toggle is only useful for real models — mock primitives stay on the
+          stylised purple lighting for brand consistency. */}
+      {hasModel && (
+        <LightingToggle mode={lighting} onChange={updateLighting} />
+      )}
 
       {hasModel && <ViewerLoader />}
     </div>
