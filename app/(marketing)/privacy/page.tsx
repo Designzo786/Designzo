@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Privacy Policy",
-  description: "Designo Privacy Policy",
+  description: "Designzo Privacy Policy",
 };
 
 export default function PrivacyPage() {
@@ -18,9 +18,9 @@ export default function PrivacyPage() {
       </header>
 
       <p className="text-secondary leading-relaxed">
-        This Privacy Policy describes how Designo (&quot;we&quot;,
+        This Privacy Policy describes how Designzo (&quot;we&quot;,
         &quot;our&quot;) collects, uses, and shares information when you use
-        our service. By using Designo you agree to this Policy.
+        our service. By using Designzo you agree to this Policy.
       </p>
 
       <Section title="What we collect">

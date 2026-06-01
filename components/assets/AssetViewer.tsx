@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
 
 type LightingMode = "studio" | "ambience";
-const LIGHTING_STORAGE_KEY = "designo.viewer.lighting";
+const LIGHTING_STORAGE_KEY = "designzo.viewer.lighting";
 
 interface Props {
   // Either a real GLTF/GLB model URL (used when the user uploaded a 3D file)

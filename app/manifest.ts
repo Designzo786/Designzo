@@ -1,5 +1,5 @@
 /**
- * Web app manifest — lets browsers treat Designo as an installable PWA
+ * Web app manifest — lets browsers treat Designzo as an installable PWA
  * (Add to Home Screen on mobile, "Install app" on desktop Chrome). Light
  * touch: just the basics, no service worker yet. The `theme_color` and
  * `background_color` match the dark canvas so the splash screen doesn't
@@ -9,8 +9,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Designo — 3D Asset Marketplace",
-    short_name: "Designo",
+    name: "Designzo — 3D Asset Marketplace",
+    short_name: "Designzo",
     description:
       "Browse, buy and sell premium 3D & AR assets. Built by creators, for creators.",
     start_url: "/",

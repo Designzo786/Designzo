@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Licensing",
   description:
-    "The licenses that apply to assets bought and sold on Designo.",
+    "The licenses that apply to assets bought and sold on Designzo.",
 };
 
 export default function LicensePage() {
@@ -14,7 +14,7 @@ export default function LicensePage() {
           Licensing
         </h1>
         <p className="mt-2 text-secondary">
-          What you can and can&apos;t do with assets purchased on Designo.
+          What you can and can&apos;t do with assets purchased on Designzo.
         </p>
       </header>
 

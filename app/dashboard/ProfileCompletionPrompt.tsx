@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { Sparkles, X, ArrowRight, Camera, FileText, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DISMISS_KEY = "designo.profile-completion.dismissed";
+const DISMISS_KEY = "designzo.profile-completion.dismissed";
 
 interface Props {
   /** True if any of avatar, bio, or website is missing. */

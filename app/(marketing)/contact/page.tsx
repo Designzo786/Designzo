@@ -3,7 +3,7 @@ import { Mail, LifeBuoy, Briefcase, ShieldAlert, Clock } from "lucide-react";
 
 export const metadata = {
   title: "Contact",
-  description: "Get in touch with the Designo team.",
+  description: "Get in touch with the Designzo team.",
 };
 
 const CHANNELS = [
@@ -18,7 +18,7 @@ const CHANNELS = [
     icon: Briefcase,
     title: "Creators & partnerships",
     description:
-      "Questions about selling, payouts, KYC, or partnering with Designo.",
+      "Questions about selling, payouts, KYC, or partnering with Designzo.",
     email: "mohdtalha206@gmail.com",
   },
   {

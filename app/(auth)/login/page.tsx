@@ -29,7 +29,7 @@ function LoginFallback() {
         Welcome back
       </h1>
       <p className="mt-1.5 text-sm text-muted">
-        Sign in to continue to Designo
+        Sign in to continue to Designzo
       </p>
     </div>
   );
@@ -85,8 +85,8 @@ function LoginForm() {
         </h1>
         <p className="mt-1.5 text-sm text-muted">
           {justRegistered
-            ? "Sign in below to start using Designo."
-            : "Sign in to continue to Designo"}
+            ? "Sign in below to start using Designzo."
+            : "Sign in to continue to Designzo"}
         </p>
       </div>
 

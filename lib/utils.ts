@@ -8,14 +8,14 @@ export function cn(...inputs: ClassValue[]): string {
 
 /**
  * Public-facing creator name for an asset. Assets uploaded by an ADMIN are
- * shown as official "Designo" listings rather than under the admin's
+ * shown as official "Designzo" listings rather than under the admin's
  * personal name.
  */
 export function creatorDisplayName(
   name: string | null | undefined,
   role: Role
 ): string {
-  if (role === "ADMIN") return "Designo";
+  if (role === "ADMIN") return "Designzo";
   return name ?? "Unknown";
 }
 

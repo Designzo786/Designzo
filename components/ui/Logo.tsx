@@ -9,7 +9,7 @@ interface LogoProps {
 /**
  * The brand mark — same isometric purple cube the browser tab shows
  * (see app/icon.svg). Renders inline so it stays crisp at any size and
- * inherits the soft accent glow on hover. The wordmark "Designo" sits
+ * inherits the soft accent glow on hover. The wordmark "Designzo" sits
  * to the right when `hideText` is false (the default).
  */
 export function Logo({ className, hideText = false }: LogoProps) {
@@ -41,7 +41,7 @@ export function Logo({ className, hideText = false }: LogoProps) {
       </div>
       {!hideText && (
         <span className="text-base font-bold gradient-text-hero tracking-tight">
-          Designo
+          Designzo
         </span>
       )}
     </Link>

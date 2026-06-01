@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Creator Guide",
-  description: "How to prepare, upload, and sell assets on Designo.",
+  description: "How to prepare, upload, and sell assets on Designzo.",
 };
 
 export default function CreatorGuidePage() {
@@ -19,7 +19,7 @@ export default function CreatorGuidePage() {
 
       <Section number="1" title="Getting started">
         <p>
-          Selling on Designo requires a{" "}
+          Selling on Designzo requires a{" "}
           <strong className="text-primary">Collaborator</strong> account. When
           you{" "}
           <Link
@@ -67,7 +67,7 @@ export default function CreatorGuidePage() {
       <Section number="4" title="Pricing your work">
         <p>
           You set the price. Free assets (₹0) are allowed and are a great way to
-          build a following. For paid assets, Designo keeps a 20% platform
+          build a following. For paid assets, Designzo keeps a 20% platform
           commission — you receive 80% of every sale.
         </p>
       </Section>
