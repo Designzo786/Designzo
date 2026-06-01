@@ -7,6 +7,8 @@ import {
   Hexagon,
   Wand2,
   ArrowUpRight,
+  Palette,
+  LayoutGrid,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
@@ -158,33 +160,63 @@ function formatCount(n: number): string {
 
 export async function Categories() {
   const counts = await fetchCategoryCounts();
+  // Total approved assets — used in the eyebrow pill so the section opens
+  // with a credible "X+ assets" stat instead of a generic label.
+  const totalAssets = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
-    // pt-0 so it sits flush under the Hero (which has its own pb), pb stays
-    // generous to breathe before the TrustBar.
-    <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 pb-24">
-      {/* Section heading — slightly larger than other section headers
-          because this is the marquee tile row right under Hero. */}
-      <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            <span className="text-primary">One marketplace,</span>{" "}
-            <span className="gradient-text-hero">every visual asset</span>
-          </h2>
-          <p className="mt-3 text-sm sm:text-base text-secondary leading-relaxed max-w-xl">
-            From production-ready 3D models and Lottie animations to SVG icons
-            and AI-generated assets — Designzo has the visuals every product
-            team needs, under one royalty-free license.
-          </p>
-        </div>
-        <Link
-          href="/explore"
-          className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors group"
-        >
-          Browse all assets
-          <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-        </Link>
+    // Outer wrapper carries the ambient backdrop — two large blurred glow
+    // blobs that drift behind the cards, tuned to the section's accent
+    // palette so the whole row feels lit from below.
+    <section className="relative pt-0 pb-24">
+      {/* Decorative ambient glows — absolute, pointer-events-none, very
+          blurred. Two blobs (violet + pink) give the section a subtle
+          gradient ground without competing with the cards. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden -z-10"
+      >
+        <div className="absolute top-10 -left-32 w-[480px] h-[480px] rounded-full bg-accent/15 blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full bg-pink-500/10 blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full bg-sky-500/8 blur-[140px]" />
       </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Eyebrow pill — small, premium, sets up the heading */}
+        <div className="flex items-center gap-2 mb-5">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-accent-muted/60 border border-accent/25 text-accent-light backdrop-blur-sm shadow-[0_0_24px_-6px_rgba(124,58,237,0.5)]">
+            <LayoutGrid className="w-3 h-3" />
+            Marketplace
+          </span>
+          {totalAssets > 0 && (
+            <span className="text-[11px] text-muted font-medium tabular-nums">
+              {formatCount(totalAssets)} curated assets
+            </span>
+          )}
+        </div>
+
+        {/* Section heading — slightly larger than other section headers
+            because this is the marquee tile row right under Hero. */}
+        <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+              <span className="text-primary">One marketplace,</span>{" "}
+              <span className="gradient-text-hero">every visual asset</span>
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-secondary leading-relaxed max-w-xl">
+              From production-ready 3D models and Lottie animations to SVG icons
+              and AI-generated assets — Designzo has the visuals every product
+              team needs, under one royalty-free license.
+            </p>
+          </div>
+          <Link
+            href="/explore"
+            className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors group"
+          >
+            Browse all assets
+            <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-5">
         {CARDS.map((card) => {
@@ -246,9 +278,23 @@ export async function Categories() {
                 </p>
               </div>
 
-              {/* Footer — bigger count typography for a premium feel */}
+              {/* Footer — bigger count typography for a premium feel.
+                  Empty (count === 0) reads as "Coming soon" with a pulse
+                  dot so visitors don't see a deflating "0 assets" wall.
+                  Single-asset categories also get cleaner copy. */}
               <div className="relative flex items-end justify-between mt-1">
-                {count !== null ? (
+                {count === null ? (
+                  <span className="text-sm font-semibold text-accent-light">
+                    Try it now
+                  </span>
+                ) : count === 0 ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent-light animate-pulse" />
+                    <span className="text-sm font-semibold text-secondary">
+                      Coming soon
+                    </span>
+                  </div>
+                ) : (
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-xl font-bold text-primary tabular-nums tracking-tight">
                       {formatCount(count)}
@@ -257,10 +303,6 @@ export async function Categories() {
                       {count === 1 ? "asset" : "assets"}
                     </span>
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-accent-light">
-                    Try it now
-                  </span>
                 )}
                 <span className="w-9 h-9 rounded-full border border-white/10 bg-canvas/40 backdrop-blur flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-white/10 group-hover:border-white/25 transition-all">
                   <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
@@ -271,15 +313,16 @@ export async function Categories() {
         })}
       </div>
 
-      {/* Mobile-only "Browse all" link below the grid */}
-      <div className="sm:hidden mt-6 text-center">
-        <Link
-          href="/explore"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors"
-        >
-          Browse all assets
-          <ArrowUpRight className="w-4 h-4" />
-        </Link>
+        {/* Mobile-only "Browse all" link below the grid */}
+        <div className="sm:hidden mt-6 text-center">
+          <Link
+            href="/explore"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors"
+          >
+            Browse all assets
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );
