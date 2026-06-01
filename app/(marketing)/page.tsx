@@ -12,9 +12,11 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      {/* Categories sits right under Hero — it's the strongest concrete
+          value-prop after the headline, so it deserves the prime slot. */}
+      <Categories />
       <TrustBar />
       <Features />
-      <Categories />
       <Showcase />
       <HowItWorks />
       <Testimonials />

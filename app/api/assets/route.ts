@@ -24,7 +24,6 @@ const VALID_CATEGORIES = [
   "3d-models",
   "3d-icons",
   "lottie",
-  "vector-illustrations",
   "svg-icons",
   "materials",
 ];

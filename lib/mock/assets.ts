@@ -35,7 +35,6 @@ export const CATEGORIES = [
   { slug: "3d-models", name: "3D Models" },
   { slug: "3d-icons", name: "3D Icons" },
   { slug: "lottie", name: "Lottie Animations" },
-  { slug: "vector-illustrations", name: "Vector Illustrations" },
   { slug: "svg-icons", name: "SVG Icons" },
   { slug: "materials", name: "Materials" },
 ] as const;

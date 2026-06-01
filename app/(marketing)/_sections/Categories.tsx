@@ -4,7 +4,6 @@ import {
   Box,
   Sparkles,
   Layers,
-  PenTool,
   Hexagon,
   Wand2,
   ArrowUpRight,
@@ -12,20 +11,18 @@ import {
 import { prisma } from "@/lib/prisma";
 
 /**
- * 6 rich category cards (5 asset categories + the AI Suite tool).
+ * Five hero category tiles + one AI Suite call-out, designed to sit right
+ * under the Hero. Each card uses a layered visual stack for a premium feel:
  *
- * Each card carries:
- *   • a unique gradient swatch (so the row reads as a rainbow at a glance)
- *   • a Lucide icon hero that mirrors the card's brand tint
- *   • a count of approved assets pulled live from the DB on a 60s ISR window
- *   • a tagline that matches the marketplace's value prop for that category
+ *   ① outer ring with a soft drop-shadow that matches the swatch hue
+ *   ② radial + linear gradient backdrop tuned per category
+ *   ③ subtle SVG grain overlay so dark cards don't look flat
+ *   ④ top-edge highlight stroke (glass effect)
+ *   ⑤ double-halo icon (small inner ring + large blurred bloom)
+ *   ⑥ animated arrow CTA that slides on hover
  *
- * The AI Suite card is special: it has no DB count (it's a tool, not a
- * category) and gets a "NEW" pill in the corner. Lives on /ai-generate.
- *
- * Layout: 1 column on phones, 2 on tablets, 3 on laptops, 6 on wide
- * desktops — a clean "wide rainbow" on hero monitors that gracefully
- * degrades on small screens.
+ * The AI Suite tile is special: no asset count (it's a tool, not a
+ * category), a pulsing NEW badge, and a "Try it now" CTA instead of a count.
  */
 const CARDS = [
   {
@@ -33,11 +30,18 @@ const CARDS = [
     name: "3D Models",
     tagline: "Premium 3D models, characters and props in glTF + GLB.",
     icon: Box,
-    iconClass: "text-violet-300",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(167,139,250,0.35),transparent_60%),linear-gradient(135deg,rgba(124,58,237,0.18),rgba(15,15,22,0.5))]",
-    border: "border-violet-400/25",
-    glow: "shadow-[0_30px_60px_-30px_rgba(124,58,237,0.55)]",
+    tone: {
+      // single source of truth — drives every tinted element on the card
+      ring: "border-violet-400/30",
+      glow: "shadow-[0_30px_80px_-30px_rgba(124,58,237,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]",
+      hoverGlow:
+        "group-hover:shadow-[0_40px_100px_-30px_rgba(124,58,237,0.85),inset_0_1px_0_0_rgba(255,255,255,0.14)]",
+      gradient:
+        "bg-[radial-gradient(120%_80%_at_0%_0%,rgba(167,139,250,0.32),transparent_60%),radial-gradient(80%_60%_at_100%_100%,rgba(124,58,237,0.18),transparent_60%),linear-gradient(160deg,rgba(124,58,237,0.12),rgba(11,11,16,0.85))]",
+      iconColor: "text-violet-200",
+      iconBloom: "bg-violet-500/40",
+      iconRing: "border-violet-400/40",
+    },
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -47,11 +51,17 @@ const CARDS = [
     name: "3D Icons",
     tagline: "Royalty-free 3D icons in PNG + glTF, ready for any product.",
     icon: Hexagon,
-    iconClass: "text-sky-300",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(125,211,252,0.32),transparent_60%),linear-gradient(135deg,rgba(14,165,233,0.15),rgba(15,15,22,0.5))]",
-    border: "border-sky-400/25",
-    glow: "shadow-[0_30px_60px_-30px_rgba(14,165,233,0.5)]",
+    tone: {
+      ring: "border-sky-400/30",
+      glow: "shadow-[0_30px_80px_-30px_rgba(14,165,233,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]",
+      hoverGlow:
+        "group-hover:shadow-[0_40px_100px_-30px_rgba(14,165,233,0.85),inset_0_1px_0_0_rgba(255,255,255,0.14)]",
+      gradient:
+        "bg-[radial-gradient(120%_80%_at_0%_0%,rgba(125,211,252,0.32),transparent_60%),radial-gradient(80%_60%_at_100%_100%,rgba(14,165,233,0.18),transparent_60%),linear-gradient(160deg,rgba(14,165,233,0.12),rgba(11,11,16,0.85))]",
+      iconColor: "text-sky-200",
+      iconBloom: "bg-sky-500/40",
+      iconRing: "border-sky-400/40",
+    },
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -61,26 +71,18 @@ const CARDS = [
     name: "Lottie Animations",
     tagline: "Lightweight JSON animations for web & app micro-interactions.",
     icon: Sparkles,
-    iconClass: "text-pink-300",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(249,168,212,0.32),transparent_60%),linear-gradient(135deg,rgba(236,72,153,0.15),rgba(15,15,22,0.5))]",
-    border: "border-pink-400/25",
-    glow: "shadow-[0_30px_60px_-30px_rgba(236,72,153,0.5)]",
+    tone: {
+      ring: "border-pink-400/30",
+      glow: "shadow-[0_30px_80px_-30px_rgba(236,72,153,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]",
+      hoverGlow:
+        "group-hover:shadow-[0_40px_100px_-30px_rgba(236,72,153,0.85),inset_0_1px_0_0_rgba(255,255,255,0.14)]",
+      gradient:
+        "bg-[radial-gradient(120%_80%_at_0%_0%,rgba(249,168,212,0.32),transparent_60%),radial-gradient(80%_60%_at_100%_100%,rgba(236,72,153,0.18),transparent_60%),linear-gradient(160deg,rgba(236,72,153,0.12),rgba(11,11,16,0.85))]",
+      iconColor: "text-pink-200",
+      iconBloom: "bg-pink-500/40",
+      iconRing: "border-pink-400/40",
+    },
     href: "/explore?category=lottie",
-    countable: true,
-    badge: null,
-  },
-  {
-    slug: "vector-illustrations",
-    name: "Vector Illustrations",
-    tagline: "Editable, royalty-free SVG illustrations for marketing pages.",
-    icon: PenTool,
-    iconClass: "text-amber-300",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(252,211,77,0.32),transparent_60%),linear-gradient(135deg,rgba(245,158,11,0.15),rgba(15,15,22,0.5))]",
-    border: "border-amber-400/25",
-    glow: "shadow-[0_30px_60px_-30px_rgba(245,158,11,0.5)]",
-    href: "/explore?category=vector-illustrations",
     countable: true,
     badge: null,
   },
@@ -89,11 +91,17 @@ const CARDS = [
     name: "SVG Icons",
     tagline: "Scalable SVG icons in every style — outline, filled, duotone.",
     icon: Layers,
-    iconClass: "text-emerald-300",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(110,231,183,0.32),transparent_60%),linear-gradient(135deg,rgba(16,185,129,0.15),rgba(15,15,22,0.5))]",
-    border: "border-emerald-400/25",
-    glow: "shadow-[0_30px_60px_-30px_rgba(16,185,129,0.5)]",
+    tone: {
+      ring: "border-emerald-400/30",
+      glow: "shadow-[0_30px_80px_-30px_rgba(16,185,129,0.55),inset_0_1px_0_0_rgba(255,255,255,0.08)]",
+      hoverGlow:
+        "group-hover:shadow-[0_40px_100px_-30px_rgba(16,185,129,0.85),inset_0_1px_0_0_rgba(255,255,255,0.14)]",
+      gradient:
+        "bg-[radial-gradient(120%_80%_at_0%_0%,rgba(110,231,183,0.32),transparent_60%),radial-gradient(80%_60%_at_100%_100%,rgba(16,185,129,0.18),transparent_60%),linear-gradient(160deg,rgba(16,185,129,0.12),rgba(11,11,16,0.85))]",
+      iconColor: "text-emerald-200",
+      iconBloom: "bg-emerald-500/40",
+      iconRing: "border-emerald-400/40",
+    },
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -103,11 +111,17 @@ const CARDS = [
     name: "AI Suite",
     tagline: "Generate 3D models and animations from a single prompt.",
     icon: Wand2,
-    iconClass: "text-accent-light",
-    gradient:
-      "bg-[radial-gradient(circle_at_30%_20%,rgba(196,181,253,0.4),transparent_60%),linear-gradient(135deg,rgba(124,58,237,0.25),rgba(15,15,22,0.5))]",
-    border: "border-accent/35",
-    glow: "shadow-[0_30px_60px_-30px_rgba(124,58,237,0.65)]",
+    tone: {
+      ring: "border-accent/40",
+      glow: "shadow-[0_30px_80px_-30px_rgba(124,58,237,0.7),inset_0_1px_0_0_rgba(255,255,255,0.1)]",
+      hoverGlow:
+        "group-hover:shadow-[0_50px_120px_-30px_rgba(124,58,237,1),inset_0_1px_0_0_rgba(255,255,255,0.18)]",
+      gradient:
+        "bg-[radial-gradient(120%_80%_at_0%_0%,rgba(196,181,253,0.4),transparent_60%),radial-gradient(80%_60%_at_100%_100%,rgba(124,58,237,0.25),transparent_60%),linear-gradient(160deg,rgba(124,58,237,0.2),rgba(11,11,16,0.85))]",
+      iconColor: "text-accent-light",
+      iconBloom: "bg-accent/50",
+      iconRing: "border-accent/50",
+    },
     href: "/ai-generate",
     countable: false,
     badge: "NEW",
@@ -132,7 +146,7 @@ const fetchCategoryCounts = unstable_cache(
     }
     return counts;
   },
-  ["home-category-counts-v2"],
+  ["home-category-counts-v3"],
   { tags: ["assets"], revalidate: 60 }
 );
 
@@ -146,13 +160,18 @@ export async function Categories() {
   const counts = await fetchCategoryCounts();
 
   return (
-    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+    // pt-0 so it sits flush under the Hero (which has its own pb), pb stays
+    // generous to breathe before the TrustBar.
+    <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 pb-24">
+      {/* Section heading — slightly larger than other section headers
+          because this is the marquee tile row right under Hero. */}
       <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
         <div className="max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-primary">
-            One marketplace, every visual asset
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+            <span className="text-primary">One marketplace,</span>{" "}
+            <span className="gradient-text-hero">every visual asset</span>
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-secondary leading-relaxed">
+          <p className="mt-3 text-sm sm:text-base text-secondary leading-relaxed max-w-xl">
             From production-ready 3D models and Lottie animations to SVG icons
             and AI-generated assets — Designzo has the visuals every product
             team needs, under one royalty-free license.
@@ -160,14 +179,14 @@ export async function Categories() {
         </div>
         <Link
           href="/explore"
-          className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors"
+          className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors group"
         >
           Browse all assets
-          <ArrowUpRight className="w-4 h-4" />
+          <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-5">
         {CARDS.map((card) => {
           const Icon = card.icon;
           const count = card.countable ? counts[card.slug] ?? 0 : null;
@@ -175,52 +194,77 @@ export async function Categories() {
             <Link
               key={card.slug}
               href={card.href}
-              className={`relative group rounded-2xl border ${card.border} ${card.gradient} ${card.glow} p-5 overflow-hidden flex flex-col gap-4 transition-all hover:scale-[1.02] hover:border-opacity-60`}
+              className={`relative group overflow-hidden rounded-3xl border ${card.tone.ring} ${card.tone.gradient} ${card.tone.glow} ${card.tone.hoverGlow} p-6 flex flex-col gap-5 transition-all duration-500 hover:-translate-y-1 hover:border-opacity-80`}
             >
-              {/* NEW badge — top right, only on the AI Suite card */}
+              {/* Inner top-edge highlight — gives the card a glassy lit edge */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent"
+              />
+
+              {/* Subtle SVG grain overlay (utility class in globals.css) so
+                  the gradient doesn't read flat on retina — barely-there
+                  texture, mix-blend-overlay at low opacity. */}
+              <span
+                aria-hidden
+                className="grain-overlay pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
+              />
+
+              {/* NEW pill on the AI Suite card — pulse animation hints
+                  at the freshness of the feature without being noisy */}
               {card.badge && (
-                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-accent-light bg-accent-muted border border-accent/30 shadow-[0_0_12px_-2px_rgba(124,58,237,0.6)]">
+                <span className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-accent-light bg-canvas/70 backdrop-blur border border-accent/40 shadow-[0_0_16px_-2px_rgba(124,58,237,0.7)]">
+                  <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
                   {card.badge}
                 </span>
               )}
 
-              {/* Hero icon — variant-tinted, large, glow halo behind */}
-              <div className="relative w-14 h-14 rounded-2xl bg-canvas/40 border border-white/10 flex items-center justify-center backdrop-blur-sm">
-                <Icon className={`w-7 h-7 ${card.iconClass}`} strokeWidth={1.8} />
+              {/* Double-halo icon — large blurred bloom behind a crisp
+                  bordered chip in front. The bloom intensifies on hover. */}
+              <div className="relative">
                 <span
                   aria-hidden
-                  className={`absolute -inset-2 rounded-3xl blur-xl opacity-40 group-hover:opacity-80 transition-opacity ${card.iconClass.replace(
-                    "text-",
-                    "bg-"
-                  )}`}
+                  className={`absolute -inset-4 rounded-3xl blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-500 ${card.tone.iconBloom}`}
                 />
+                <div
+                  className={`relative w-16 h-16 rounded-2xl bg-canvas/60 border ${card.tone.iconRing} flex items-center justify-center backdrop-blur-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]`}
+                >
+                  <Icon
+                    className={`w-8 h-8 ${card.tone.iconColor}`}
+                    strokeWidth={1.6}
+                  />
+                </div>
               </div>
 
               {/* Card body */}
               <div className="relative flex-1 min-w-0">
-                <h3 className="text-base font-bold text-primary tracking-tight">
+                <h3 className="text-lg font-bold text-primary tracking-tight">
                   {card.name}
                 </h3>
-                <p className="text-xs text-secondary leading-relaxed mt-1.5 line-clamp-3">
+                <p className="text-[13px] text-secondary leading-relaxed mt-2 line-clamp-3">
                   {card.tagline}
                 </p>
               </div>
 
-              {/* Footer — count + arrow */}
-              <div className="relative flex items-center justify-between text-xs">
+              {/* Footer — bigger count typography for a premium feel */}
+              <div className="relative flex items-end justify-between mt-1">
                 {count !== null ? (
-                  <span className="font-semibold text-primary">
-                    {formatCount(count)}{" "}
-                    <span className="text-muted font-normal">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold text-primary tabular-nums tracking-tight">
+                      {formatCount(count)}
+                    </span>
+                    <span className="text-[11px] text-muted">
                       {count === 1 ? "asset" : "assets"}
                     </span>
-                  </span>
+                  </div>
                 ) : (
-                  <span className="font-semibold text-accent-light">
+                  <span className="text-sm font-semibold text-accent-light">
                     Try it now
                   </span>
                 )}
-                <ArrowUpRight className="w-3.5 h-3.5 text-muted group-hover:text-primary group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" />
+                <span className="w-9 h-9 rounded-full border border-white/10 bg-canvas/40 backdrop-blur flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-white/10 group-hover:border-white/25 transition-all">
+                  <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+                </span>
               </div>
             </Link>
           );
@@ -228,7 +272,7 @@ export async function Categories() {
       </div>
 
       {/* Mobile-only "Browse all" link below the grid */}
-      <div className="sm:hidden mt-5 text-center">
+      <div className="sm:hidden mt-6 text-center">
         <Link
           href="/explore"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors"
