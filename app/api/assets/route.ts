@@ -20,7 +20,14 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 // regenerates cleanly (after the next dev-server restart).
 const VALID_FILE_TYPES = ["MODEL_3D", "MATERIAL", "LOTTIE"] as FileType[];
 
-const VALID_CATEGORIES = ["3d-models", "3d-icons", "materials", "lottie"];
+const VALID_CATEGORIES = [
+  "3d-models",
+  "3d-icons",
+  "lottie",
+  "vector-illustrations",
+  "svg-icons",
+  "materials",
+];
 
 export async function POST(req: Request) {
   // 20 uploads per hour per IP — generous for legitimate creators, hard
