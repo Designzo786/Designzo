@@ -22,7 +22,12 @@ import type { FileType } from "@prisma/client";
 // creator upload an asset whose preview silently falls back to the static
 // image — broken UX. Every modern DCC tool (Blender, Maya, 3ds Max, Unity)
 // exports glTF, so the restriction is mild: "File → Export → glTF (.glb)".
-export const EXTENSIONS_BY_TYPE: Record<FileType, string[]> = {
+// Widened with "LOTTIE" so this map stays type-safe while the locally-
+// generated Prisma client catches up to the schema (the DB enum already has
+// LOTTIE, but a running Next dev server can hold the Prisma DLL open and
+// stop `prisma generate` from refreshing TS types). Becomes a redundant
+// union after the next clean `prisma generate`.
+export const EXTENSIONS_BY_TYPE: Record<FileType | "LOTTIE", string[]> = {
   MODEL_3D: ["glb", "gltf"],
   // TEXTURE, HDRI, IMAGE_2D and PLUGIN are kept on the Prisma enum so any
   // legacy rows still type-check, but they're not accepted for new uploads
@@ -32,6 +37,10 @@ export const EXTENSIONS_BY_TYPE: Record<FileType, string[]> = {
   IMAGE_2D: [],
   PLUGIN: [],
   MATERIAL: ["zip", "sbsar", "mtl", "mat", "glsl"],
+  // .json = standard Lottie animation (Bodymovin export). .lottie = the new
+  // ZIP-packaged dotLottie format from LottieFiles. Both validated by their
+  // own magic bytes / structure below.
+  LOTTIE: ["json", "lottie"],
 };
 
 // Extensions that are never acceptable — listed explicitly so a misconfigured
@@ -129,11 +138,59 @@ function signatureMatches(ext: string, buf: Buffer): boolean | null {
       return asciiAt(buf, "ply");
     case "3ds":
       return startsWith(buf, [0x4d, 0x4d]); // primary chunk id 0x4D4D
+    case "lottie":
+      // dotLottie is a ZIP container — same magic as zip/usdz/sbsar.
+      return (
+        startsWith(buf, [0x50, 0x4b, 0x03, 0x04]) ||
+        startsWith(buf, [0x50, 0x4b, 0x05, 0x06]) ||
+        startsWith(buf, [0x50, 0x4b, 0x07, 0x08])
+      );
+    case "json":
+      // Lottie JSON has no formal magic number, but a Bodymovin-exported
+      // file always opens with `{` (possibly preceded by a UTF-8 BOM) and
+      // contains the well-known Lottie schema keys. We do a permissive
+      // structural check below in validateAssetFile() for LOTTIE uploads.
+      return null;
     default:
       // gltf, obj, fbx, stl, dae, mtl, mat, glsl, svg, tga — no reliable
       // universal signature. Accepted on extension + executable scan.
       return null;
   }
+}
+
+/**
+ * Lottie JSON has no magic bytes, so we have to peek at the structure.
+ * A real Lottie file is a JSON object containing the `v` (version) and
+ * `layers` keys at the top level. We bail at the first 16KB to avoid
+ * parsing megabyte-sized animations on the validation hot path.
+ */
+function looksLikeLottieJson(buf: Buffer): boolean {
+  // Skip a UTF-8 BOM if present.
+  let start = 0;
+  if (
+    buf.length >= 3 &&
+    buf[0] === 0xef &&
+    buf[1] === 0xbb &&
+    buf[2] === 0xbf
+  ) {
+    start = 3;
+  }
+  // Find the first non-whitespace byte — must be '{'.
+  while (
+    start < buf.length &&
+    (buf[start] === 0x20 ||
+      buf[start] === 0x09 ||
+      buf[start] === 0x0a ||
+      buf[start] === 0x0d)
+  ) {
+    start++;
+  }
+  if (buf[start] !== 0x7b /* '{' */) return false;
+  // Look for Lottie's signature keys in the first 16KB.
+  const head = buf
+    .slice(start, Math.min(buf.length, start + 16384))
+    .toString("utf8");
+  return /"v"\s*:/.test(head) && /"layers"\s*:/.test(head);
 }
 
 export interface ValidationResult {
@@ -147,7 +204,7 @@ export interface ValidationResult {
  */
 export function validateAssetFile(
   filename: string,
-  declaredType: FileType,
+  declaredType: FileType | "LOTTIE",
   header: Buffer
 ): ValidationResult {
   const ext = getExtension(filename);
@@ -185,6 +242,20 @@ export function validateAssetFile(
       ok: false,
       error: `The file's contents don't match a ".${ext}" file — it may be corrupt or renamed.`,
     };
+  }
+
+  // Lottie .json has no magic bytes — verify it's actually a Lottie payload,
+  // not arbitrary JSON or a renamed script. Only enforced when the declared
+  // type IS Lottie so the same .json extension stays free for other future
+  // use cases.
+  if (declaredType === "LOTTIE" && ext === "json") {
+    if (!looksLikeLottieJson(header)) {
+      return {
+        ok: false,
+        error:
+          "This JSON file doesn't look like a Lottie animation. Export from After Effects with Bodymovin or from LottieFiles.",
+      };
+    }
   }
 
   return { ok: true };

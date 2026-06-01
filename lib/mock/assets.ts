@@ -33,12 +33,15 @@ export interface AssetFilters {
 
 export const CATEGORIES = [
   { slug: "3d-models", name: "3D Models" },
+  { slug: "3d-icons", name: "3D Icons" },
   { slug: "materials", name: "Materials" },
+  { slug: "lottie", name: "Lottie Animations" },
 ] as const;
 
 export const FILE_TYPES = [
   { slug: "MODEL_3D", name: "3D Model" },
   { slug: "MATERIAL", name: "Material" },
+  { slug: "LOTTIE", name: "Lottie / JSON Animation" },
 ] as const;
 
 export const PRICE_RANGES = [

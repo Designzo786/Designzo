@@ -48,6 +48,7 @@ enum FileType {
   MATERIAL
   PLUGIN
   IMAGE_2D
+  LOTTIE
 }
 
 enum LicenseType {

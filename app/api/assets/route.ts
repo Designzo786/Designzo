@@ -14,9 +14,13 @@ export const runtime = "nodejs";
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 
-const VALID_FILE_TYPES: FileType[] = ["MODEL_3D", "MATERIAL"];
+// Cast widens to include LOTTIE while the locally-generated Prisma client
+// is one `prisma generate` behind the schema. LOTTIE is in the DB enum and
+// the schema already; this just keeps TypeScript happy until the client
+// regenerates cleanly (after the next dev-server restart).
+const VALID_FILE_TYPES = ["MODEL_3D", "MATERIAL", "LOTTIE"] as FileType[];
 
-const VALID_CATEGORIES = ["3d-models", "materials"];
+const VALID_CATEGORIES = ["3d-models", "3d-icons", "materials", "lottie"];
 
 export async function POST(req: Request) {
   // 20 uploads per hour per IP — generous for legitimate creators, hard
