@@ -12,9 +12,9 @@ import {
   Lightformer,
   useProgress,
 } from "@react-three/drei";
-import { Suspense, useEffect, useState } from "react";
+import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ACESFilmicToneMapping } from "three";
-import { Loader2, Sun, Moon } from "lucide-react";
+import { Loader2, Sun, Moon, ImageOff } from "lucide-react";
 import { ShapeMesh } from "@/components/three/ShapeMesh";
 import { cn } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
@@ -41,6 +41,54 @@ function GltfModel({ url }: { url: string }) {
         <primitive object={gltf.scene} />
       </Center>
     </Bounds>
+  );
+}
+
+/**
+ * Error boundary that wraps the entire <Canvas> tree.
+ *
+ *   The most common failure mode is `useGLTF` throwing when it can't fetch
+ *   the .glb — CORS rejection from R2, a slow network giving up, a corrupt
+ *   binary, or a malformed glTF root. Without this boundary that error
+ *   propagates past Suspense, past R3F, all the way up to the route-level
+ *   error.tsx and the user sees a full-page "Something went wrong" crash.
+ *
+ *   Catching it here lets the rest of the asset detail page render fine,
+ *   with just the 3D viewer slot replaced by a small, calm "preview
+ *   unavailable" card.
+ */
+class ModelErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("[AssetViewer] model load failed:", err);
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+function ModelLoadFailed() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6 bg-linear-to-br from-elevated to-canvas">
+      <div className="w-12 h-12 rounded-xl bg-elevated border border-border flex items-center justify-center text-muted">
+        <ImageOff className="w-5 h-5" />
+      </div>
+      <div>
+        <div className="text-sm font-medium text-secondary">
+          3D preview unavailable
+        </div>
+        <div className="text-[11px] text-muted mt-1 max-w-xs leading-snug">
+          We couldn&apos;t load this model right now. The rest of the page
+          works normally — try refreshing in a moment.
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -256,7 +304,8 @@ function LightingButton({
     <button
       type="button"
       role="radio"
-      aria-checked={active ? "true" : "false"}
+      // eslint-disable-next-line jsx-a11y/aria-proptypes -- React serializes boolean to "true"/"false" string for aria-checked
+      aria-checked={active}
       onClick={onClick}
       title={`${label} lighting`}
       className={cn(
@@ -296,6 +345,7 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
 
   return (
     <div className="relative w-full h-full">
+      <ModelErrorBoundary fallback={<ModelLoadFailed />}>
       <Canvas
         camera={{ position: [0, 0.4, 4], fov: 38 }}
         gl={{
@@ -384,6 +434,7 @@ export default function AssetViewer({ modelUrl, shape, color }: Props) {
           />
         )}
       </Canvas>
+      </ModelErrorBoundary>
 
       {/* Toggle is only useful for real models — mock primitives stay on the
           stylised purple lighting for brand consistency. */}
