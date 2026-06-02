@@ -8,7 +8,6 @@ import {
   Wand2,
   ArrowUpRight,
   Palette,
-  LayoutGrid,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
@@ -160,9 +159,6 @@ function formatCount(n: number): string {
 
 export async function Categories() {
   const counts = await fetchCategoryCounts();
-  // Total approved assets — used in the eyebrow pill so the section opens
-  // with a credible "X+ assets" stat instead of a generic label.
-  const totalAssets = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
     // Outer wrapper carries the ambient backdrop — two large blurred glow
@@ -182,33 +178,10 @@ export async function Categories() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Eyebrow pill — small, premium, sets up the heading */}
-        <div className="flex items-center gap-2 mb-5">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-accent-muted/60 border border-accent/25 text-accent-light backdrop-blur-sm shadow-[0_0_24px_-6px_rgba(124,58,237,0.5)]">
-            <LayoutGrid className="w-3 h-3" />
-            Marketplace
-          </span>
-          {totalAssets > 0 && (
-            <span className="text-[11px] text-muted font-medium tabular-nums">
-              {formatCount(totalAssets)} curated assets
-            </span>
-          )}
-        </div>
-
-        {/* Section heading — slightly larger than other section headers
-            because this is the marquee tile row right under Hero. */}
-        <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-              <span className="text-primary">One marketplace,</span>{" "}
-              <span className="gradient-text-hero">every visual asset</span>
-            </h2>
-            <p className="mt-3 text-sm sm:text-base text-secondary leading-relaxed max-w-xl">
-              From production-ready 3D models and Lottie animations to SVG icons
-              and AI-generated assets — Designzo has the visuals every product
-              team needs, under one royalty-free license.
-            </p>
-          </div>
+        {/* Section heading + intro text intentionally removed — cards
+            speak for themselves. A small "Browse all" link sits at the
+            top-right so users still have an escape hatch to /explore. */}
+        <div className="flex justify-end mb-6">
           <Link
             href="/explore"
             className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors group"
@@ -218,7 +191,7 @@ export async function Categories() {
           </Link>
         </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-5">
         {CARDS.map((card) => {
           const Icon = card.icon;
           const count = card.countable ? counts[card.slug] ?? 0 : null;
