@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Mail, MessageCircle, BookOpen, ArrowRight, Clock } from "lucide-react";
+import {
+  Plus,
+  Mail,
+  MessageCircle,
+  BookOpen,
+  ArrowRight,
+  Clock,
+  HelpCircle,
+} from "lucide-react";
+import { AmbientBackdrop, SectionEyebrow } from "./_shared";
 
 const FAQ_ITEMS = [
   {
@@ -43,31 +52,43 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number>(0);
 
   return (
-    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
-      {/* Header — matches the visual rhythm of other home-page sections */}
-      <div className="text-center max-w-2xl mx-auto mb-12">
-        <div className="inline-block px-3 py-1 rounded-full bg-accent-muted border border-accent/20 text-xs font-medium text-accent-light mb-4">
-          FAQ
-        </div>
-        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-          Frequently asked questions
-        </h2>
-        <p className="mt-3 text-secondary">
-          Can&apos;t find the answer? Email{" "}
-          <a
-            href="mailto:mohdtalha206@gmail.com"
-            className="text-accent-light hover:text-accent underline underline-offset-2"
-          >
-            mohdtalha206@gmail.com
-          </a>
-          .
-        </p>
-      </div>
+    <section className="relative py-24">
+      <AmbientBackdrop tone="violet" />
 
-      {/* Two-column: FAQ on the left, support card on the right */}
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8 lg:gap-10 items-start">
-        {/* FAQ accordion */}
-        <div className="rounded-2xl border border-border bg-surface overflow-hidden">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Header — matches the visual rhythm of other home-page sections */}
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <div className="flex justify-center mb-2">
+            <SectionEyebrow icon={HelpCircle} label="FAQ" />
+          </div>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+            <span className="text-primary">Frequently asked</span>{" "}
+            <span className="gradient-text-hero">questions</span>
+          </h2>
+          <p className="mt-4 text-base text-secondary leading-relaxed">
+            Can&apos;t find the answer? Email{" "}
+            <a
+              href="mailto:mohdtalha206@gmail.com"
+              className="text-accent-light hover:text-accent underline underline-offset-2"
+            >
+              mohdtalha206@gmail.com
+            </a>
+            .
+          </p>
+        </div>
+
+        {/* Two-column: FAQ on the left, support card on the right */}
+        <div className="grid lg:grid-cols-[1fr_360px] gap-8 lg:gap-10 items-start">
+          {/* FAQ accordion — glassy surface with grain */}
+          <div className="relative rounded-3xl border border-white/5 bg-surface/60 backdrop-blur-sm overflow-hidden shadow-[0_30px_80px_-30px_rgba(124,58,237,0.4),inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent"
+            />
+            <span
+              aria-hidden
+              className="grain-overlay pointer-events-none absolute inset-0 opacity-15 mix-blend-overlay"
+            />
           <div className="divide-y divide-border">
             {FAQ_ITEMS.map((item, i) => {
               const open = openIndex === i;
@@ -76,7 +97,8 @@ export function FAQ() {
                   <button
                     type="button"
                     onClick={() => setOpenIndex(open ? -1 : i)}
-                    aria-expanded={open ? "true" : "false"}
+                    // eslint-disable-next-line jsx-a11y/aria-proptypes -- React serializes boolean to "true"/"false" for aria-expanded
+                    aria-expanded={open}
                     aria-controls={`faq-panel-${i}`}
                     className="group w-full flex items-start gap-5 text-left px-6 sm:px-7 py-5 hover:bg-elevated/40 transition-colors"
                   >
@@ -127,11 +149,14 @@ export function FAQ() {
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex -space-x-2">
-                  {["#7c3aed", "#a855f7", "#f59e0b"].map((c) => (
+                  {[
+                    "bg-accent",
+                    "bg-accent-light",
+                    "bg-gold",
+                  ].map((c) => (
                     <div
                       key={c}
-                      className="w-9 h-9 rounded-full border-2 border-surface"
-                      style={{ background: c }}
+                      className={`w-9 h-9 rounded-full border-2 border-surface ${c}`}
                     />
                   ))}
                 </div>
@@ -194,8 +219,9 @@ export function FAQ() {
             <div className="mt-1 text-xs text-secondary">
               of every sale — paid to your bank via RazorpayX
             </div>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        </div>
       </div>
     </section>
   );
