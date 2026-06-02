@@ -6,6 +6,7 @@ import { ExploreMenu } from "./ExploreMenu";
 import { UserMenu } from "./UserMenu";
 import { AuthButtons } from "./AuthButtons";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 
 export async function Navbar() {
   // Don't crash the navbar if auth() fails (e.g. DB not configured yet during dev)
@@ -28,13 +29,15 @@ export async function Navbar() {
 
           <Link
             href="/ai-generate"
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-accent/20 to-accent-light/20 border border-accent/30 text-accent-light hover:from-accent/30 hover:to-accent-light/30 hover:border-accent/50 hover:text-primary transition-all"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-linear-to-r from-accent/20 to-accent-light/20 border border-accent/30 text-accent-light hover:from-accent/30 hover:to-accent-light/30 hover:border-accent/50 hover:text-primary transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
             AI Generate
           </Link>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Theme toggle is always available — signed-in or guest. */}
+            <ThemeToggle />
             {session ? (
               <>
                 <NotificationBell />

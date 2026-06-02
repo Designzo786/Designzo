@@ -126,21 +126,105 @@ html {
 body {
   /* Solid canvas + a barely-there violet vignette top-centre that adds depth
      to long-scroll pages without competing with content. `background-attachment:
-     fixed` keeps the glow anchored as you scroll. */
-  background-color: #080808;
+     fixed` keeps the glow anchored as you scroll. Colours come from CSS
+     variables so the body re-tints automatically when the theme switches. */
+  background-color: var(--color-canvas);
   background-image: radial-gradient(
     ellipse 80% 60% at 50% -10%,
     rgba(124, 58, 237, 0.10) 0%,
     rgba(124, 58, 237, 0)  70%
   );
   background-attachment: fixed;
-  color: #f4f4f5;
+  color: var(--color-primary);
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11", "calt";
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Light Theme Overrides ─────────────────────────────────────────────────
+   Applied when the document carries data-theme="light". The anti-flash
+   inline script in app/layout.tsx sets this BEFORE first paint so the
+   user never sees the dark theme flash through.
+   The accent / gold / semantic colours stay the same — only the neutral
+   surfaces and text colours change, so the brand's visual identity is
+   preserved across themes. */
+:root[data-theme="light"] {
+  /* Background layers — off-white canvas, pure white cards, very-light
+     gray for elevated surfaces */
+  --color-canvas:   #fafafa;
+  --color-surface:  #ffffff;
+  --color-elevated: #f4f4f5;
+  --color-overlay:  #e4e4e7;
+  --color-input:    #ffffff;
+
+  /* Text — near-black for primary, descending grays for secondary tiers */
+  --color-primary:   #0a0a0a;
+  --color-secondary: #3f3f46;
+  --color-muted:     #71717a;
+  --color-subtle:    #a1a1aa;
+
+  /* Borders — dark with low alpha so they read as soft separators on white */
+  --color-border:       rgba(0, 0, 0, 0.08);
+  --color-border-hover: rgba(0, 0, 0, 0.16);
+  --color-border-focus: rgba(124, 58, 237, 0.5);
+
+  /* Muted accent backgrounds need higher alpha against white so they don't
+     wash out. Same hue, just stronger. */
+  --color-accent-muted:  rgba(124, 58, 237, 0.10);
+  --color-gold-muted:    rgba(245, 158, 11, 0.12);
+  --color-success-muted: rgba(16, 185, 129, 0.12);
+  --color-danger-muted:  rgba(239, 68, 68, 0.10);
+  --color-info-muted:    rgba(59, 130, 246, 0.10);
+
+  /* Shadows — much subtler against a light canvas. Dark drop shadows are
+     fine but their alpha must be far lower than the dark-theme equivalent. */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow:       0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg:    0 8px 32px rgba(0, 0, 0, 0.10);
+  --shadow-glow:  0 0 40px rgba(124, 58, 237, 0.12);
+  --shadow-glow-strong: 0 0 80px rgba(124, 58, 237, 0.20);
+  --shadow-gold:  0 0 40px rgba(245, 158, 11, 0.18);
+}
+
+/* Body background gradient is dialled down in light mode — the same violet
+   vignette would be too tinted against off-white. */
+:root[data-theme="light"] body {
+  background-image: radial-gradient(
+    ellipse 80% 60% at 50% -10%,
+    rgba(124, 58, 237, 0.05) 0%,
+    rgba(124, 58, 237, 0)  70%
+  );
+}
+
+/* gradient-text-hero starts at white in dark mode (which is correct) — in
+   light mode the white stop would disappear, so override to a darker start. */
+:root[data-theme="light"] .gradient-text-hero {
+  background: linear-gradient(
+    135deg,
+    #18181b  0%,
+    #6d28d9 45%,
+    #7c3aed 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Same fix for plain .gradient-text in light mode */
+:root[data-theme="light"] .gradient-text {
+  background: linear-gradient(
+    135deg,
+    #18181b 0%,
+    #7c3aed 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Tighter, more confident headings — slightly negative tracking and balanced

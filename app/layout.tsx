@@ -16,8 +16,15 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#080808",
-  colorScheme: "dark",
+  // Theme-aware browser chrome tinting. The actual <html data-theme> is set
+  // at runtime by the anti-flash script in <head>, but media queries here
+  // give the OS a hint so PWA splash + iOS status bar match the preferred
+  // theme out of the gate.
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#080808" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+  ],
+  colorScheme: "light dark",
 };
 
 export const metadata: Metadata = {
@@ -78,6 +85,18 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Anti-flash theme bootstrap.
+            Runs synchronously BEFORE React hydrates and BEFORE first paint —
+            so the user never sees a dark frame flicker through to light (or
+            vice versa) on page load. Reads the saved choice from localStorage,
+            falls back to the OS preference if nothing's saved. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('designzo.theme');if(!t){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-dvh bg-canvas text-primary antialiased">
         <Providers>{children}</Providers>
       </body>
