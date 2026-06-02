@@ -7,6 +7,7 @@ import { UserMenu } from "./UserMenu";
 import { AuthButtons } from "./AuthButtons";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
+import { MobileMenu } from "./MobileMenu";
 
 export async function Navbar() {
   // Don't crash the navbar if auth() fails (e.g. DB not configured yet during dev)
@@ -35,7 +36,7 @@ export async function Navbar() {
             AI Generate
           </Link>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             {/* Theme toggle is always available — signed-in or guest. */}
             <ThemeToggle />
             {session ? (
@@ -46,6 +47,9 @@ export async function Navbar() {
             ) : (
               <AuthButtons />
             )}
+            {/* Mobile-only hamburger — surfaces Explore + AI Generate +
+                categories on phones where the desktop nav links are hidden. */}
+            <MobileMenu />
           </div>
         </div>
       </div>
