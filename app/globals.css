@@ -153,52 +153,89 @@ body {
    surfaces and text colours change, so the brand's visual identity is
    preserved across themes. */
 :root[data-theme="light"] {
-  /* Background layers — off-white canvas, pure white cards, very-light
-     gray for elevated surfaces */
-  --color-canvas:   #fafafa;
+  /* Background layers — three distinct steps for clear card hierarchy:
+     canvas (page bg) ── surface (cards, brightest) ── elevated (hover/pressed).
+     Earlier values had canvas (#fafafa) and elevated (#f4f4f5) too close
+     to surface (#ffffff) — cards barely lifted off the page. New values
+     widen the gap so the layered hierarchy reads at a glance. */
+  --color-canvas:   #f3f4f7;  /* slightly bluish off-white */
   --color-surface:  #ffffff;
-  --color-elevated: #f4f4f5;
-  --color-overlay:  #e4e4e7;
+  --color-elevated: #ebecf0;  /* hover state, distinctly visible from surface */
+  --color-overlay:  #dcdde2;
   --color-input:    #ffffff;
 
-  /* Text — near-black for primary, descending grays for secondary tiers */
-  --color-primary:   #0a0a0a;
-  --color-secondary: #3f3f46;
-  --color-muted:     #71717a;
-  --color-subtle:    #a1a1aa;
+  /* Text — bumped 'muted' two stops darker (#71717a -> #52525b) so body text
+     stays readable when used as secondary copy. 'subtle' goes from #a1a1aa
+     to #71717a so it crosses 4.5:1 contrast on white. */
+  --color-primary:   #09090b;
+  --color-secondary: #27272a;  /* was #3f3f46 — bit darker for headings + key copy */
+  --color-muted:     #52525b;  /* was #71717a — now legible at body sizes */
+  --color-subtle:    #71717a;  /* was #a1a1aa — passes 4.5:1 on white */
 
-  /* Borders — dark with low alpha so they read as soft separators on white */
-  --color-border:       rgba(0, 0, 0, 0.08);
-  --color-border-hover: rgba(0, 0, 0, 0.16);
-  --color-border-focus: rgba(124, 58, 237, 0.5);
+  /* Borders — slightly more pronounced so card edges are obvious. The
+     dark-theme equivalents are very low alpha (white at 7%), but on white
+     surfaces that translates to invisible. Bumped the alpha so cards have
+     a definitive edge. */
+  --color-border:       rgba(0, 0, 0, 0.10);
+  --color-border-hover: rgba(0, 0, 0, 0.20);
+  --color-border-focus: rgba(124, 58, 237, 0.55);
 
-  /* Muted accent backgrounds need higher alpha against white so they don't
-     wash out. Same hue, just stronger. */
-  --color-accent-muted:  rgba(124, 58, 237, 0.10);
-  --color-gold-muted:    rgba(245, 158, 11, 0.12);
-  --color-success-muted: rgba(16, 185, 129, 0.12);
-  --color-danger-muted:  rgba(239, 68, 68, 0.10);
-  --color-info-muted:    rgba(59, 130, 246, 0.10);
+  /* Accent purple — the dark-theme #a855f7 'accent-light' reads too
+     hot-pink on white. Shift one stop down to a darker violet so it
+     hits proper contrast for hover-target text + secondary CTAs. */
+  --color-accent-light: #7c3aed;
+  --color-accent-hover: #5b21b6;
 
-  /* Shadows — much subtler against a light canvas. Dark drop shadows are
-     fine but their alpha must be far lower than the dark-theme equivalent. */
-  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow:       0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg:    0 8px 32px rgba(0, 0, 0, 0.10);
-  --shadow-glow:  0 0 40px rgba(124, 58, 237, 0.12);
-  --shadow-glow-strong: 0 0 80px rgba(124, 58, 237, 0.20);
-  --shadow-gold:  0 0 40px rgba(245, 158, 11, 0.18);
+  /* Muted accent backgrounds — slightly more saturated than the dark
+     theme so they still register as 'tinted' against white. */
+  --color-accent-muted:  rgba(124, 58, 237, 0.12);
+  --color-gold-muted:    rgba(217, 119, 6, 0.14);
+  --color-success-muted: rgba(5, 150, 105, 0.14);
+  --color-danger-muted:  rgba(220, 38, 38, 0.12);
+  --color-info-muted:    rgba(37, 99, 235, 0.12);
+
+  /* Semantic foreground tones get a shift too so they pop against white.
+     Dark theme's #fbbf24 gold on a near-white canvas looks like a faded
+     post-it; #d97706 is darker amber with proper definition. */
+  --color-gold:    #d97706;
+  --color-success: #059669;
+  --color-danger:  #dc2626;
+  --color-info:    #2563eb;
+
+  /* Shadows — stronger than the first pass. Cards on a light canvas need
+     a clearer drop to read as 'lifted'; the previous shadows at 6-10%
+     made cards look pasted-on-flat. Two-tone shadow (sharper close
+     shadow + softer far shadow) is the modern card pattern. */
+  --shadow-sm:    0 1px 2px rgba(15, 15, 30, 0.08);
+  --shadow:       0 1px 3px rgba(15, 15, 30, 0.10), 0 4px 12px rgba(15, 15, 30, 0.06);
+  --shadow-md:    0 2px 6px rgba(15, 15, 30, 0.10), 0 8px 24px rgba(15, 15, 30, 0.08);
+  --shadow-lg:    0 4px 12px rgba(15, 15, 30, 0.12), 0 16px 48px rgba(15, 15, 30, 0.10);
+  --shadow-glow:  0 0 40px rgba(124, 58, 237, 0.18);
+  --shadow-glow-strong: 0 0 60px rgba(124, 58, 237, 0.28);
+  --shadow-gold:  0 0 40px rgba(217, 119, 6, 0.22);
 }
 
-/* Body background gradient is dialled down in light mode — the same violet
-   vignette would be too tinted against off-white. */
+/* Body background gradient — slightly stronger top-centre violet vignette
+   in light mode than the first pass; gives the page a hint of warmth
+   without bleeding into card backgrounds. */
 :root[data-theme="light"] body {
   background-image: radial-gradient(
     ellipse 80% 60% at 50% -10%,
-    rgba(124, 58, 237, 0.05) 0%,
+    rgba(124, 58, 237, 0.08) 0%,
     rgba(124, 58, 237, 0)  70%
   );
+}
+
+/* Soft auto-shadow on common card surfaces in light mode. Cards on a dark
+   canvas separate by border alone; on a near-white canvas the eye expects
+   a subtle drop too. This pairs with the bumped border alpha so the same
+   visual weight reads on both themes. Targets the most common pattern
+   (rounded shape with bg-surface) so it picks up tiles, modals, and
+   panels automatically. */
+:root[data-theme="light"] .bg-surface {
+  box-shadow:
+    0 1px 2px rgba(15, 15, 30, 0.04),
+    0 4px 12px rgba(15, 15, 30, 0.04);
 }
 
 /* gradient-text-hero starts at white in dark mode (which is correct) — in
