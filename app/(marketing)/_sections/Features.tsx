@@ -59,13 +59,13 @@ export function Features() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-4 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {FEATURES.map((f) => {
             const Icon = f.icon;
             return (
               <div
                 key={f.title}
-                className={`group relative overflow-hidden rounded-3xl border border-white/5 bg-surface/60 backdrop-blur-sm p-7 transition-all duration-500 hover:-translate-y-1 ${f.glow} ${f.hoverGlow}`}
+                className={`group relative overflow-hidden rounded-3xl border border-white/5 bg-surface/60 backdrop-blur-sm p-7 transition-all duration-500 hover:-translate-y-1 snap-start shrink-0 w-80 sm:w-auto ${f.glow} ${f.hoverGlow}`}
               >
                 {/* Glass top-edge highlight */}
                 <span

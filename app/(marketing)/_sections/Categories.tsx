@@ -142,12 +142,15 @@ export async function Categories() {
           </Link>
         </div>
 
-        {/* Responsive grid:
-              phone : 1 col
-              sm    : 2 cols
-              lg    : 3 cols
-              xl    : 6 cols (perfect single row on wide displays) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
+        {/* Responsive layout:
+              phone : horizontal scroll carousel (snap-x for tactile swipe)
+              sm    : 2-col grid
+              lg    : 3-col grid
+              xl    : 6-col grid (perfect single row on wide displays)
+            The negative-margin + padding trick lets cards scroll all the
+            way to the edge of the viewport on phones instead of being
+            constrained by the container's px-4 padding. */}
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5 overflow-x-auto snap-x snap-mandatory pb-4 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {CARDS.map((card) => {
             const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;
@@ -155,7 +158,7 @@ export async function Categories() {
               <Link
                 key={card.slug}
                 href={card.href}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-border-hover flex flex-col transition-all duration-300 hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-border-hover flex flex-col transition-all duration-300 hover:-translate-y-1 snap-start shrink-0 w-72 sm:w-auto"
               >
                 {/* NEW pill on the AI Suite tile */}
                 {card.badge && (

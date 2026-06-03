@@ -77,9 +77,15 @@ export async function Showcase() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Phone: swipeable horizontal carousel; sm+: grid */}
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-4 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {featured.map((asset) => (
-          <AssetCard key={asset.id} asset={asset} />
+          <div
+            key={asset.id}
+            className="snap-start shrink-0 w-72 sm:w-auto"
+          >
+            <AssetCard asset={asset} />
+          </div>
         ))}
       </div>
 
