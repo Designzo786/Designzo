@@ -89,7 +89,7 @@ export default async function AdminCreatorsPage({
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-160 text-sm">
             <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
               <tr>
                 <th className="text-left font-medium px-4 py-3">Applicant</th>
@@ -132,7 +132,7 @@ export default async function AdminCreatorsPage({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>
