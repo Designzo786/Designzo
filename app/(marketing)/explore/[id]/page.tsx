@@ -449,9 +449,9 @@ export default async function AssetDetailPage({
               View all →
             </Link>
           </div>
-          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-4 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="scroll-row scroll-row--cols-2 scroll-row--cols-3">
             {related.map((a) => (
-              <div key={a.id} className="snap-start shrink-0 w-72 sm:w-auto">
+              <div key={a.id}>
                 <AssetCard asset={a} />
               </div>
             ))}

@@ -101,25 +101,11 @@ export async function AssetReviews({
             : "No other reviews yet."}
         </p>
       ) : (
-        <ul
-          className="
-            flex sm:flex-col gap-4 sm:gap-5
-            overflow-x-auto sm:overflow-visible
-            snap-x snap-mandatory sm:snap-none
-            pb-3 sm:pb-0 -mx-6 sm:mx-0 px-6 sm:px-0
-            [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
-          "
-        >
+        <ul className="scroll-row scroll-row--wide scroll-row--to-list">
           {others.map((r) => (
             <li
               key={r.id}
-              className="
-                flex gap-3
-                snap-start shrink-0
-                w-80 sm:w-auto
-                rounded-xl border border-border bg-elevated/40 p-4
-                sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0
-              "
+              className="flex gap-3 rounded-xl border border-border bg-elevated/40 p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
             >
               <Avatar src={r.user.image} name={r.user.name} size={36} />
               <div className="min-w-0 flex-1">

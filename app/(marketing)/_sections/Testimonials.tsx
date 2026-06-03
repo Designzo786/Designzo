@@ -57,11 +57,11 @@ export function Testimonials() {
           </p>
         </div>
 
-        <div className="flex md:grid md:grid-cols-3 gap-5 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-4 md:pb-0 -mx-4 md:mx-0 px-4 md:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="scroll-row scroll-row--wide scroll-row--cols-3-at-md">
           {TESTIMONIALS.map((t) => (
             <figure
               key={t.name}
-              className={`group relative overflow-hidden rounded-3xl border border-white/5 bg-surface/60 backdrop-blur-sm p-7 flex flex-col transition-all duration-500 hover:-translate-y-1 snap-start shrink-0 w-80 md:w-auto ${t.glow} hover:shadow-[0_40px_80px_-30px_rgba(124,58,237,0.7)]`}
+              className={`group relative overflow-hidden rounded-3xl border border-white/5 bg-surface/60 backdrop-blur-sm p-7 flex flex-col transition-all duration-500 hover:-translate-y-1 ${t.glow} hover:shadow-[0_40px_80px_-30px_rgba(124,58,237,0.7)]`}
             >
               {/* Glass top-edge highlight */}
               <span

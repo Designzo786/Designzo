@@ -626,3 +626,60 @@ p {
     scroll-behavior: auto !important;
   }
 }
+
+/* Mobile horizontal-scroll card row.
+   Phone: flex with snap; sm+: reverts to a CSS grid. Hand-rolled so it
+   does not depend on Tailwind compiling a long arbitrary-class chain. */
+.scroll-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-row::-webkit-scrollbar { display: none; }
+.scroll-row > * {
+  flex: 0 0 auto;
+  width: 18rem;
+  scroll-snap-align: start;
+}
+.scroll-row--wide > * { width: 20rem; }
+
+@media (min-width: 640px) {
+  .scroll-row {
+    display: grid;
+    gap: 1.25rem;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    scroll-snap-type: none;
+  }
+  .scroll-row > * { width: auto; }
+  .scroll-row--cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scroll-row--cols-3-at-md { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 768px) {
+  .scroll-row--cols-3-at-md { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .scroll-row--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .scroll-row--cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* Variant: cards on phone, vertical list on sm+ (used by reviews). */
+@media (min-width: 640px) {
+  .scroll-row--to-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+}
