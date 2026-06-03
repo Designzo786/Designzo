@@ -63,7 +63,7 @@ export async function Showcase() {
   }));
 
   return (
-    <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+    <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
       <div className="text-center max-w-2xl mx-auto mb-14">
         <div className="inline-block px-3 py-1 rounded-full bg-accent-muted border border-accent/20 text-xs font-medium text-accent-light mb-4">
           Interactive 3D Previews

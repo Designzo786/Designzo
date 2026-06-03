@@ -14,9 +14,9 @@ export default async function AdminLayout({
   return (
     <div className="min-h-dvh bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-[220px_1fr] gap-8">
-          <aside className="lg:sticky lg:top-24 lg:self-start">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="grid lg:grid-cols-[220px_1fr] gap-4 lg:gap-8">
+          <aside className="lg:sticky lg:top-24 lg:self-start min-w-0">
             <div className="mb-3 px-3 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gold bg-gold-muted border border-gold/20 rounded-md py-1">
               Admin Panel
             </div>

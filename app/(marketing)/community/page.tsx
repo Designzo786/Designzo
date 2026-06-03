@@ -36,7 +36,7 @@ const GUIDELINES = [
 
 export default function CommunityPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       <header className="text-center max-w-2xl mx-auto">
         <div className="inline-block px-3 py-1 rounded-full bg-accent-muted border border-accent/20 text-xs font-medium text-accent-light mb-5">
           Community

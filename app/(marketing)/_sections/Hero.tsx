@@ -32,7 +32,7 @@ export function Hero() {
         }}
       />
 
-      <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+      <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
         <div className="max-w-3xl mx-auto text-center animate-[fade-in_0.8s_ease-out]">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-border text-xs font-medium text-secondary mb-6">
             <Sparkles className="w-3.5 h-3.5 text-accent-light" />

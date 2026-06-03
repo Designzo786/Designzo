@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* ─── Mobile safety net ──────────────────────────────────────────────────
+   Prevent any element from forcing the page itself to scroll horizontally.
+   Individual horizontal-scroll containers (`.scroll-row`, table wrappers)
+   still scroll internally because they declare their own `overflow-x`. */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+/* Long URLs, hashes, license keys, etc. must wrap instead of overflowing. */
+body { word-wrap: break-word; overflow-wrap: anywhere; }
+/* Media never exceeds its container — protects against fixed-width
+   uploads or screenshots overflowing on phones. */
+img, video, canvas, svg { max-width: 100%; height: auto; }
+canvas { height: auto; }   /* Three.js sets explicit pixel height — restore. */
+.r3f-canvas, .r3f-canvas canvas { height: 100% !important; }
+
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
 
 @theme {

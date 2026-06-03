@@ -46,7 +46,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-dvh bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {me?.creatorStatus === "PENDING" && (
           <div className="mb-6 rounded-xl border border-gold/20 bg-gold-muted p-4 flex items-start gap-3">
             <Clock className="w-4 h-4 text-gold shrink-0 mt-0.5" />
@@ -73,8 +73,8 @@ export default async function DashboardLayout({
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[220px_1fr] gap-8">
-          <aside className="lg:sticky lg:top-24 lg:self-start">
+        <div className="grid lg:grid-cols-[220px_1fr] gap-4 lg:gap-8">
+          <aside className="lg:sticky lg:top-24 lg:self-start min-w-0">
             <DashboardNav role={session.user.role} />
           </aside>
           <main className="min-w-0">{children}</main>

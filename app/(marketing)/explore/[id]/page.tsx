@@ -211,8 +211,8 @@ export default async function AssetDetailPage({
   }));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <nav className="flex items-center gap-2 text-sm text-muted mb-6 flex-wrap">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <nav className="flex items-center gap-2 text-xs sm:text-sm text-muted mb-4 sm:mb-6 flex-wrap">
         <Link
           href="/explore"
           className="hover:text-primary inline-flex items-center gap-1 transition-colors"
@@ -231,7 +231,7 @@ export default async function AssetDetailPage({
         <span className="text-secondary truncate">{asset.title}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8 items-start">
+      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6 lg:gap-8 items-start">
         <div className="space-y-4">
           <div className="relative aspect-square lg:aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-elevated to-canvas">
             {asset.modelUrl ? (
@@ -312,9 +312,9 @@ export default async function AssetDetailPage({
           />
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24">
+        <aside className="space-y-4 lg:sticky lg:top-24 min-w-0">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight gradient-text">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight gradient-text wrap-break-word">
               {asset.title}
             </h1>
             <p className="mt-2 text-secondary">
@@ -325,10 +325,10 @@ export default async function AssetDetailPage({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-6">
-            <div className="flex items-baseline gap-2 mb-4">
+          <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div className="flex items-baseline flex-wrap gap-2 mb-4">
               <span
-                className={`text-4xl font-bold ${
+                className={`text-3xl sm:text-4xl font-bold ${
                   isFree ? "text-info" : "gradient-text"
                 }`}
               >

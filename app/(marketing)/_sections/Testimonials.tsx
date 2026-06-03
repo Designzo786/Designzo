@@ -36,7 +36,7 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   return (
-    <section className="relative py-24">
+    <section className="relative py-14 sm:py-24">
       <AmbientBackdrop tone="gold" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

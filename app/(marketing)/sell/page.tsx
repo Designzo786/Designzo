@@ -53,7 +53,7 @@ const STEPS = [
 
 export default function SellPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16">
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       <header className="text-center max-w-2xl mx-auto">
         <div className="inline-block px-3 py-1 rounded-full bg-gold-muted border border-gold/20 text-xs font-medium text-gold mb-5">
           For Creators

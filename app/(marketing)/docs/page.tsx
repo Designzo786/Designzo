@@ -32,7 +32,7 @@ const DOCS = [
 
 export default function DocsPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       <header className="text-center max-w-2xl mx-auto">
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-primary">
           Documentation
