@@ -62,6 +62,13 @@ function contentTypeFor(filename: string): string {
       return "model/gltf-binary";
     case "gltf":
       return "model/gltf+json";
+    case "json":
+      return "application/json";
+    case "lottie":
+      // .lottie is a ZIP container — application/zip is the closest standard
+      // MIME. LottieFiles' tooling reads them regardless of the Content-Type
+      // header, but setting this stops browsers from sniffing it as text.
+      return "application/zip";
     default:
       return "application/octet-stream";
   }

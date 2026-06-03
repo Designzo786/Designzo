@@ -48,13 +48,48 @@ function uploadWithProgress(
   });
 }
 
+// Each category maps to its natural file type. When the user picks a
+// category, we auto-flip the file-type selector to match so they don't
+// have to think about it — a buyer-friendly upload UX where the form
+// stays in sync with what makes sense.
+const CATEGORY_TO_FILE_TYPE: Record<string, string> = {
+  "3d-models": "MODEL_3D",
+  "3d-icons": "MODEL_3D",
+  lottie: "LOTTIE",
+  "svg-icons": "SVG_ICON",
+  materials: "MATERIAL",
+};
+
+// Per-file-type guidance shown right under the file-picker so creators know
+// exactly what to upload and what each format does.
+const FILE_TYPE_HINTS: Record<string, { what: string; note: string }> = {
+  MODEL_3D: {
+    what: "Upload a .glb or .gltf file from Blender, Maya, 3ds Max, or any glTF exporter.",
+    note: "Buyers see a live 3D preview rendered with Three.js, then download your file after purchase.",
+  },
+  LOTTIE: {
+    what: "Upload a Bodymovin .json or a packed .lottie animation from LottieFiles or After Effects.",
+    note: "Buyers see your animation play live on the asset page, then download the original after purchase.",
+  },
+  SVG_ICON: {
+    what: "Upload a single .svg icon. Scripts and event handlers are blocked at validation for security.",
+    note: "Re-export from Figma/Sketch/Illustrator as plain SVG with no JS or external references.",
+  },
+  MATERIAL: {
+    what: "Upload a .zip / .sbsar / .mtl / .mat / .glsl material or shader bundle.",
+    note: "Include readme + sample render inside the zip if your material has dependencies.",
+  },
+};
+
 export function UploadForm() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0].slug);
-  const [fileType, setFileType] = useState<string>(FILE_TYPES[0].slug);
+  const [fileType, setFileType] = useState<string>(
+    CATEGORY_TO_FILE_TYPE[CATEGORIES[0].slug] ?? FILE_TYPES[0].slug
+  );
   const [priceInr, setPriceInr] = useState("0");
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -105,6 +140,18 @@ export function UploadForm() {
           "Your selected file no longer matches the chosen file type — please pick another."
         );
       }
+    }
+  }
+
+  // Picking a category auto-flips the file-type selector to whatever
+  // natural type it expects (lottie -> LOTTIE, svg-icons -> SVG_ICON, etc.)
+  // The user can still override the file-type manually afterwards if they
+  // have a non-standard pairing in mind.
+  function onCategoryChange(next: string) {
+    setCategory(next);
+    const suggested = CATEGORY_TO_FILE_TYPE[next];
+    if (suggested && suggested !== fileType) {
+      onFileTypeChange(suggested);
     }
   }
 
@@ -236,7 +283,7 @@ export function UploadForm() {
           <select
             id="category"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => onCategoryChange(e.target.value)}
             className="w-full h-11 px-4 bg-input border border-border rounded-lg text-sm text-primary focus:outline-none focus:bg-surface focus:border-border-focus transition-all"
           >
             {CATEGORIES.map((c) => (
@@ -308,13 +355,21 @@ export function UploadForm() {
         onChange={onFileChange}
         onClear={clearFile}
       />
-      {allowedExtensions.includes("glb") && (
-        <p className="text-xs text-muted leading-relaxed">
-          <span className="text-secondary font-medium">Have a .fbx, .obj or .blend?</span>{" "}
-          glTF (<code className="text-primary">.glb</code>) is required so buyers get
-          a rotatable 3D preview in-browser. Export from Blender / Maya / 3ds Max via{" "}
-          <span className="text-primary">File → Export → glTF 2.0 (.glb)</span>.
-        </p>
+
+      {/* Per-type guidance — sits under the file picker so creators know
+          exactly what format they should be uploading and what buyers will
+          see on the asset page. Each entry is keyed by fileType in
+          FILE_TYPE_HINTS at the top of the file. */}
+      {FILE_TYPE_HINTS[fileType] && (
+        <div className="rounded-lg border border-border bg-elevated/40 p-3 space-y-1.5">
+          <p className="text-xs text-primary leading-relaxed">
+            <span className="font-semibold">What to upload:</span>{" "}
+            {FILE_TYPE_HINTS[fileType].what}
+          </p>
+          <p className="text-xs text-muted leading-relaxed">
+            {FILE_TYPE_HINTS[fileType].note}
+          </p>
+        </div>
       )}
 
       <div className="pt-2">

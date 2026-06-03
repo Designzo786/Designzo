@@ -22,12 +22,13 @@ import type { FileType } from "@prisma/client";
 // creator upload an asset whose preview silently falls back to the static
 // image — broken UX. Every modern DCC tool (Blender, Maya, 3ds Max, Unity)
 // exports glTF, so the restriction is mild: "File → Export → glTF (.glb)".
-// Widened with "LOTTIE" so this map stays type-safe while the locally-
-// generated Prisma client catches up to the schema (the DB enum already has
-// LOTTIE, but a running Next dev server can hold the Prisma DLL open and
-// stop `prisma generate` from refreshing TS types). Becomes a redundant
+// Widened with the new types so the map stays type-safe while the locally-
+// generated Prisma client catches up to the schema. Becomes a redundant
 // union after the next clean `prisma generate`.
-export const EXTENSIONS_BY_TYPE: Record<FileType | "LOTTIE", string[]> = {
+export const EXTENSIONS_BY_TYPE: Record<
+  FileType | "LOTTIE" | "SVG_ICON",
+  string[]
+> = {
   MODEL_3D: ["glb", "gltf"],
   // TEXTURE, HDRI, IMAGE_2D and PLUGIN are kept on the Prisma enum so any
   // legacy rows still type-check, but they're not accepted for new uploads
@@ -41,6 +42,9 @@ export const EXTENSIONS_BY_TYPE: Record<FileType | "LOTTIE", string[]> = {
   // ZIP-packaged dotLottie format from LottieFiles. Both validated by their
   // own magic bytes / structure below.
   LOTTIE: ["json", "lottie"],
+  // SVG-only — content sniffed below to make sure renamed scripts can't
+  // pass for an icon.
+  SVG_ICON: ["svg"],
 };
 
 // Extensions that are never acceptable — listed explicitly so a misconfigured
@@ -151,11 +155,70 @@ function signatureMatches(ext: string, buf: Buffer): boolean | null {
       // contains the well-known Lottie schema keys. We do a permissive
       // structural check below in validateAssetFile() for LOTTIE uploads.
       return null;
+    case "svg":
+      // SVG is XML; permissive check that the file opens with `<svg`,
+      // `<?xml`, or a BOM-prefixed equivalent. Strict content check runs
+      // in looksLikeSvg() below.
+      return null;
     default:
       // gltf, obj, fbx, stl, dae, mtl, mat, glsl, svg, tga — no reliable
       // universal signature. Accepted on extension + executable scan.
       return null;
   }
+}
+
+/**
+ * SVG content sniff. Real SVG opens with `<?xml` or `<svg` (possibly
+ * after a UTF-8 BOM and whitespace). Also blocks script-bearing SVGs
+ * — those are the main attack vector for SVG icon marketplaces.
+ *
+ * Returns:
+ *   true   — looks like a safe SVG
+ *   false  — doesn't open with the SVG structure (rejected)
+ *   "unsafe" — opens with SVG markup but contains <script>/<foreignObject>/
+ *              event handlers (rejected with a specific message)
+ */
+function checkSvgContent(buf: Buffer): true | false | "unsafe" {
+  let start = 0;
+  if (
+    buf.length >= 3 &&
+    buf[0] === 0xef &&
+    buf[1] === 0xbb &&
+    buf[2] === 0xbf
+  ) {
+    start = 3;
+  }
+  // Skip leading whitespace
+  while (
+    start < buf.length &&
+    (buf[start] === 0x20 ||
+      buf[start] === 0x09 ||
+      buf[start] === 0x0a ||
+      buf[start] === 0x0d)
+  ) {
+    start++;
+  }
+  // Peek at the first ~80 bytes for the opener — text-based files don't
+  // pad before the markup, so this is more than enough.
+  const head = buf
+    .slice(start, Math.min(buf.length, start + 200))
+    .toString("utf8")
+    .toLowerCase();
+  if (!head.startsWith("<?xml") && !head.startsWith("<svg")) return false;
+
+  // Scan the whole document for unsafe constructs. We're permissive on
+  // size — even 5MB icons take <10ms to scan as a UTF-8 string. The
+  // patterns below cover the OWASP top SVG attack vectors.
+  const full = buf.toString("utf8").toLowerCase();
+  if (
+    /<script[\s>]/.test(full) ||
+    /<foreignobject[\s>]/.test(full) ||
+    /\son[a-z]+\s*=/.test(full) || // onclick=, onload=, etc.
+    /javascript:/.test(full)
+  ) {
+    return "unsafe";
+  }
+  return true;
 }
 
 /**
@@ -204,7 +267,7 @@ export interface ValidationResult {
  */
 export function validateAssetFile(
   filename: string,
-  declaredType: FileType | "LOTTIE",
+  declaredType: FileType | "LOTTIE" | "SVG_ICON",
   header: Buffer
 ): ValidationResult {
   const ext = getExtension(filename);
@@ -254,6 +317,28 @@ export function validateAssetFile(
         ok: false,
         error:
           "This JSON file doesn't look like a Lottie animation. Export from After Effects with Bodymovin or from LottieFiles.",
+      };
+    }
+  }
+
+  // SVG — structural sniff + strict script-bearing check. SVG marketplaces
+  // are a common XSS vector because browsers happily execute scripts inside
+  // SVG when rendered as <img>… we reject any SVG carrying scripts before
+  // it ever reaches storage.
+  if (declaredType === "SVG_ICON" && ext === "svg") {
+    const result = checkSvgContent(header);
+    if (result === false) {
+      return {
+        ok: false,
+        error:
+          "This file doesn't look like a valid SVG. Make sure it opens with <?xml or <svg.",
+      };
+    }
+    if (result === "unsafe") {
+      return {
+        ok: false,
+        error:
+          "This SVG contains scripts or event handlers, which we don't allow for security. Re-export from your design tool without interactivity.",
       };
     }
   }

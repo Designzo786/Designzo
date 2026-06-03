@@ -49,6 +49,7 @@ enum FileType {
   PLUGIN
   IMAGE_2D
   LOTTIE
+  SVG_ICON
 }
 
 enum LicenseType {

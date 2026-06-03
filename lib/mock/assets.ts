@@ -41,8 +41,9 @@ export const CATEGORIES = [
 
 export const FILE_TYPES = [
   { slug: "MODEL_3D", name: "3D Model" },
+  { slug: "LOTTIE", name: "Lottie Animation" },
+  { slug: "SVG_ICON", name: "SVG Icon" },
   { slug: "MATERIAL", name: "Material" },
-  { slug: "LOTTIE", name: "Lottie / JSON Animation" },
 ] as const;
 
 export const PRICE_RANGES = [

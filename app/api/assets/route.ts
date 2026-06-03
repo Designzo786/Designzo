@@ -18,7 +18,12 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 // is one `prisma generate` behind the schema. LOTTIE is in the DB enum and
 // the schema already; this just keeps TypeScript happy until the client
 // regenerates cleanly (after the next dev-server restart).
-const VALID_FILE_TYPES = ["MODEL_3D", "MATERIAL", "LOTTIE"] as FileType[];
+const VALID_FILE_TYPES = [
+  "MODEL_3D",
+  "MATERIAL",
+  "LOTTIE",
+  "SVG_ICON",
+] as FileType[];
 
 const VALID_CATEGORIES = [
   "3d-models",
@@ -190,14 +195,18 @@ export async function POST(req: Request) {
     );
     savedPreviewUrl = previewSaved.url;
 
-    // If the asset itself is a glTF/GLB, ALSO save a publicly-readable copy so
-    // it can be loaded into the in-browser 3D viewer. The private fileKey is
-    // still what gets gated for paid downloads — this is just a preview source.
+    // If the asset itself is browser-renderable (3D glTF, Lottie JSON,
+    // dotLottie ZIP, or SVG), ALSO save a publicly-readable copy so the
+    // viewer on the detail page can fetch it. The private fileKey is
+    // still what gets gated for paid downloads — this is just a render
+    // source. Buyers/visitors only see the public copy; the private file
+    // is the one they download after purchase.
     const fileExt = (file.name.split(".").pop() ?? "").toLowerCase();
-    if (fileExt === "glb" || fileExt === "gltf") {
+    const PUBLIC_VIEWER_EXTENSIONS = ["glb", "gltf", "json", "lottie", "svg"];
+    if (PUBLIC_VIEWER_EXTENSIONS.includes(fileExt)) {
       const modelSaved = await savePublic(
         `models/${session.user.id}`,
-        file.name || `model.${fileExt}`,
+        file.name || `asset.${fileExt}`,
         fileBuf
       );
       savedModelUrl = modelSaved.url;

@@ -16,6 +16,8 @@ import { Component, Suspense, useEffect, useState, type ReactNode } from "react"
 import { ACESFilmicToneMapping } from "three";
 import { Loader2, Sun, Moon, ImageOff } from "lucide-react";
 import { ShapeMesh } from "@/components/three/ShapeMesh";
+import { LottiePlayer } from "./LottiePlayer";
+import { SvgIconViewer } from "./SvgIconViewer";
 import { cn } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
 
@@ -23,8 +25,17 @@ type LightingMode = "studio" | "ambience";
 const LIGHTING_STORAGE_KEY = "designzo.viewer.lighting";
 
 interface Props {
-  // Either a real GLTF/GLB model URL (used when the user uploaded a 3D file)
+  // What KIND of asset we're rendering. Drives the dispatch below — 3D model
+  // goes through Three.js, Lottie through dotlottie-react, SVG through a
+  // sandboxed <img>, and falling through to the brand-tinted primitive when
+  // we have no real file.
+  fileType?: string;
+  // Public URL of the asset file (.glb / .gltf for 3D, .json / .lottie for
+  // Lottie, .svg for SVG icons). Treated as optional so the fallback
+  // primitive path stays accessible.
   modelUrl?: string;
+  // Title used as alt-text on the SVG viewer.
+  title?: string;
   // Or a mock primitive — used by seeded sample assets without a real file
   shape?: MockAssetShape;
   color?: string;
@@ -321,7 +332,35 @@ function LightingButton({
   );
 }
 
-export default function AssetViewer({ modelUrl, shape, color }: Props) {
+export default function AssetViewer({
+  fileType,
+  modelUrl,
+  title,
+  shape,
+  color,
+}: Props) {
+  // Branch on the asset's declared file type — each one has its own renderer.
+  // Lottie + SVG paths short-circuit out before any of the Three.js setup
+  // runs, so we don't waste a Canvas + WebGL context on a 4KB icon.
+  if (modelUrl && fileType === "LOTTIE") {
+    return (
+      <div className="relative w-full h-full">
+        <ModelErrorBoundary fallback={<ModelLoadFailed />}>
+          <LottiePlayer src={modelUrl} />
+        </ModelErrorBoundary>
+      </div>
+    );
+  }
+  if (modelUrl && fileType === "SVG_ICON") {
+    return (
+      <div className="relative w-full h-full">
+        <ModelErrorBoundary fallback={<ModelLoadFailed />}>
+          <SvgIconViewer src={modelUrl} title={title} />
+        </ModelErrorBoundary>
+      </div>
+    );
+  }
+
   const hasModel = !!modelUrl;
   // Lighting preference, persisted across sessions. Studio is the default
   // because it's the most useful for evaluation (no warm/cool tint hiding

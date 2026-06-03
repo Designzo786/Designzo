@@ -236,10 +236,18 @@ export default async function AssetDetailPage({
           <div className="relative aspect-square lg:aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-elevated to-canvas">
             {asset.modelUrl ? (
               <>
-                <AssetViewer modelUrl={asset.modelUrl} />
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
-                  Drag to rotate · Scroll to zoom
-                </div>
+                <AssetViewer
+                  fileType={asset.fileType}
+                  modelUrl={asset.modelUrl}
+                  title={asset.title}
+                />
+                {/* Help-text caption only makes sense for 3D models. Lottie
+                    auto-plays, SVG is static — no interaction hints needed. */}
+                {asset.fileType === "MODEL_3D" && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
+                    Drag to rotate · Scroll to zoom
+                  </div>
+                )}
               </>
             ) : asset.shape && asset.shapeColor ? (
               <>
