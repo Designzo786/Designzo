@@ -28,6 +28,7 @@ const CARDS = [
     icon: Box,
     accent: "text-violet-300 bg-violet-500/15 border-violet-400/30",
     bloom: "bg-violet-500/30",
+    image: "/categories/3d-models.webp",
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -39,6 +40,7 @@ const CARDS = [
     icon: Hexagon,
     accent: "text-sky-300 bg-sky-500/15 border-sky-400/30",
     bloom: "bg-sky-500/30",
+    image: "/categories/3d-icons.webp",
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -50,6 +52,7 @@ const CARDS = [
     icon: Sparkles,
     accent: "text-pink-300 bg-pink-500/15 border-pink-400/30",
     bloom: "bg-pink-500/30",
+    image: "/categories/lottie.webp",
     href: "/explore?category=lottie",
     countable: true,
     badge: null,
@@ -61,6 +64,7 @@ const CARDS = [
     icon: Layers,
     accent: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
     bloom: "bg-emerald-500/30",
+    image: "/categories/svg-icons.webp",
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -72,6 +76,7 @@ const CARDS = [
     icon: Palette,
     accent: "text-amber-300 bg-amber-500/15 border-amber-400/30",
     bloom: "bg-amber-500/30",
+    image: "/categories/materials.webp",
     href: "/explore?category=materials",
     countable: true,
     badge: null,
@@ -83,6 +88,9 @@ const CARDS = [
     icon: Wand2,
     accent: "text-accent-light bg-accent/15 border-accent/40",
     bloom: "bg-accent/40",
+    // AI Suite is a tool, not an asset category — keeps its icon-only
+    // treatment so it visually reads as the action tile in the row.
+    image: null,
     href: "/ai-generate",
     countable: false,
     badge: "NEW",
@@ -147,7 +155,7 @@ export async function Categories() {
               <Link
                 key={card.slug}
                 href={card.href}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-border-hover p-5 sm:p-6 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-border-hover flex flex-col transition-all duration-300 hover:-translate-y-1"
               >
                 {/* NEW pill on the AI Suite tile */}
                 {card.badge && (
@@ -157,33 +165,36 @@ export async function Categories() {
                   </span>
                 )}
 
-                {/* Icon — bigger plate, soft hue tint, single subtle bloom
-                    that only shows on hover. No more permanent gradient
-                    backdrop — keeps the card clean by default. */}
-                <div className="relative">
-                  <span
-                    aria-hidden
-                    className={`absolute -inset-2 rounded-2xl blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-300 ${card.bloom}`}
-                  />
-                  <div
-                    className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border flex items-center justify-center ${card.accent}`}
-                  >
-                    <Icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={1.6} />
+                {/* Top text content */}
+                <div className="p-5 sm:p-6 flex flex-col gap-4 flex-1">
+                  {/* Icon plate — kept on every card. Doubles as the
+                      'always visible' visual anchor when the image is
+                      missing or slow to load, and adds brand-hue
+                      consistency across the row. */}
+                  <div className="relative">
+                    <span
+                      aria-hidden
+                      className={`absolute -inset-2 rounded-2xl blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-300 ${card.bloom}`}
+                    />
+                    <div
+                      className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border flex items-center justify-center ${card.accent}`}
+                    >
+                      <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.6} />
+                    </div>
                   </div>
-                </div>
 
-                {/* Card body */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base sm:text-lg font-semibold text-primary tracking-tight">
-                    {card.name}
-                  </h3>
-                  <p className="text-[13px] text-secondary leading-relaxed mt-1.5 line-clamp-3">
-                    {card.tagline}
-                  </p>
-                </div>
+                  {/* Card body */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-primary tracking-tight">
+                      {card.name}
+                    </h3>
+                    <p className="text-[13px] text-secondary leading-relaxed mt-1.5 line-clamp-3">
+                      {card.tagline}
+                    </p>
+                  </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between mt-1">
+                  {/* Footer */}
+                  <div className="flex items-center justify-between mt-1">
                   {count === null ? (
                     <span className="text-sm font-semibold text-accent-light">
                       Try it now
@@ -208,7 +219,35 @@ export async function Categories() {
                   <span className="w-8 h-8 rounded-full border border-border bg-elevated flex items-center justify-center text-muted group-hover:text-primary group-hover:border-border-hover transition-all">
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
                   </span>
+                  </div>
                 </div>
+
+                {/* Hero image — overflows to all three bottom edges. Falls
+                    back gracefully: if /categories/{slug}.webp is missing
+                    (404), the broken <img> hides itself via onError and
+                    the card just shows the text + icon content. */}
+                {card.image && (
+                  <div className="relative h-32 sm:h-36 overflow-hidden bg-elevated">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={card.image}
+                      alt=""
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
+                      }}
+                    />
+                    {/* Soft gradient overlay to ease the image into the
+                        card surface above — keeps the visual weight on
+                        the text content. */}
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-linear-to-b from-surface to-transparent"
+                    />
+                  </div>
+                )}
               </Link>
             );
           })}
