@@ -215,27 +215,60 @@ body {
   --shadow-gold:  0 0 40px rgba(217, 119, 6, 0.22);
 }
 
-/* Body background gradient — slightly stronger top-centre violet vignette
-   in light mode than the first pass; gives the page a hint of warmth
-   without bleeding into card backgrounds. */
+/* Body background — IconScout-style sky-blue page wash in light mode.
+   A large radial cyan/violet glow at the top fades through soft blue to
+   white where the content begins, then back to white for the rest of the
+   page. The fixed attachment keeps the gradient anchored as the user
+   scrolls, so the whole hero + nav area sits inside the blue wash. */
 :root[data-theme="light"] body {
-  background-image: radial-gradient(
-    ellipse 80% 60% at 50% -10%,
-    rgba(124, 58, 237, 0.08) 0%,
-    rgba(124, 58, 237, 0)  70%
-  );
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(
+      ellipse 100% 70% at 50% -10%,
+      rgba(125, 211, 252, 0.55) 0%,
+      rgba(186, 230, 253, 0.35) 35%,
+      rgba(224, 242, 254, 0.15) 60%,
+      rgba(255, 255, 255, 0) 80%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      rgba(167, 139, 250, 0.18) 0%,
+      rgba(167, 139, 250, 0)   60%
+    );
+  background-attachment: fixed;
+}
+
+/* The page canvas needs to switch to TRANSPARENT in light mode so the body
+   gradient is what shows through under cards/sections. Otherwise the canvas
+   fill paints over the gradient. */
+:root[data-theme="light"] {
+  --color-canvas: #ffffff;
 }
 
 /* Soft auto-shadow on common card surfaces in light mode. Cards on a dark
    canvas separate by border alone; on a near-white canvas the eye expects
-   a subtle drop too. This pairs with the bumped border alpha so the same
-   visual weight reads on both themes. Targets the most common pattern
-   (rounded shape with bg-surface) so it picks up tiles, modals, and
-   panels automatically. */
+   a subtle drop too. The two-tone shadow is the modern card pattern —
+   sharp close shadow for the edge + soft far shadow for the ambient lift. */
 :root[data-theme="light"] .bg-surface {
   box-shadow:
-    0 1px 2px rgba(15, 15, 30, 0.04),
-    0 4px 12px rgba(15, 15, 30, 0.04);
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 6px 20px rgba(15, 23, 42, 0.06);
+}
+
+/* Same pattern for explicit glass / glass-strong surfaces — keep them
+   readable against the sky-blue page background. */
+:root[data-theme="light"] .glass,
+:root[data-theme="light"] .glass-strong {
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* Sticky navbar uses .glass + sits on top of the sky-blue wash — bump its
+   opacity so the navbar reads as solid white instead of dissolving into the
+   blue. */
+:root[data-theme="light"] header.glass {
+  background: rgba(255, 255, 255, 0.85);
 }
 
 /* gradient-text-hero starts at white in dark mode (which is correct) — in
