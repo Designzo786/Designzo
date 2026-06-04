@@ -2,7 +2,15 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X, Image as ImageIcon, FileBox, Loader2 } from "lucide-react";
+import {
+  Upload,
+  X,
+  Image as ImageIcon,
+  FileBox,
+  Film,
+  ImagePlay,
+  Loader2,
+} from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
@@ -13,6 +21,10 @@ import type { FileType } from "@prisma/client";
 
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
+// Companion limits — kept in sync with the server-side ceilings in
+// /api/assets so the client surfaces the right error before upload.
+const MAX_LOTTIE_GIF_BYTES = 15 * 1024 * 1024;
+const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
 
 interface UploadResult {
   ok: boolean;
@@ -68,8 +80,8 @@ const FILE_TYPE_HINTS: Record<string, { what: string; note: string }> = {
     note: "Buyers see a live 3D preview rendered with Three.js, then download your file after purchase.",
   },
   LOTTIE: {
-    what: "Upload a Bodymovin .json or a packed .lottie animation from LottieFiles or After Effects.",
-    note: "Buyers see your animation play live on the asset page, then download the original after purchase.",
+    what: "Upload a Bodymovin .json or a packed .lottie animation from LottieFiles or After Effects. You can optionally add GIF + MP4 renders of the same animation — buyers download all formats as a single ZIP bundle.",
+    note: "The bundle automatically ships with a per-buyer LICENSE.txt that records the purchase, license type, and scope of use.",
   },
   SVG_ICON: {
     what: "Upload a single .svg icon. Scripts and event handlers are blocked at validation for security.",
@@ -95,6 +107,9 @@ export function UploadForm() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Optional Lottie companion uploads — surfaced only when fileType === LOTTIE.
+  const [lottieGif, setLottieGif] = useState<File | null>(null);
+  const [lottieMp4, setLottieMp4] = useState<File | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -102,6 +117,8 @@ export function UploadForm() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewInputRef = useRef<HTMLInputElement>(null);
+  const lottieGifRef = useRef<HTMLInputElement>(null);
+  const lottieMp4Ref = useRef<HTMLInputElement>(null);
 
   // Extensions valid for the currently-selected file type. Drives both the
   // file picker's `accept` filter and the instant validation below.
@@ -141,6 +158,60 @@ export function UploadForm() {
         );
       }
     }
+    // Drop Lottie companions when switching to a non-Lottie type — they
+    // wouldn't make sense for, say, a MODEL_3D asset.
+    if (next !== "LOTTIE") {
+      clearLottieGif();
+      clearLottieMp4();
+    }
+  }
+
+  function onLottieGifChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (getExtension(f.name) !== "gif") {
+      setError("Lottie GIF companion must be a .gif file.");
+      if (lottieGifRef.current) lottieGifRef.current.value = "";
+      return;
+    }
+    if (f.size > MAX_LOTTIE_GIF_BYTES) {
+      setError(
+        `GIF companion is too large (max ${formatFileSize(MAX_LOTTIE_GIF_BYTES)}).`
+      );
+      if (lottieGifRef.current) lottieGifRef.current.value = "";
+      return;
+    }
+    setError(null);
+    setLottieGif(f);
+  }
+
+  function onLottieMp4Change(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (getExtension(f.name) !== "mp4") {
+      setError("Lottie MP4 companion must be a .mp4 file.");
+      if (lottieMp4Ref.current) lottieMp4Ref.current.value = "";
+      return;
+    }
+    if (f.size > MAX_LOTTIE_MP4_BYTES) {
+      setError(
+        `MP4 companion is too large (max ${formatFileSize(MAX_LOTTIE_MP4_BYTES)}).`
+      );
+      if (lottieMp4Ref.current) lottieMp4Ref.current.value = "";
+      return;
+    }
+    setError(null);
+    setLottieMp4(f);
+  }
+
+  function clearLottieGif() {
+    setLottieGif(null);
+    if (lottieGifRef.current) lottieGifRef.current.value = "";
+  }
+
+  function clearLottieMp4() {
+    setLottieMp4(null);
+    if (lottieMp4Ref.current) lottieMp4Ref.current.value = "";
   }
 
   // Picking a category auto-flips the file-type selector to whatever
@@ -223,6 +294,13 @@ export function UploadForm() {
       fd.append("tags", tags.trim());
       fd.append("file", file);
       fd.append("preview", preview);
+      // Optional Lottie bundle companions — only sent for LOTTIE uploads.
+      // Server-side validation rejects them with a clear error if a creator
+      // somehow attaches them to a non-Lottie asset.
+      if (fileType === "LOTTIE") {
+        if (lottieGif) fd.append("lottieGif", lottieGif);
+        if (lottieMp4) fd.append("lottieMp4", lottieMp4);
+      }
 
       const res = await uploadWithProgress("/api/assets", fd, setProgress);
 
@@ -346,7 +424,9 @@ export function UploadForm() {
 
       {/* Asset file picker */}
       <FilePicker
-        label="Asset file"
+        label={
+          fileType === "LOTTIE" ? "Lottie source (.json or .lottie)" : "Asset file"
+        }
         sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
         icon={FileBox}
         file={file}
@@ -355,6 +435,50 @@ export function UploadForm() {
         onChange={onFileChange}
         onClear={clearFile}
       />
+
+      {/* Lottie bundle companions — only visible when the asset type is
+          LOTTIE. Both fields are OPTIONAL — a Lottie pack can ship JSON-only
+          or with one/both companion formats. When the buyer downloads, the
+          server ZIPs whatever the creator provided plus the LICENSE.txt. */}
+      {fileType === "LOTTIE" && (
+        <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
+          <div className="flex items-start gap-2.5">
+            <Film className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-primary">
+                Optional bundle companions
+              </h3>
+              <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                Add a GIF and/or MP4 export of the same animation. Buyers
+                download all formats together as a ZIP, with a per-buyer
+                LICENSE.txt included automatically.
+              </p>
+            </div>
+          </div>
+
+          <FilePicker
+            label="GIF preview (optional)"
+            sublabel="Single .gif — max 15 MB. Used as a fallback for environments without Lottie support."
+            icon={ImagePlay}
+            file={lottieGif}
+            accept=".gif,image/gif"
+            inputRef={lottieGifRef}
+            onChange={onLottieGifChange}
+            onClear={clearLottieGif}
+          />
+
+          <FilePicker
+            label="MP4 render (optional)"
+            sublabel="Single .mp4 — max 25 MB. Useful for social/video tools that can't import Lottie."
+            icon={Film}
+            file={lottieMp4}
+            accept=".mp4,video/mp4"
+            inputRef={lottieMp4Ref}
+            onChange={onLottieMp4Change}
+            onClear={clearLottieMp4}
+          />
+        </div>
+      )}
 
       {/* Per-type guidance — sits under the file picker so creators know
           exactly what format they should be uploading and what buyers will

@@ -213,9 +213,16 @@ model Asset {
   license     LicenseType @default(STANDARD)
 
   // R2 keys — never expose directly, always generate signed URLs
-  fileKey    String // actual downloadable file
+  fileKey    String // actual downloadable file (primary format)
   previewKey String // thumbnail / preview image
   modelKey   String? // .glb / .gltf for in-browser 3D preview
+
+  // Lottie bundle companion files. When fileType = LOTTIE and a creator
+  // uploads alongside formats, these store the GIF/MP4 keys so downloads
+  // can return a multi-file ZIP. Null for non-LOTTIE assets and for Lottie
+  // uploads with no companion formats.
+  lottieGifKey String?
+  lottieMp4Key String?
 
   price  Int @default(0) // INR paise; 0 = free
 

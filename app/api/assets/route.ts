@@ -6,6 +6,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   validateAssetFile,
   validatePreviewImage,
+  validateLottieGif,
+  validateLottieMp4,
 } from "@/lib/upload-validation";
 import type { FileType } from "@prisma/client";
 
@@ -13,6 +15,11 @@ export const runtime = "nodejs";
 
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
+// Lottie companion limits chosen so a typical bundle (JSON + GIF + MP4)
+// stays under ~30MB total — comfortable for in-memory ZIP generation at
+// download time without streaming.
+const MAX_LOTTIE_GIF_BYTES = 15 * 1024 * 1024; // 15 MB
+const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // Cast widens to include LOTTIE while the locally-generated Prisma client
 // is one `prisma generate` behind the schema. LOTTIE is in the DB enum and
@@ -79,6 +86,9 @@ export async function POST(req: Request) {
 
   const file = form.get("file");
   const preview = form.get("preview");
+  // Optional Lottie companion uploads — only consulted when fileType is LOTTIE.
+  const lottieGif = form.get("lottieGif");
+  const lottieMp4 = form.get("lottieMp4");
 
   // ─── Validation ───────────────────────────────────────────────────────────
 
@@ -186,6 +196,9 @@ export async function POST(req: Request) {
   let savedPreviewUrl: string | null = null;
   let savedFileKey: string | null = null;
   let savedModelUrl: string | null = null;
+  // Lottie bundle companions — only used when fileType === LOTTIE.
+  let savedLottieGifKey: string | null = null;
+  let savedLottieMp4Key: string | null = null;
 
   try {
     const previewSaved = await savePublic(
@@ -219,6 +232,76 @@ export async function POST(req: Request) {
     );
     savedFileKey = fileSaved.key;
 
+    // ── Lottie bundle companions ─────────────────────────────────────────
+    // Validate + persist only when the declared type is LOTTIE. Both fields
+    // are optional — a Lottie upload may ship JSON-only or with one/both
+    // companion formats. Each lives in private storage so it can only be
+    // reached through the gated /api/assets/:id/download endpoint.
+    let totalBundleBytes = fileSaved.bytes;
+    if (fileType === "LOTTIE") {
+      if (lottieGif instanceof File && lottieGif.size > 0) {
+        if (lottieGif.size > MAX_LOTTIE_GIF_BYTES) {
+          await deletePublic(savedPreviewUrl);
+          if (savedModelUrl) await deletePublic(savedModelUrl);
+          await deletePrivate(savedFileKey);
+          return NextResponse.json(
+            { error: `Lottie GIF companion exceeds 15 MB limit.` },
+            { status: 400 }
+          );
+        }
+        const gifBuf = Buffer.from(await lottieGif.arrayBuffer());
+        const gifCheck = validateLottieGif(lottieGif.name, gifBuf);
+        if (!gifCheck.ok) {
+          await deletePublic(savedPreviewUrl);
+          if (savedModelUrl) await deletePublic(savedModelUrl);
+          await deletePrivate(savedFileKey);
+          return NextResponse.json(
+            { error: gifCheck.error },
+            { status: 400 }
+          );
+        }
+        const gifSaved = await savePrivate(
+          `files/${session.user.id}`,
+          lottieGif.name || "animation.gif",
+          gifBuf
+        );
+        savedLottieGifKey = gifSaved.key;
+        totalBundleBytes += gifSaved.bytes;
+      }
+
+      if (lottieMp4 instanceof File && lottieMp4.size > 0) {
+        if (lottieMp4.size > MAX_LOTTIE_MP4_BYTES) {
+          await deletePublic(savedPreviewUrl);
+          if (savedModelUrl) await deletePublic(savedModelUrl);
+          await deletePrivate(savedFileKey);
+          if (savedLottieGifKey) await deletePrivate(savedLottieGifKey);
+          return NextResponse.json(
+            { error: `Lottie MP4 companion exceeds 25 MB limit.` },
+            { status: 400 }
+          );
+        }
+        const mp4Buf = Buffer.from(await lottieMp4.arrayBuffer());
+        const mp4Check = validateLottieMp4(lottieMp4.name, mp4Buf);
+        if (!mp4Check.ok) {
+          await deletePublic(savedPreviewUrl);
+          if (savedModelUrl) await deletePublic(savedModelUrl);
+          await deletePrivate(savedFileKey);
+          if (savedLottieGifKey) await deletePrivate(savedLottieGifKey);
+          return NextResponse.json(
+            { error: mp4Check.error },
+            { status: 400 }
+          );
+        }
+        const mp4Saved = await savePrivate(
+          `files/${session.user.id}`,
+          lottieMp4.name || "animation.mp4",
+          mp4Buf
+        );
+        savedLottieMp4Key = mp4Saved.key;
+        totalBundleBytes += mp4Saved.bytes;
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
         title,
@@ -230,7 +313,9 @@ export async function POST(req: Request) {
         previewKey: savedPreviewUrl,
         fileKey: savedFileKey,
         modelKey: savedModelUrl,
-        fileSizeBytes: fileSaved.bytes,
+        lottieGifKey: savedLottieGifKey,
+        lottieMp4Key: savedLottieMp4Key,
+        fileSizeBytes: totalBundleBytes,
         uploaderId: session.user.id,
         // status defaults to PENDING — admin moderation queue picks it up
       },
@@ -246,6 +331,8 @@ export async function POST(req: Request) {
     if (savedPreviewUrl) await deletePublic(savedPreviewUrl);
     if (savedModelUrl) await deletePublic(savedModelUrl);
     if (savedFileKey) await deletePrivate(savedFileKey);
+    if (savedLottieGifKey) await deletePrivate(savedLottieGifKey);
+    if (savedLottieMp4Key) await deletePrivate(savedLottieMp4Key);
 
     console.error("[asset upload] failed:", err);
     return NextResponse.json(

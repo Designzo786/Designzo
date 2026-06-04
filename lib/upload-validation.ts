@@ -142,6 +142,17 @@ function signatureMatches(ext: string, buf: Buffer): boolean | null {
       return asciiAt(buf, "ply");
     case "3ds":
       return startsWith(buf, [0x4d, 0x4d]); // primary chunk id 0x4D4D
+    case "mp4":
+    case "m4v":
+    case "mov":
+      // MP4/MOV files use the ISO BMFF container — first 4 bytes are the
+      // size of the first box, followed by `ftyp` at byte 4. Most files
+      // also have a brand at byte 8 (isom, mp42, qt, avc1, etc.) but
+      // checking `ftyp` is sufficient and cross-encoder safe.
+      return asciiAt(buf, "ftyp", 4);
+    case "webm":
+      // EBML magic — shared with MKV.
+      return startsWith(buf, [0x1a, 0x45, 0xdf, 0xa3]);
     case "lottie":
       // dotLottie is a ZIP container — same magic as zip/usdz/sbsar.
       return (
@@ -343,6 +354,63 @@ export function validateAssetFile(
     }
   }
 
+  return { ok: true };
+}
+
+// Extensions accepted for the optional Lottie companion uploads. Each slot is
+// single-format on purpose — keeps the picker UX simple and the magic-byte
+// check exact.
+const LOTTIE_GIF_EXTENSIONS = ["gif"];
+const LOTTIE_MP4_EXTENSIONS = ["mp4"];
+
+/**
+ * Validate an optional Lottie GIF companion. Same magic-byte family as the
+ * preview image GIF check — GIF87a or GIF89a.
+ */
+export function validateLottieGif(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!LOTTIE_GIF_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "Lottie GIF companion must be a .gif file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "GIF companion was rejected." };
+  }
+  const sig = signatureMatches("gif", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error: "The GIF file is corrupt or not a real GIF.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Validate an optional Lottie MP4 companion. The MP4 brand is checked via
+ * the ISO BMFF `ftyp` box at byte 4 (see signatureMatches above).
+ */
+export function validateLottieMp4(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!LOTTIE_MP4_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "Lottie MP4 companion must be a .mp4 file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "MP4 companion was rejected." };
+  }
+  const sig = signatureMatches("mp4", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error:
+        "The MP4 file is corrupt or not a real MP4 (missing ISO BMFF ftyp box).",
+    };
+  }
   return { ok: true };
 }
 
