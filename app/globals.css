@@ -658,14 +658,16 @@ p {
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  /* Cancel the parent container's px-4 so the scroll area is allowed
-     to bleed edge-to-edge, then re-add a wider inner padding on both
-     sides so each card has a visible gap from the viewport edge. The
-     1.5rem on every side is symmetric — the first card no longer
-     hugs the left edge and the last card no longer slams the right. */
-  margin-left: -1rem;
-  margin-right: -1rem;
-  padding: 0.75rem 1.5rem 1.5rem 1.5rem;
+  /* DO NOT extend to the viewport edge via negative margins — that's
+     what was making the first card visually attached to the left side.
+     Instead, the scroll row inherits the parent's px-4 / px-6 / px-8
+     container padding and adds its own internal padding so each card
+     has a clear breathing gap on both sides. */
+  padding: 0.75rem 0.25rem 1.5rem 0.25rem;
+  /* Honour the padding when snapping so scrolled-into-view cards
+     don't slam against the viewport edge either. */
+  scroll-padding-left: 0.25rem;
+  scroll-padding-right: 0.25rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
