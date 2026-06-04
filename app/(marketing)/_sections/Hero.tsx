@@ -1,6 +1,45 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, Star, Users, Package } from "lucide-react";
+import {
+  ArrowRight,
+  Sparkles,
+  Star,
+  Users,
+  Package,
+  type LucideIcon,
+} from "lucide-react";
 import { SearchBar } from "@/components/layout/SearchBar";
+
+/**
+ * Single trust-row stat — icon + big value + small uppercase label,
+ * arranged vertically so three of them line up cleanly on any width.
+ */
+function Stat({
+  icon: Icon,
+  value,
+  label,
+  gold = false,
+}: {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  gold?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <Icon
+        className={`w-3.5 h-3.5 ${
+          gold ? "fill-gold text-gold" : "text-accent-light"
+        }`}
+      />
+      <span className="text-sm sm:text-base font-semibold text-primary tabular-nums leading-none">
+        {value}
+      </span>
+      <span className="text-[10px] sm:text-xs text-muted uppercase tracking-wider">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 export function Hero() {
   return (
@@ -55,31 +94,48 @@ export function Hero() {
             </span>
           </div>
 
-          {/* ─── Headline with under-glow on "3D" ──────────────────────── */}
+          {/* ─── Headline with under-glow on "3D" (sm+ only) ───────────
+              The thin accent line + bloom below "3D" reads as a premium
+              flourish at desktop type sizes, but at the smaller phone
+              size it looks like a stray pink dash. Hidden below sm. */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05]">
             Premium{" "}
             <span className="relative inline-block">
               <span className="gradient-text-hero">3D</span>
-              {/* Soft horizontal accent under the word */}
               <span
                 aria-hidden
-                className="pointer-events-none absolute -bottom-2 left-0 right-0 h-px bg-linear-to-r from-transparent via-accent-light to-transparent"
+                className="hidden sm:block pointer-events-none absolute -bottom-2 left-0 right-0 h-px bg-linear-to-r from-transparent via-accent-light to-transparent"
               />
               <span
                 aria-hidden
-                className="pointer-events-none absolute -bottom-3 left-1/4 right-1/4 h-4 bg-accent/40 blur-2xl"
+                className="hidden sm:block pointer-events-none absolute -bottom-3 left-1/4 right-1/4 h-4 bg-accent/40 blur-2xl"
               />
             </span>{" "}
             for the web
           </h1>
 
-          <p className="mt-6 text-base sm:text-lg text-secondary max-w-md mx-auto leading-relaxed">
+          <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-secondary max-w-md mx-auto leading-relaxed">
             3D, Lottie, SVG, and materials — crafted by the world&apos;s
             best creators.
           </p>
 
-          {/* ─── Social-proof trust row ───────────────────────────────── */}
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-[13px]">
+          {/* ─── Social-proof trust row ─────────────────────────────────
+              Two parallel layouts so each breakpoint gets the right one
+              without affecting the other:
+              • Mobile (< sm): 3-column grid — guarantees three stats fit
+                on one row with no awkward wrapping.
+              • Desktop (sm+):  the original inline flex with separators,
+                untouched from before. */}
+
+          {/* Mobile-only */}
+          <div className="sm:hidden mt-7 grid grid-cols-3 gap-3 max-w-sm mx-auto">
+            <Stat icon={Users} value="10K+" label="Creators" />
+            <Stat icon={Package} value="50K+" label="Assets" />
+            <Stat icon={Star} value="4.9" label="Rating" gold />
+          </div>
+
+          {/* Desktop-only — original treatment, unchanged */}
+          <div className="hidden sm:flex mt-7 flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px]">
             <div className="inline-flex items-center gap-1.5 text-muted">
               <Users className="w-3.5 h-3.5 text-accent-light" />
               <span>
@@ -109,13 +165,45 @@ export function Hero() {
             </div>
           </div>
 
-          {/* ─── Primary action: search ────────────────────────────────── */}
-          <div className="mt-9 sm:mt-10 mx-auto max-w-2xl text-left">
-            <SearchBar
-              size="lg"
-              placeholder="Search 3D models, Lottie animations, SVG icons…"
-            />
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
+          {/* ─── Primary action: search ──────────────────────────────────
+              Two SearchBars: phone gets a short placeholder so it doesn't
+              truncate visibly, desktop keeps the full descriptive one. */}
+          <div className="mt-8 sm:mt-10 mx-auto max-w-2xl text-left">
+            <div className="sm:hidden">
+              <SearchBar size="lg" placeholder="Search assets…" />
+            </div>
+            <div className="hidden sm:block">
+              <SearchBar
+                size="lg"
+                placeholder="Search 3D models, Lottie animations, SVG icons…"
+              />
+            </div>
+            {/* Chip lists — three on phone (single tight line), the full
+                five on desktop (original behaviour). */}
+            <div className="sm:hidden mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span className="text-secondary font-medium">Try:</span>
+              <Link
+                href="/explore?category=3d-models"
+                className="hover:text-accent-light transition-colors"
+              >
+                3D Models
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?category=lottie"
+                className="hover:text-accent-light transition-colors"
+              >
+                Lottie
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?category=svg-icons"
+                className="hover:text-accent-light transition-colors"
+              >
+                SVG Icons
+              </Link>
+            </div>
+            <div className="hidden sm:flex mt-4 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
               <span className="text-secondary font-medium">Try:</span>
               <Link
                 href="/explore?category=3d-models"
