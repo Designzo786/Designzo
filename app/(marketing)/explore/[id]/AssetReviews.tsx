@@ -62,16 +62,18 @@ export async function AssetReviews({
   const others = reviews.filter((r) => r.userId !== viewerId);
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-6">
-      <header className="flex items-center justify-between gap-4 mb-5">
-        <h2 className="text-lg font-semibold text-primary">Reviews</h2>
+    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+      <header className="flex items-center justify-between flex-wrap gap-3 mb-5">
+        <h2 className="text-base sm:text-lg font-semibold text-primary">
+          Reviews
+        </h2>
         {reviewCount > 0 && (
           <div className="flex items-center gap-2">
-            <Stars value={avgRating} size={16} />
+            <Stars value={avgRating} size={14} />
             <span className="text-sm font-semibold text-primary">
               {avgRating.toFixed(1)}
             </span>
-            <span className="text-sm text-muted">
+            <span className="text-xs sm:text-sm text-muted">
               ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
             </span>
           </div>

@@ -244,7 +244,7 @@ export default async function AssetDetailPage({
                 {/* Help-text caption only makes sense for 3D models. Lottie
                     auto-plays, SVG is static — no interaction hints needed. */}
                 {asset.fileType === "MODEL_3D" && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
+                  <div className="hidden sm:flex absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-canvas/80 backdrop-blur text-xs text-muted border border-border whitespace-nowrap">
                     Drag to rotate · Scroll to zoom
                   </div>
                 )}
@@ -275,11 +275,11 @@ export default async function AssetDetailPage({
             )}
           </div>
 
-          <section className="rounded-2xl border border-border bg-surface p-6">
-            <h2 className="text-lg font-semibold mb-3 text-primary">
+          <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 text-primary">
               About this asset
             </h2>
-            <p className="text-secondary leading-relaxed whitespace-pre-line">
+            <p className="text-sm sm:text-base text-secondary leading-relaxed whitespace-pre-line">
               {asset.description}
             </p>
             <div className="mt-5 pt-5 border-t border-border grid sm:grid-cols-2 gap-4 text-sm">
@@ -357,7 +357,7 @@ export default async function AssetDetailPage({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-6 space-y-3">
+          <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 space-y-3">
             {asset.rating > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="inline-flex items-center gap-2 text-muted">
@@ -410,7 +410,7 @@ export default async function AssetDetailPage({
           </div>
 
           {asset.tags.length > 0 && (
-            <div className="rounded-2xl border border-border bg-surface p-6">
+            <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
               <h3 className="text-sm font-semibold mb-3 inline-flex items-center gap-2 text-primary">
                 <Tag className="w-4 h-4" />
                 Tags
@@ -432,19 +432,19 @@ export default async function AssetDetailPage({
       </div>
 
       {related.length > 0 && (
-        <section className="mt-16">
-          <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
-            <div>
-              <h2 className="text-2xl font-bold text-primary">
+        <section className="mt-10 sm:mt-16">
+          <div className="flex items-end justify-between mb-4 sm:mb-6 gap-4 flex-wrap">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-primary">
                 More from {category?.name ?? "the marketplace"}
               </h2>
-              <p className="text-secondary text-sm mt-1">
+              <p className="text-secondary text-xs sm:text-sm mt-1">
                 Discover similar assets you might like
               </p>
             </div>
             <Link
               href={`/explore?category=${asset.category}`}
-              className="text-sm text-accent-light hover:text-accent inline-flex items-center gap-1 transition-colors"
+              className="text-sm text-accent-light hover:text-accent inline-flex items-center gap-1 transition-colors shrink-0"
             >
               View all →
             </Link>
