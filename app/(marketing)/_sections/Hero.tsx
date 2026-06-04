@@ -73,10 +73,9 @@ export function Hero() {
             for the web
           </h1>
 
-          <p className="mt-6 text-base sm:text-lg text-secondary max-w-xl mx-auto leading-relaxed">
-            Discover, license, and monetize premium digital assets — 3D
-            models, Lottie animations, SVG icons, and PBR materials,
-            crafted by the world&apos;s best creators.
+          <p className="mt-6 text-base sm:text-lg text-secondary max-w-md mx-auto leading-relaxed">
+            3D, Lottie, SVG, and materials — crafted by the world&apos;s
+            best creators.
           </p>
 
           {/* ─── Social-proof trust row ───────────────────────────────── */}
