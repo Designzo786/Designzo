@@ -3,7 +3,7 @@ import { Heart, ShoppingCart, Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, creatorDisplayName } from "@/lib/utils";
 
 export const metadata = { title: "Wishlist" };
 
@@ -28,7 +28,7 @@ export default async function WishlistPage() {
           previewKey: true,
           fileType: true,
           price: true,
-          uploader: { select: { name: true } },
+          uploader: { select: { name: true, role: true } },
         },
       },
     },
@@ -94,7 +94,7 @@ export default async function WishlistPage() {
                     </h3>
                   </Link>
                   <p className="text-xs text-muted mt-0.5 truncate">
-                    by {asset.uploader.name ?? "Unknown"}
+                    by {creatorDisplayName(asset.uploader.name, asset.uploader.role)}
                   </p>
 
                   <div className="mt-3 flex items-center justify-between">

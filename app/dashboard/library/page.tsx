@@ -3,7 +3,7 @@ import { Library, Download, Receipt, CheckCircle2 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, formatDate, creatorDisplayName } from "@/lib/utils";
 
 export const metadata = { title: "My Library" };
 
@@ -29,7 +29,7 @@ export default async function LibraryPage({
           title: true,
           previewKey: true,
           fileType: true,
-          uploader: { select: { name: true } },
+          uploader: { select: { name: true, role: true } },
         },
       },
     },
@@ -120,7 +120,7 @@ export default async function LibraryPage({
                   </h3>
                 </Link>
                 <p className="text-xs text-muted mt-0.5 truncate">
-                  by {p.asset.uploader.name ?? "Unknown"}
+                  by {creatorDisplayName(p.asset.uploader.name, p.asset.uploader.role)}
                 </p>
 
                 <div className="mt-3 pt-3 border-t border-border text-xs text-muted space-y-1">

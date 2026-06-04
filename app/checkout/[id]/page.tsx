@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, commissionCalc } from "@/lib/utils";
+import { formatPrice, commissionCalc, creatorDisplayName } from "@/lib/utils";
 import { CheckoutClient } from "./CheckoutClient";
 
 export const metadata = { title: "Checkout" };
@@ -32,7 +32,7 @@ export default async function CheckoutPage({
         price: true,
         status: true,
         uploaderId: true,
-        uploader: { select: { name: true } },
+        uploader: { select: { name: true, role: true } },
       },
     }),
   ]);
@@ -142,7 +142,7 @@ export default async function CheckoutPage({
                   {asset.title}
                 </div>
                 <div className="text-xs text-muted truncate">
-                  by {asset.uploader.name ?? "Unknown"}
+                  by {creatorDisplayName(asset.uploader.name, asset.uploader.role)}
                 </div>
               </div>
               <div className="text-right">
