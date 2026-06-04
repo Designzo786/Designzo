@@ -122,10 +122,10 @@ export default function TermsPage() {
       <Section number="13" title="Contact">
         Questions? Email{" "}
         <a
-          href="mailto:mohdtalha206@gmail.com"
+          href="mailto:designzostore.786@gmail.com"
           className="text-accent-light hover:text-accent underline underline-offset-2"
         >
-          mohdtalha206@gmail.com
+          designzostore.786@gmail.com
         </a>
         .
       </Section>

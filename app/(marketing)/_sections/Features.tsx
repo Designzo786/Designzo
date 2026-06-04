@@ -42,7 +42,7 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section className="relative py-14 sm:py-24">
+    <section className="relative py-10 sm:py-16">
       <AmbientBackdrop tone="violet" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

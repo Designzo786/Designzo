@@ -12,21 +12,21 @@ const CHANNELS = [
     title: "Support",
     description:
       "Account problems, purchases, downloads, or anything not working as expected.",
-    email: "mohdtalha206@gmail.com",
+    email: "designzostore.786@gmail.com",
   },
   {
     icon: Briefcase,
     title: "Creators & partnerships",
     description:
       "Questions about selling, payouts, KYC, or partnering with Designzo.",
-    email: "mohdtalha206@gmail.com",
+    email: "designzostore.786@gmail.com",
   },
   {
     icon: ShieldAlert,
     title: "Trust & safety",
     description:
       "Report a copyright issue, a policy violation, or a security concern.",
-    email: "mohdtalha206@gmail.com",
+    email: "designzostore.786@gmail.com",
   },
 ];
 

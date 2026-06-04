@@ -74,9 +74,9 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-secondary max-w-xl mx-auto leading-relaxed">
-            Manage, distribute, and monetize 3D assets. Browse thousands of
-            premium models and materials crafted by the world&apos;s best
-            creators.
+            Discover, license, and monetize premium digital assets — 3D
+            models, Lottie animations, SVG icons, and PBR materials,
+            crafted by the world&apos;s best creators.
           </p>
 
           {/* ─── Social-proof trust row ───────────────────────────────── */}
@@ -114,36 +114,43 @@ export function Hero() {
           <div className="mt-9 sm:mt-10 mx-auto max-w-2xl text-left">
             <SearchBar
               size="lg"
-              placeholder="Search 3D models, materials, scenes…"
+              placeholder="Search 3D models, Lottie animations, SVG icons…"
             />
             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
               <span className="text-secondary font-medium">Try:</span>
               <Link
-                href="/explore?q=low-poly"
+                href="/explore?category=3d-models"
                 className="hover:text-accent-light transition-colors"
               >
-                low-poly
+                3D Models
               </Link>
               <span className="text-subtle">·</span>
               <Link
-                href="/explore?q=sci-fi"
+                href="/explore?category=3d-icons"
                 className="hover:text-accent-light transition-colors"
               >
-                sci-fi
+                3D Icons
               </Link>
               <span className="text-subtle">·</span>
               <Link
-                href="/explore?q=character"
+                href="/explore?category=lottie"
                 className="hover:text-accent-light transition-colors"
               >
-                characters
+                Lottie
               </Link>
               <span className="text-subtle">·</span>
               <Link
-                href="/explore?q=textures"
+                href="/explore?category=svg-icons"
                 className="hover:text-accent-light transition-colors"
               >
-                textures
+                SVG Icons
+              </Link>
+              <span className="text-subtle">·</span>
+              <Link
+                href="/explore?category=materials"
+                className="hover:text-accent-light transition-colors"
+              >
+                Materials
               </Link>
             </div>
           </div>

@@ -117,15 +117,18 @@ export async function Categories() {
   const counts = await fetchCategoryCounts();
 
   return (
-    <section className="relative pt-0 pb-20 sm:pb-24">
+    <section className="relative pt-0 pb-10 sm:pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Top-right escape link */}
-        <div className="flex justify-end mb-5 sm:mb-6">
+        <div className="flex items-center justify-between mb-5 sm:mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Browse by format
+          </h2>
           <Link
             href="/explore"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-light hover:text-accent transition-colors group"
           >
-            Browse all assets
+            See all
             <ArrowUpRight className="w-4 h-4 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>

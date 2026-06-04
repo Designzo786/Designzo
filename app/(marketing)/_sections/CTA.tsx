@@ -4,7 +4,7 @@ import { SectionEyebrow } from "./_shared";
 
 export function CTA() {
   return (
-    <section className="relative py-14 sm:py-24">
+    <section className="relative py-10 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-surface/60 backdrop-blur-md p-10 sm:p-16 text-center shadow-[0_50px_120px_-30px_rgba(124,58,237,0.7),inset_0_1px_0_0_rgba(255,255,255,0.08)]">
           {/* Glass top-edge highlight */}

@@ -116,10 +116,10 @@ export default function PrivacyPage() {
         <p>
           To exercise these rights, email{" "}
           <a
-            href="mailto:mohdtalha206@gmail.com"
+            href="mailto:designzostore.786@gmail.com"
             className="text-accent-light hover:text-accent underline underline-offset-2"
           >
-            mohdtalha206@gmail.com
+            designzostore.786@gmail.com
           </a>
           .
         </p>
@@ -152,10 +152,10 @@ export default function PrivacyPage() {
       <Section title="Contact">
         For privacy questions, email{" "}
         <a
-          href="mailto:mohdtalha206@gmail.com"
+          href="mailto:designzostore.786@gmail.com"
           className="text-accent-light hover:text-accent underline underline-offset-2"
         >
-          mohdtalha206@gmail.com
+          designzostore.786@gmail.com
         </a>
         .
       </Section>

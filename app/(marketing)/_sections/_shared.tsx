@@ -10,28 +10,25 @@ import { cn } from "@/lib/utils";
  */
 
 interface AmbientBackdropProps {
-  /** Visual tone — picks the glow colour palette. */
+  /**
+   * Visual tone — kept on the props for back-compat with existing call
+   * sites, but **the palette no longer changes between tones**. Every
+   * section uses the same low-opacity violet backdrop so the whole home
+   * page reads as one continuous premium canvas instead of a string of
+   * differently-coloured blocks. The tone prop is now ignored.
+   */
   tone?: "violet" | "pink" | "sky" | "gold" | "mixed";
   className?: string;
 }
 
 /**
- * Three large, heavily-blurred glow blobs that drift behind a section.
- * Absolute-positioned, pointer-events-none, sits at -z-10. Tone tunes the
- * palette so different sections feel related but not identical.
+ * Three large, heavily-blurred violet glow blobs that drift behind a
+ * section. Absolute-positioned, pointer-events-none, -z-10. Same palette
+ * across every section so the home page never feels "chunked" by colour
+ * shifts. The blobs are deliberately faint so the canvas reads as a
+ * single ambient field rather than per-section spotlights.
  */
-export function AmbientBackdrop({
-  tone = "violet",
-  className,
-}: AmbientBackdropProps) {
-  const palette = {
-    violet: ["bg-accent/15", "bg-pink-500/10", "bg-sky-500/8"],
-    pink: ["bg-pink-500/15", "bg-accent/10", "bg-amber-500/8"],
-    sky: ["bg-sky-500/15", "bg-accent/10", "bg-emerald-500/8"],
-    gold: ["bg-gold/12", "bg-accent/10", "bg-pink-500/8"],
-    mixed: ["bg-accent/12", "bg-emerald-500/10", "bg-pink-500/10"],
-  }[tone];
-
+export function AmbientBackdrop({ className }: AmbientBackdropProps) {
   return (
     <div
       aria-hidden
@@ -40,24 +37,9 @@ export function AmbientBackdrop({
         className
       )}
     >
-      <div
-        className={cn(
-          "absolute top-10 -left-32 w-[480px] h-[480px] rounded-full blur-[120px]",
-          palette[0]
-        )}
-      />
-      <div
-        className={cn(
-          "absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full blur-[120px]",
-          palette[1]
-        )}
-      />
-      <div
-        className={cn(
-          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full blur-[140px]",
-          palette[2]
-        )}
-      />
+      <div className="absolute top-10 -left-32 w-120 h-120 rounded-full blur-3xl bg-accent/8" />
+      <div className="absolute bottom-0 right-0 w-105 h-105 rounded-full blur-3xl bg-accent-light/6" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-75 rounded-full blur-3xl bg-accent/5" />
     </div>
   );
 }
