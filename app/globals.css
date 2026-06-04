@@ -667,6 +667,7 @@ p {
   scroll-snap-align: start;
 }
 .scroll-row--wide > * { width: 20rem; }
+.scroll-row--tile > * { width: 11rem; }     /* 176px — minimal category tiles */
 
 @media (min-width: 640px) {
   .scroll-row {
