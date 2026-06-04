@@ -669,6 +669,34 @@ p {
 .scroll-row--wide > * { width: 20rem; }
 .scroll-row--tile > * { width: 11rem; }     /* 176px — minimal category tiles */
 
+/* Slow drift loop for ambient hero blobs. ~22s per cycle, ease-in-out so
+   the motion never reads as "scrolling" — it's atmosphere, not animation. */
+@keyframes hero-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(4%, -3%, 0) scale(1.08); }
+  66%      { transform: translate3d(-3%, 4%, 0) scale(0.96); }
+}
+.hero-blob-1 { animation: hero-drift 22s ease-in-out infinite; }
+.hero-blob-2 { animation: hero-drift 26s ease-in-out -8s infinite reverse; }
+.hero-blob-3 { animation: hero-drift 30s ease-in-out -14s infinite; }
+
+/* Fine grid pattern that gives the hero its editorial / lab-notebook
+   feel. Masked to an elliptical pool so the edges fade out instead of
+   hard-cropping at the section boundary. */
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 35%, black 30%, transparent 80%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 35%, black 30%, transparent 80%);
+}
+:root[data-theme="light"] .hero-grid {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.55) 1px, transparent 1px);
+}
+
 @media (min-width: 640px) {
   .scroll-row {
     display: grid;
