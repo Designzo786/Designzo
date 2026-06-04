@@ -225,23 +225,16 @@ export async function Categories() {
                   </div>
                 </div>
 
-                {/* Hero image — overflows to all three bottom edges. Falls
-                    back gracefully: if /categories/{slug}.webp is missing
-                    (404), the broken <img> hides itself via onError and
-                    the card just shows the text + icon content. */}
+                {/* Hero image — overflows to all three bottom edges.
+                    Painted as a CSS background-image (not <img>) so a
+                    missing file just renders an empty bg-elevated block
+                    instead of a broken-image icon. Keeps the section a
+                    pure server component (no onError handler). */}
                 {card.image && (
-                  <div className="relative h-32 sm:h-36 overflow-hidden bg-elevated">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={card.image}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display =
-                          "none";
-                      }}
-                    />
+                  <div
+                    className="relative h-32 sm:h-36 overflow-hidden bg-elevated bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+                    style={{ backgroundImage: `url(${card.image})` }}
+                  >
                     {/* Soft gradient overlay to ease the image into the
                         card surface above — keeps the visual weight on
                         the text content. */}
