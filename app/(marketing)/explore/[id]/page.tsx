@@ -68,7 +68,11 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
   const dbAsset = await prisma.asset
     .findUnique({
       where: { id },
-      include: { uploader: { select: { id: true, name: true, role: true } } },
+      include: {
+        uploader: {
+          select: { id: true, name: true, role: true, email: true },
+        },
+      },
     })
     .catch(() => null);
   if (!dbAsset) return null;
@@ -81,7 +85,8 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     title: dbAsset.title,
     creatorName: creatorDisplayName(
       dbAsset.uploader.name,
-      dbAsset.uploader.role
+      dbAsset.uploader.role,
+      dbAsset.uploader.email
     ),
     creatorId: dbAsset.uploaderId,
     description: dbAsset.description,
@@ -193,7 +198,7 @@ export default async function AssetDetailPage({
         avgRating: true,
         reviewCount: true,
         previewKey: true,
-        uploader: { select: { name: true, role: true } },
+        uploader: { select: { name: true, role: true, email: true } },
       },
     })
     .catch(() => []);
@@ -201,7 +206,11 @@ export default async function AssetDetailPage({
   const related: AssetCardData[] = relatedRows.map((a) => ({
     id: a.id,
     title: a.title,
-    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    creator: creatorDisplayName(
+      a.uploader.name,
+      a.uploader.role,
+      a.uploader.email
+    ),
     price: a.price,
     rating: a.avgRating,
     reviewCount: a.reviewCount,

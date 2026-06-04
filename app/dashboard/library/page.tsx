@@ -29,7 +29,7 @@ export default async function LibraryPage({
           title: true,
           previewKey: true,
           fileType: true,
-          uploader: { select: { name: true, role: true } },
+          uploader: { select: { name: true, role: true, email: true } },
         },
       },
     },
@@ -120,7 +120,7 @@ export default async function LibraryPage({
                   </h3>
                 </Link>
                 <p className="text-xs text-muted mt-0.5 truncate">
-                  by {creatorDisplayName(p.asset.uploader.name, p.asset.uploader.role)}
+                  by {creatorDisplayName(p.asset.uploader.name, p.asset.uploader.role, p.asset.uploader.email)}
                 </p>
 
                 <div className="mt-3 pt-3 border-t border-border text-xs text-muted space-y-1">

@@ -32,7 +32,7 @@ export default async function CheckoutPage({
         price: true,
         status: true,
         uploaderId: true,
-        uploader: { select: { name: true, role: true } },
+        uploader: { select: { name: true, role: true, email: true } },
       },
     }),
   ]);
@@ -142,7 +142,7 @@ export default async function CheckoutPage({
                   {asset.title}
                 </div>
                 <div className="text-xs text-muted truncate">
-                  by {creatorDisplayName(asset.uploader.name, asset.uploader.role)}
+                  by {creatorDisplayName(asset.uploader.name, asset.uploader.role, asset.uploader.email)}
                 </div>
               </div>
               <div className="text-right">

@@ -7,15 +7,32 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /**
- * Public-facing creator name for an asset. Assets uploaded by an ADMIN are
- * shown as official "Designzo" listings rather than under the admin's
- * personal name.
+ * Public-facing creator name for an asset. Assets uploaded by the platform
+ * owner are shown as official "Designzo" listings rather than under the
+ * personal name on the account.
+ *
+ * Two ways an account is treated as the platform:
+ *   1. `role === "ADMIN"` — primary signal once `maybePromoteAdmin` has
+ *      run on sign-in.
+ *   2. `email === ADMIN_EMAIL` — belt-and-suspenders. Covers the window
+ *      where the operator has already uploaded assets but their account
+ *      hasn't been promoted to ADMIN yet (e.g. they registered first and
+ *      set ADMIN_EMAIL afterwards). Server-only check — relies on the
+ *      env var which is intentionally not exposed to the client.
  */
 export function creatorDisplayName(
   name: string | null | undefined,
-  role: Role
+  role: Role,
+  email?: string | null
 ): string {
   if (role === "ADMIN") return "Designzo";
+  if (
+    email &&
+    process.env.ADMIN_EMAIL &&
+    email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase()
+  ) {
+    return "Designzo";
+  }
   return name ?? "Unknown";
 }
 

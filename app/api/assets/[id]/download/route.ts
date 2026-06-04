@@ -52,7 +52,7 @@ export async function GET(
       fileType: true,
       license: true,
       uploaderId: true,
-      uploader: { select: { name: true, role: true } },
+      uploader: { select: { name: true, role: true, email: true } },
     },
   });
 
@@ -173,7 +173,8 @@ export async function GET(
       assetTitle: asset.title,
       creatorName: creatorDisplayName(
         asset.uploader.name,
-        asset.uploader.role
+        asset.uploader.role,
+        asset.uploader.email
       ),
       buyerName: session.user.name ?? "—",
       buyerEmail: session.user.email ?? "—",

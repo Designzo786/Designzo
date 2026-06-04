@@ -31,7 +31,7 @@ const fetchFeatured = unstable_cache(
           avgRating: true,
           reviewCount: true,
           previewKey: true,
-          uploader: { select: { name: true, role: true } },
+          uploader: { select: { name: true, role: true, email: true } },
         },
       });
     } catch (err) {
@@ -53,7 +53,11 @@ export async function Showcase() {
   const featured: AssetCardData[] = dbAssets.map((a) => ({
     id: a.id,
     title: a.title,
-    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    creator: creatorDisplayName(
+      a.uploader.name,
+      a.uploader.role,
+      a.uploader.email
+    ),
     price: a.price,
     rating: a.avgRating,
     reviewCount: a.reviewCount,

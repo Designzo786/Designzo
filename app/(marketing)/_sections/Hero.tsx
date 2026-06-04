@@ -2,40 +2,38 @@ import Link from "next/link";
 import {
   ArrowRight,
   Sparkles,
-  Star,
-  Users,
-  Package,
+  ShieldCheck,
+  Zap,
+  Award,
   type LucideIcon,
 } from "lucide-react";
 import { SearchBar } from "@/components/layout/SearchBar";
 
 /**
- * Single trust-row stat — icon + big value + small uppercase label,
- * arranged vertically so three of them line up cleanly on any width.
+ * Trust-row badge — icon on top, two-word value-prop underneath.
+ * Replaces the earlier numeric "10K+ creators" style stats which were
+ * placeholder. Each prop here is a real feature of the marketplace:
+ *  - Royalty-free license (every download)
+ *  - Instant download (signed URL straight from R2)
+ *  - Lifetime license (no expiry, recorded in LICENSE.txt)
  */
-function Stat({
+function TrustBadge({
   icon: Icon,
-  value,
-  label,
-  gold = false,
+  title,
+  subtitle,
 }: {
   icon: LucideIcon;
-  value: string;
-  label: string;
-  gold?: boolean;
+  title: string;
+  subtitle: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-1 text-center">
-      <Icon
-        className={`w-3.5 h-3.5 ${
-          gold ? "fill-gold text-gold" : "text-accent-light"
-        }`}
-      />
-      <span className="text-sm sm:text-base font-semibold text-primary tabular-nums leading-none">
-        {value}
+      <Icon className="w-4 h-4 text-accent-light" />
+      <span className="text-xs sm:text-sm font-semibold text-primary leading-none">
+        {title}
       </span>
       <span className="text-[10px] sm:text-xs text-muted uppercase tracking-wider">
-        {label}
+        {subtitle}
       </span>
     </div>
   );
@@ -127,40 +125,42 @@ export function Hero() {
               • Desktop (sm+):  the original inline flex with separators,
                 untouched from before. */}
 
-          {/* Mobile-only */}
+          {/* Mobile-only — 3 value-prop badges in a balanced grid */}
           <div className="sm:hidden mt-7 grid grid-cols-3 gap-3 max-w-sm mx-auto">
-            <Stat icon={Users} value="10K+" label="Creators" />
-            <Stat icon={Package} value="50K+" label="Assets" />
-            <Stat icon={Star} value="4.9" label="Rating" gold />
+            <TrustBadge icon={ShieldCheck} title="Royalty-free" subtitle="License" />
+            <TrustBadge icon={Zap} title="Instant" subtitle="Download" />
+            <TrustBadge icon={Award} title="Lifetime" subtitle="No expiry" />
           </div>
 
-          {/* Desktop-only — original treatment, unchanged */}
+          {/* Desktop-only — same three value props, inline pill layout */}
           <div className="hidden sm:flex mt-7 flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px]">
             <div className="inline-flex items-center gap-1.5 text-muted">
-              <Users className="w-3.5 h-3.5 text-accent-light" />
+              <ShieldCheck className="w-3.5 h-3.5 text-accent-light" />
               <span>
-                <strong className="text-primary font-semibold">10K+</strong>{" "}
-                creators
+                <strong className="text-primary font-semibold">
+                  Royalty-free
+                </strong>{" "}
+                commercial license
               </span>
             </div>
             <span aria-hidden className="text-subtle">
               ·
             </span>
             <div className="inline-flex items-center gap-1.5 text-muted">
-              <Package className="w-3.5 h-3.5 text-accent-light" />
+              <Zap className="w-3.5 h-3.5 text-accent-light" />
               <span>
-                <strong className="text-primary font-semibold">50K+</strong>{" "}
-                assets shipped
+                <strong className="text-primary font-semibold">Instant</strong>{" "}
+                signed-URL downloads
               </span>
             </div>
             <span aria-hidden className="text-subtle">
               ·
             </span>
             <div className="inline-flex items-center gap-1.5 text-muted">
-              <Star className="w-3.5 h-3.5 fill-gold text-gold" />
+              <Award className="w-3.5 h-3.5 text-accent-light" />
               <span>
-                <strong className="text-primary font-semibold">4.9</strong>{" "}
-                avg rating
+                <strong className="text-primary font-semibold">Lifetime</strong>{" "}
+                license, no expiry
               </span>
             </div>
           </div>

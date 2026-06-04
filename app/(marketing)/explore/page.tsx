@@ -101,7 +101,7 @@ const CARD_SELECT = {
   category: true,
   fileType: true,
   previewKey: true,
-  uploader: { select: { name: true, role: true } },
+  uploader: { select: { name: true, role: true, email: true } },
 } satisfies Prisma.AssetSelect;
 
 // Cached, deduped browse query. `cache()` (React) dedupes within one render —
@@ -155,7 +155,11 @@ export default async function ExplorePage({
   const results: AssetCardData[] = dbAssets.map((a) => ({
     id: a.id,
     title: a.title,
-    creator: creatorDisplayName(a.uploader.name, a.uploader.role),
+    creator: creatorDisplayName(
+      a.uploader.name,
+      a.uploader.role,
+      a.uploader.email
+    ),
     price: a.price,
     rating: a.avgRating,
     reviewCount: a.reviewCount,

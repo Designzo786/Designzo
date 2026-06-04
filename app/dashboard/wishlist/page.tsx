@@ -28,7 +28,7 @@ export default async function WishlistPage() {
           previewKey: true,
           fileType: true,
           price: true,
-          uploader: { select: { name: true, role: true } },
+          uploader: { select: { name: true, role: true, email: true } },
         },
       },
     },
@@ -94,7 +94,7 @@ export default async function WishlistPage() {
                     </h3>
                   </Link>
                   <p className="text-xs text-muted mt-0.5 truncate">
-                    by {creatorDisplayName(asset.uploader.name, asset.uploader.role)}
+                    by {creatorDisplayName(asset.uploader.name, asset.uploader.role, asset.uploader.email)}
                   </p>
 
                   <div className="mt-3 flex items-center justify-between">
