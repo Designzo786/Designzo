@@ -1,5 +1,5 @@
 import { Zap, ShieldCheck, Globe2, Star } from "lucide-react";
-import { AmbientBackdrop, SectionEyebrow } from "./_shared";
+import { SectionEyebrow } from "./_shared";
 
 const FEATURES = [
   {
@@ -43,7 +43,6 @@ const FEATURES = [
 export function Features() {
   return (
     <section className="relative py-10 sm:py-16">
-      <AmbientBackdrop tone="violet" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-14">

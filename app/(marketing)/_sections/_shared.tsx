@@ -11,37 +11,19 @@ import { cn } from "@/lib/utils";
 
 interface AmbientBackdropProps {
   /**
-   * Visual tone — kept on the props for back-compat with existing call
-   * sites, but **the palette no longer changes between tones**. Every
-   * section uses the same low-opacity violet backdrop so the whole home
-   * page reads as one continuous premium canvas instead of a string of
-   * differently-coloured blocks. The tone prop is now ignored.
+   * Kept on the props purely so existing call sites still compile.
+   * Per-section backdrops were the reason the home page felt "chunky"
+   * (each section restarted its own glow). The whole page now sits on
+   * a single continuous ambient field declared once on the marketing
+   * layout, so this component is intentionally a no-op.
    */
   tone?: "violet" | "pink" | "sky" | "gold" | "mixed";
   className?: string;
 }
 
-/**
- * Three large, heavily-blurred violet glow blobs that drift behind a
- * section. Absolute-positioned, pointer-events-none, -z-10. Same palette
- * across every section so the home page never feels "chunked" by colour
- * shifts. The blobs are deliberately faint so the canvas reads as a
- * single ambient field rather than per-section spotlights.
- */
-export function AmbientBackdrop({ className }: AmbientBackdropProps) {
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden -z-10",
-        className
-      )}
-    >
-      <div className="absolute top-10 -left-32 w-120 h-120 rounded-full blur-3xl bg-accent/8" />
-      <div className="absolute bottom-0 right-0 w-105 h-105 rounded-full blur-3xl bg-accent-light/6" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-75 rounded-full blur-3xl bg-accent/5" />
-    </div>
-  );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function AmbientBackdrop(_: AmbientBackdropProps) {
+  return null;
 }
 
 interface SectionEyebrowProps {

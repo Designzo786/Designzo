@@ -11,7 +11,7 @@ import {
   Clock,
   HelpCircle,
 } from "lucide-react";
-import { AmbientBackdrop, SectionEyebrow } from "./_shared";
+import { SectionEyebrow } from "./_shared";
 
 const FAQ_ITEMS = [
   {
@@ -53,7 +53,6 @@ export function FAQ() {
 
   return (
     <section className="relative py-10 sm:py-16">
-      <AmbientBackdrop tone="violet" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header — matches the visual rhythm of other home-page sections */}

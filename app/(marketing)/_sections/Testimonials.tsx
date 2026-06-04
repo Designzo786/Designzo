@@ -1,5 +1,5 @@
 import { Star, Quote, MessageCircle } from "lucide-react";
-import { AmbientBackdrop, SectionEyebrow } from "./_shared";
+import { SectionEyebrow } from "./_shared";
 
 const TESTIMONIALS = [
   {
@@ -37,7 +37,6 @@ const TESTIMONIALS = [
 export function Testimonials() {
   return (
     <section className="relative py-10 sm:py-16">
-      <AmbientBackdrop tone="gold" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-14">

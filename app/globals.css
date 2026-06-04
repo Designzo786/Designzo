@@ -645,18 +645,22 @@ p {
 
 /* Mobile horizontal-scroll card row.
    Phone: flex with snap; sm+: reverts to a CSS grid. Hand-rolled so it
-   does not depend on Tailwind compiling a long arbitrary-class chain. */
+   does not depend on Tailwind compiling a long arbitrary-class chain.
+   Padding values are tuned for two things:
+   - top/bottom give room for hover lift + drop-shadow so the effect is
+     not clipped by the scroll container
+   - right is wider than left so the user always sees a visible trailing
+     gap after the last card rather than the card hitting the viewport
+     edge mid-scroll */
 .scroll-row {
   display: flex;
   gap: 1rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 0.5rem;
   margin-left: -1rem;
   margin-right: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding: 0.75rem 1.5rem 1.5rem 1rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
