@@ -117,7 +117,7 @@ export async function Categories() {
   const counts = await fetchCategoryCounts();
 
   return (
-    <section className="relative pt-0 pb-10 sm:pb-16">
+    <section className="relative pt-8 sm:pt-12 pb-10 sm:pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Top-right escape link */}
         <div className="flex items-center justify-between mb-5 sm:mb-6">
