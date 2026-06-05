@@ -6,7 +6,7 @@ import {
   type MockAssetShape,
 } from "@/lib/mock/assets";
 import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
-import { FilterSidebar } from "./_components/FilterSidebar";
+import { FilterSidebar, MobileFilterButton } from "./_components/FilterSidebar";
 import { SortDropdown } from "./_components/SortDropdown";
 import { EmptyState } from "./_components/EmptyState";
 import { prisma } from "@/lib/prisma";
@@ -181,34 +181,45 @@ export default async function ExplorePage({
     : `${results.length} of ${totalApproved} premium assets from world-class creators`;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-      <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <header className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
           {heading}
         </h1>
-        <p className="mt-2 text-secondary">{subheading}</p>
+        <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-secondary">
+          {subheading}
+        </p>
       </header>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* Desktop-only sticky sidebar. On phone/tablet it renders nothing —
+            the same filters live inside the MobileFilterButton sheet below. */}
         <Suspense fallback={null}>
           <FilterSidebar />
         </Suspense>
 
         <section className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-5">
-            <div className="text-sm text-muted">
+          <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+            <div className="text-sm text-muted shrink-0">
               <span className="font-medium text-primary">{results.length}</span>{" "}
               {results.length === 1 ? "result" : "results"}
             </div>
-            <Suspense fallback={null}>
-              <SortDropdown />
-            </Suspense>
+            <div className="flex items-center gap-2">
+              {/* Filter button is only visible below lg; on desktop the
+                  inline sidebar covers the same surface. */}
+              <Suspense fallback={null}>
+                <MobileFilterButton />
+              </Suspense>
+              <Suspense fallback={null}>
+                <SortDropdown />
+              </Suspense>
+            </div>
           </div>
 
           {results.length === 0 ? (
             <EmptyState query={sp.q} />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
               {results.map((asset) => (
                 <AssetCard key={asset.id} asset={asset} />
               ))}
