@@ -11,6 +11,9 @@ interface SearchBarProps {
   autoFocus?: boolean;
   /** `sm` = navbar/tight inputs · `lg` = hero / prominent surfaces */
   size?: "sm" | "lg";
+  /** Pre-fill the input — e.g. when /explore?q=foo is loaded, the
+   *  search box opens already showing "foo" so the user can refine. */
+  initialValue?: string;
 }
 
 const SIZE = {
@@ -48,12 +51,13 @@ export function SearchBar({
   placeholder = "Search 3D models, materials…",
   autoFocus = false,
   size = "sm",
+  initialValue = "",
 }: SearchBarProps) {
   const sz = SIZE[size];
   const router = useRouter();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialValue);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);

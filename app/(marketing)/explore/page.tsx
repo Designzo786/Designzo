@@ -8,6 +8,7 @@ import {
 import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 import { FilterSidebar, MobileFilterButton } from "./_components/FilterSidebar";
 import { SortDropdown } from "./_components/SortDropdown";
+import { SearchBar } from "@/components/layout/SearchBar";
 import { EmptyState } from "./_components/EmptyState";
 import { prisma } from "@/lib/prisma";
 import { creatorDisplayName } from "@/lib/utils";
@@ -189,6 +190,18 @@ export default async function ExplorePage({
         <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-secondary">
           {subheading}
         </p>
+        {/* Page-level search — pre-fills with the current ?q= so the user
+            can see what they searched for and refine it without going back
+            to the home Hero. Submitting empties or replaces ?q= in the URL. */}
+        <div className="mt-4 sm:mt-6 max-w-2xl">
+          <Suspense fallback={null}>
+            <SearchBar
+              size="sm"
+              placeholder="Search the marketplace…"
+              initialValue={sp.q ?? ""}
+            />
+          </Suspense>
+        </div>
       </header>
 
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
