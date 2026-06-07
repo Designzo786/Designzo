@@ -13,6 +13,7 @@ import {
   FileJson,
   ImagePlay,
   Film,
+  Box,
   ChevronDown,
 } from "lucide-react";
 import { useDropdown } from "@/hooks/useDropdown";
@@ -30,14 +31,15 @@ type Mode =
 interface Props {
   mode: Mode;
   assetId: string;
-  /** Asset's FileType — currently only used to enable the format
-   *  chooser for LOTTIE uploads. Everything else downloads as a
-   *  single file with no chooser. */
+  /** Asset's FileType — drives the format chooser for LOTTIE and
+   *  MODEL_3D uploads. Everything else downloads as a single file
+   *  with no chooser. */
   fileType?: string;
-  /** True when the Lottie asset shipped a GIF companion. */
   hasLottieGif?: boolean;
-  /** True when the Lottie asset shipped an MP4 companion. */
   hasLottieMp4?: boolean;
+  hasModelFbx?: boolean;
+  hasModelObj?: boolean;
+  hasModelUsdz?: boolean;
 }
 
 export function AssetActionButton({
@@ -46,6 +48,9 @@ export function AssetActionButton({
   fileType,
   hasLottieGif = false,
   hasLottieMp4 = false,
+  hasModelFbx = false,
+  hasModelObj = false,
+  hasModelUsdz = false,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -123,10 +128,10 @@ export function AssetActionButton({
   }
 
   if (mode === "owned") {
-    // Lottie assets get a format chooser since the bundle may contain
-    // multiple deliverables (JSON source + optional GIF + optional MP4
-    // + LICENSE + README). Non-Lottie assets show the standard single
-    // download button.
+    // Multi-format assets get a chooser. Lottie ships a bundle by default
+    // + per-format singles. 3D ships the .glb by default + per-format
+    // companions (.fbx / .obj / .usdz). Everything else stays a plain
+    // single-file download.
     if (fileType === "LOTTIE") {
       return (
         <div className="space-y-2">
@@ -135,6 +140,26 @@ export function AssetActionButton({
             onDownload={downloadNow}
             hasGif={hasLottieGif}
             hasMp4={hasLottieMp4}
+          />
+          <p className="inline-flex items-center gap-1.5 text-xs text-info justify-center w-full">
+            <Check className="w-3.5 h-3.5" /> You own this asset
+          </p>
+        </div>
+      );
+    }
+
+    if (
+      fileType === "MODEL_3D" &&
+      (hasModelFbx || hasModelObj || hasModelUsdz)
+    ) {
+      return (
+        <div className="space-y-2">
+          <Model3dDownloadButton
+            busy={busy}
+            onDownload={downloadNow}
+            hasFbx={hasModelFbx}
+            hasObj={hasModelObj}
+            hasUsdz={hasModelUsdz}
           />
           <p className="inline-flex items-center gap-1.5 text-xs text-info justify-center w-full">
             <Check className="w-3.5 h-3.5" /> You own this asset
@@ -169,6 +194,22 @@ export function AssetActionButton({
           onDownload={downloadNow}
           hasGif={hasLottieGif}
           hasMp4={hasLottieMp4}
+          tone="info"
+        />
+      );
+    }
+
+    if (
+      fileType === "MODEL_3D" &&
+      (hasModelFbx || hasModelObj || hasModelUsdz)
+    ) {
+      return (
+        <Model3dDownloadButton
+          busy={busy}
+          onDownload={downloadNow}
+          hasFbx={hasModelFbx}
+          hasObj={hasModelObj}
+          hasUsdz={hasModelUsdz}
           tone="info"
         />
       );
@@ -310,6 +351,128 @@ function LottieDownloadButton({
               onClick={() => {
                 setOpen(false);
                 onDownload("mp4");
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Split download button for MODEL_3D assets that ship at least one
+ * alternate format. The primary left half always downloads the .glb
+ * (the file the in-browser viewer renders); the chevron menu lists
+ * every format the creator uploaded so the buyer can pick whichever
+ * matches their target engine.
+ *
+ * Unlike Lottie there's no ZIP bundle option — 3D buyers usually want
+ * exactly one format, and bundling a 100MB GLB + 30MB FBX + 20MB OBJ
+ * is right on the edge of Vercel's response size budget.
+ */
+function Model3dDownloadButton({
+  busy,
+  onDownload,
+  hasFbx,
+  hasObj,
+  hasUsdz,
+  tone = "accent",
+}: {
+  busy: boolean;
+  onDownload: (format?: string) => void;
+  hasFbx: boolean;
+  hasObj: boolean;
+  hasUsdz: boolean;
+  tone?: "accent" | "info";
+}) {
+  const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
+
+  const primaryClass =
+    tone === "info"
+      ? "bg-gradient-to-r from-info to-blue-500 shadow-[0_0_24px_rgba(59,130,246,0.35)] hover:shadow-[0_0_32px_rgba(59,130,246,0.5)]"
+      : "bg-gradient-to-r from-accent to-accent-light shadow-[0_0_24px_rgba(124,58,237,0.4)] hover:shadow-[0_0_32px_rgba(124,58,237,0.6)]";
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex w-full rounded-xl overflow-hidden shadow-[0_0_24px_rgba(124,58,237,0.4)]">
+        <button
+          type="button"
+          onClick={() => onDownload()}
+          disabled={busy}
+          className={cn(
+            "flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 font-semibold text-white transition-all disabled:opacity-60 disabled:pointer-events-none",
+            primaryClass
+          )}
+        >
+          <Download className="w-5 h-5" />
+          {busy ? "Preparing…" : "Download .glb"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          disabled={busy}
+          aria-label="Choose download format"
+          aria-haspopup="menu"
+          aria-expanded={open ? "true" : "false"}
+          className={cn(
+            "px-3 border-l border-white/15 text-white font-semibold transition-all disabled:opacity-60 disabled:pointer-events-none",
+            primaryClass
+          )}
+        >
+          <ChevronDown
+            className={cn(
+              "w-4 h-4 transition-transform",
+              open && "rotate-180"
+            )}
+          />
+        </button>
+      </div>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-64 popover rounded-xl p-1.5 shadow-lg animate-fade-in z-30"
+        >
+          <FormatRow
+            icon={Box}
+            title="glTF Binary (.glb)"
+            subtitle="Web preview, Three.js, Babylon"
+            onClick={() => {
+              setOpen(false);
+              onDownload("glb");
+            }}
+          />
+          {hasFbx && (
+            <FormatRow
+              icon={Box}
+              title="FBX export (.fbx)"
+              subtitle="Unity, Unreal, Autodesk pipelines"
+              onClick={() => {
+                setOpen(false);
+                onDownload("fbx");
+              }}
+            />
+          )}
+          {hasObj && (
+            <FormatRow
+              icon={Box}
+              title="OBJ export (.obj)"
+              subtitle="Universal text format, no rig"
+              onClick={() => {
+                setOpen(false);
+                onDownload("obj");
+              }}
+            />
+          )}
+          {hasUsdz && (
+            <FormatRow
+              icon={Box}
+              title="USDZ export (.usdz)"
+              subtitle="Apple AR Quick Look / Vision Pro"
+              onClick={() => {
+                setOpen(false);
+                onDownload("usdz");
               }}
             />
           )}

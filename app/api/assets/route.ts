@@ -8,6 +8,9 @@ import {
   validatePreviewImage,
   validateLottieGif,
   validateLottieMp4,
+  validateModelFbx,
+  validateModelObj,
+  validateModelUsdz,
 } from "@/lib/upload-validation";
 import type { FileType } from "@prisma/client";
 
@@ -20,6 +23,11 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 // download time without streaming.
 const MAX_LOTTIE_GIF_BYTES = 15 * 1024 * 1024; // 15 MB
 const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024; // 25 MB
+// 3D companion limits — buyers download each format individually, not as
+// a single ZIP, so per-file ceilings are what matter here.
+const MAX_MODEL_FBX_BYTES = 30 * 1024 * 1024; // 30 MB
+const MAX_MODEL_OBJ_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024; // 20 MB
 
 // Cast widens to include LOTTIE while the locally-generated Prisma client
 // is one `prisma generate` behind the schema. LOTTIE is in the DB enum and
@@ -89,6 +97,10 @@ export async function POST(req: Request) {
   // Optional Lottie companion uploads — only consulted when fileType is LOTTIE.
   const lottieGif = form.get("lottieGif");
   const lottieMp4 = form.get("lottieMp4");
+  // Optional 3D companion uploads — only consulted when fileType is MODEL_3D.
+  const modelFbx = form.get("modelFbx");
+  const modelObj = form.get("modelObj");
+  const modelUsdz = form.get("modelUsdz");
 
   // ─── Validation ───────────────────────────────────────────────────────────
 
@@ -199,6 +211,10 @@ export async function POST(req: Request) {
   // Lottie bundle companions — only used when fileType === LOTTIE.
   let savedLottieGifKey: string | null = null;
   let savedLottieMp4Key: string | null = null;
+  // 3D model companions — only used when fileType === MODEL_3D.
+  let savedModelFbxKey: string | null = null;
+  let savedModelObjKey: string | null = null;
+  let savedModelUsdzKey: string | null = null;
 
   try {
     const previewSaved = await savePublic(
@@ -302,6 +318,98 @@ export async function POST(req: Request) {
       }
     }
 
+    // ── 3D model bundle companions ───────────────────────────────────────
+    // Validate + persist only when the declared type is MODEL_3D. All
+    // three are optional. Each lives in private storage so it can only
+    // be reached through /api/assets/:id/download?format=<fmt>.
+    if (fileType === "MODEL_3D") {
+      const cleanupOnFail = async () => {
+        await deletePublic(savedPreviewUrl!);
+        if (savedModelUrl) await deletePublic(savedModelUrl);
+        await deletePrivate(savedFileKey!);
+        if (savedModelFbxKey) await deletePrivate(savedModelFbxKey);
+        if (savedModelObjKey) await deletePrivate(savedModelObjKey);
+      };
+
+      if (modelFbx instanceof File && modelFbx.size > 0) {
+        if (modelFbx.size > MAX_MODEL_FBX_BYTES) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: "FBX companion exceeds 30 MB limit." },
+            { status: 400 }
+          );
+        }
+        const buf = Buffer.from(await modelFbx.arrayBuffer());
+        const check = validateModelFbx(modelFbx.name, buf);
+        if (!check.ok) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: check.error },
+            { status: 400 }
+          );
+        }
+        const saved = await savePrivate(
+          `files/${session.user.id}`,
+          modelFbx.name || "model.fbx",
+          buf
+        );
+        savedModelFbxKey = saved.key;
+        totalBundleBytes += saved.bytes;
+      }
+
+      if (modelObj instanceof File && modelObj.size > 0) {
+        if (modelObj.size > MAX_MODEL_OBJ_BYTES) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: "OBJ companion exceeds 20 MB limit." },
+            { status: 400 }
+          );
+        }
+        const buf = Buffer.from(await modelObj.arrayBuffer());
+        const check = validateModelObj(modelObj.name, buf);
+        if (!check.ok) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: check.error },
+            { status: 400 }
+          );
+        }
+        const saved = await savePrivate(
+          `files/${session.user.id}`,
+          modelObj.name || "model.obj",
+          buf
+        );
+        savedModelObjKey = saved.key;
+        totalBundleBytes += saved.bytes;
+      }
+
+      if (modelUsdz instanceof File && modelUsdz.size > 0) {
+        if (modelUsdz.size > MAX_MODEL_USDZ_BYTES) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: "USDZ companion exceeds 20 MB limit." },
+            { status: 400 }
+          );
+        }
+        const buf = Buffer.from(await modelUsdz.arrayBuffer());
+        const check = validateModelUsdz(modelUsdz.name, buf);
+        if (!check.ok) {
+          await cleanupOnFail();
+          return NextResponse.json(
+            { error: check.error },
+            { status: 400 }
+          );
+        }
+        const saved = await savePrivate(
+          `files/${session.user.id}`,
+          modelUsdz.name || "model.usdz",
+          buf
+        );
+        savedModelUsdzKey = saved.key;
+        totalBundleBytes += saved.bytes;
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
         title,
@@ -315,6 +423,9 @@ export async function POST(req: Request) {
         modelKey: savedModelUrl,
         lottieGifKey: savedLottieGifKey,
         lottieMp4Key: savedLottieMp4Key,
+        modelFbxKey: savedModelFbxKey,
+        modelObjKey: savedModelObjKey,
+        modelUsdzKey: savedModelUsdzKey,
         fileSizeBytes: totalBundleBytes,
         uploaderId: session.user.id,
         // status defaults to PENDING — admin moderation queue picks it up
@@ -333,6 +444,9 @@ export async function POST(req: Request) {
     if (savedFileKey) await deletePrivate(savedFileKey);
     if (savedLottieGifKey) await deletePrivate(savedLottieGifKey);
     if (savedLottieMp4Key) await deletePrivate(savedLottieMp4Key);
+    if (savedModelFbxKey) await deletePrivate(savedModelFbxKey);
+    if (savedModelObjKey) await deletePrivate(savedModelObjKey);
+    if (savedModelUsdzKey) await deletePrivate(savedModelUsdzKey);
 
     console.error("[asset upload] failed:", err);
     return NextResponse.json(

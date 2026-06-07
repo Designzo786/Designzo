@@ -45,6 +45,9 @@ export async function DELETE(
       fileKey: true,
       lottieGifKey: true,
       lottieMp4Key: true,
+      modelFbxKey: true,
+      modelObjKey: true,
+      modelUsdzKey: true,
       _count: {
         select: {
           purchases: { where: { status: "COMPLETED" } },
@@ -84,6 +87,9 @@ export async function DELETE(
   if (asset.fileKey) await deletePrivate(asset.fileKey);
   if (asset.lottieGifKey) await deletePrivate(asset.lottieGifKey);
   if (asset.lottieMp4Key) await deletePrivate(asset.lottieMp4Key);
+  if (asset.modelFbxKey) await deletePrivate(asset.modelFbxKey);
+  if (asset.modelObjKey) await deletePrivate(asset.modelObjKey);
+  if (asset.modelUsdzKey) await deletePrivate(asset.modelUsdzKey);
 
   try {
     await prisma.asset.delete({ where: { id } });

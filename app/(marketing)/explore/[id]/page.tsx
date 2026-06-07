@@ -61,6 +61,11 @@ interface UnifiedAsset {
   // chooser in the download dropdown. Both are false for non-Lottie.
   hasLottieGif: boolean;
   hasLottieMp4: boolean;
+  // 3D companion availability — drives the same chooser when the
+  // asset is a MODEL_3D upload.
+  hasModelFbx: boolean;
+  hasModelObj: boolean;
+  hasModelUsdz: boolean;
   // Preview sources, in priority order: modelUrl > shape/shapeColor > previewImage
   modelUrl?: string;
   shape?: MockAssetShape;
@@ -113,6 +118,9 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
       !hasModelUrl && hasPreviewImage ? dbAsset.previewKey : undefined,
     hasLottieGif: !!dbAsset.lottieGifKey,
     hasLottieMp4: !!dbAsset.lottieMp4Key,
+    hasModelFbx: !!dbAsset.modelFbxKey,
+    hasModelObj: !!dbAsset.modelObjKey,
+    hasModelUsdz: !!dbAsset.modelUsdzKey,
   };
 }
 
@@ -360,6 +368,9 @@ export default async function AssetDetailPage({
               fileType={asset.fileType}
               hasLottieGif={asset.hasLottieGif}
               hasLottieMp4={asset.hasLottieMp4}
+              hasModelFbx={asset.hasModelFbx}
+              hasModelObj={asset.hasModelObj}
+              hasModelUsdz={asset.hasModelUsdz}
             />
 
             <div className="mt-3">

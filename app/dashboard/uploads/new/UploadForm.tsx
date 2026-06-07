@@ -9,6 +9,8 @@ import {
   FileBox,
   Film,
   ImagePlay,
+  Boxes,
+  Box,
   Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
@@ -25,6 +27,9 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024;
 // /api/assets so the client surfaces the right error before upload.
 const MAX_LOTTIE_GIF_BYTES = 15 * 1024 * 1024;
 const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
+const MAX_MODEL_FBX_BYTES = 30 * 1024 * 1024;
+const MAX_MODEL_OBJ_BYTES = 20 * 1024 * 1024;
+const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024;
 
 // MIME types paired with each accepted extension. Mobile file pickers
 // (especially iOS) gate "selectable" files by MIME type, so the accept
@@ -91,8 +96,8 @@ const CATEGORY_TO_FILE_TYPE: Record<string, string> = {
 // exactly what to upload and what each format does.
 const FILE_TYPE_HINTS: Record<string, { what: string; note: string }> = {
   MODEL_3D: {
-    what: "Upload a .glb or .gltf file from Blender, Maya, 3ds Max, or any glTF exporter.",
-    note: "Buyers see a live 3D preview rendered with Three.js, then download your file after purchase.",
+    what: "Upload a .glb or .gltf file from Blender, Maya, 3ds Max, or any glTF exporter. You can optionally add FBX, OBJ, and USDZ exports — buyers pick the format they need at download time.",
+    note: "Buyers see a live 3D preview rendered with Three.js, then download the format that matches their target engine.",
   },
   LOTTIE: {
     what: "Upload a Bodymovin .json or a packed .lottie animation from LottieFiles or After Effects. You can optionally add GIF + MP4 renders of the same animation — buyers download all formats as a single ZIP bundle.",
@@ -125,6 +130,10 @@ export function UploadForm() {
   // Optional Lottie companion uploads — surfaced only when fileType === LOTTIE.
   const [lottieGif, setLottieGif] = useState<File | null>(null);
   const [lottieMp4, setLottieMp4] = useState<File | null>(null);
+  // Optional 3D companion uploads — surfaced only when fileType === MODEL_3D.
+  const [modelFbx, setModelFbx] = useState<File | null>(null);
+  const [modelObj, setModelObj] = useState<File | null>(null);
+  const [modelUsdz, setModelUsdz] = useState<File | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -134,6 +143,9 @@ export function UploadForm() {
   const previewInputRef = useRef<HTMLInputElement>(null);
   const lottieGifRef = useRef<HTMLInputElement>(null);
   const lottieMp4Ref = useRef<HTMLInputElement>(null);
+  const modelFbxRef = useRef<HTMLInputElement>(null);
+  const modelObjRef = useRef<HTMLInputElement>(null);
+  const modelUsdzRef = useRef<HTMLInputElement>(null);
 
   // Extensions valid for the currently-selected file type. Drives both the
   // file picker's `accept` filter and the instant validation below.
@@ -191,6 +203,12 @@ export function UploadForm() {
       clearLottieGif();
       clearLottieMp4();
     }
+    // Same for the 3D format companions — only relevant for MODEL_3D.
+    if (next !== "MODEL_3D") {
+      clearModelFbx();
+      clearModelObj();
+      clearModelUsdz();
+    }
   }
 
   function onLottieGifChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -239,6 +257,73 @@ export function UploadForm() {
   function clearLottieMp4() {
     setLottieMp4(null);
     if (lottieMp4Ref.current) lottieMp4Ref.current.value = "";
+  }
+
+  // ── 3D model companion handlers ───────────────────────────────────────
+  // Each accepts exactly one extension and one matching MIME type so the
+  // mobile file picker actually allows the file. Same pattern as the
+  // Lottie companions: validate extension + size, set the file, clear on
+  // mismatch.
+  function makeCompanionHandler(
+    expectedExt: string,
+    maxBytes: number,
+    label: string,
+    setFile: (f: File | null) => void,
+    refObj: React.RefObject<HTMLInputElement | null>
+  ) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (getExtension(f.name) !== expectedExt) {
+        setError(`${label} must be a .${expectedExt} file.`);
+        if (refObj.current) refObj.current.value = "";
+        return;
+      }
+      if (f.size > maxBytes) {
+        setError(
+          `${label} is too large (max ${formatFileSize(maxBytes)}).`
+        );
+        if (refObj.current) refObj.current.value = "";
+        return;
+      }
+      setError(null);
+      setFile(f);
+    };
+  }
+
+  const onModelFbxChange = makeCompanionHandler(
+    "fbx",
+    MAX_MODEL_FBX_BYTES,
+    "FBX companion",
+    setModelFbx,
+    modelFbxRef
+  );
+  const onModelObjChange = makeCompanionHandler(
+    "obj",
+    MAX_MODEL_OBJ_BYTES,
+    "OBJ companion",
+    setModelObj,
+    modelObjRef
+  );
+  const onModelUsdzChange = makeCompanionHandler(
+    "usdz",
+    MAX_MODEL_USDZ_BYTES,
+    "USDZ companion",
+    setModelUsdz,
+    modelUsdzRef
+  );
+
+  function clearModelFbx() {
+    setModelFbx(null);
+    if (modelFbxRef.current) modelFbxRef.current.value = "";
+  }
+  function clearModelObj() {
+    setModelObj(null);
+    if (modelObjRef.current) modelObjRef.current.value = "";
+  }
+  function clearModelUsdz() {
+    setModelUsdz(null);
+    if (modelUsdzRef.current) modelUsdzRef.current.value = "";
   }
 
   // Picking a category auto-flips the file-type selector to whatever
@@ -327,6 +412,14 @@ export function UploadForm() {
       if (fileType === "LOTTIE") {
         if (lottieGif) fd.append("lottieGif", lottieGif);
         if (lottieMp4) fd.append("lottieMp4", lottieMp4);
+      }
+      // 3D companion files — only sent for MODEL_3D uploads. Server
+      // rejects them on any other fileType so a tampered request can't
+      // store them against a non-3D asset.
+      if (fileType === "MODEL_3D") {
+        if (modelFbx) fd.append("modelFbx", modelFbx);
+        if (modelObj) fd.append("modelObj", modelObj);
+        if (modelUsdz) fd.append("modelUsdz", modelUsdz);
       }
 
       const res = await uploadWithProgress("/api/assets", fd, setProgress);
@@ -462,6 +555,63 @@ export function UploadForm() {
         onChange={onFileChange}
         onClear={clearFile}
       />
+
+      {/* 3D bundle companions — only visible when the asset type is
+          MODEL_3D. The main .glb/.gltf still drives the in-browser
+          viewer; these are alternate-format exports the buyer can pick
+          at download time (Unity / Unreal pipelines prefer .fbx,
+          legacy tools prefer .obj, Apple AR prefers .usdz). */}
+      {fileType === "MODEL_3D" && (
+        <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
+          <div className="flex items-start gap-2.5">
+            <Boxes className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-primary">
+                Optional alternate formats
+              </h3>
+              <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                Ship the same model in additional formats. Buyers pick
+                which one to download from the format menu on the asset
+                page — useful for game engines, legacy DCC tools, and
+                Apple AR.
+              </p>
+            </div>
+          </div>
+
+          <FilePicker
+            label="FBX export (optional)"
+            sublabel="Single .fbx — max 30 MB. Best for Unity / Unreal pipelines."
+            icon={Box}
+            file={modelFbx}
+            accept=".fbx,application/octet-stream"
+            inputRef={modelFbxRef}
+            onChange={onModelFbxChange}
+            onClear={clearModelFbx}
+          />
+
+          <FilePicker
+            label="OBJ export (optional)"
+            sublabel="Single .obj — max 20 MB. Universal text format, no animations."
+            icon={Box}
+            file={modelObj}
+            accept=".obj,model/obj,text/plain"
+            inputRef={modelObjRef}
+            onChange={onModelObjChange}
+            onClear={clearModelObj}
+          />
+
+          <FilePicker
+            label="USDZ export (optional)"
+            sublabel="Single .usdz — max 20 MB. Apple AR Quick Look / Vision Pro."
+            icon={Box}
+            file={modelUsdz}
+            accept=".usdz,model/vnd.usdz+zip,application/zip"
+            inputRef={modelUsdzRef}
+            onChange={onModelUsdzChange}
+            onClear={clearModelUsdz}
+          />
+        </div>
+      )}
 
       {/* Lottie bundle companions — only visible when the asset type is
           LOTTIE. Both fields are OPTIONAL — a Lottie pack can ship JSON-only

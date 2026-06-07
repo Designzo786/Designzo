@@ -142,6 +142,25 @@ function signatureMatches(ext: string, buf: Buffer): boolean | null {
       return asciiAt(buf, "ply");
     case "3ds":
       return startsWith(buf, [0x4d, 0x4d]); // primary chunk id 0x4D4D
+    case "fbx":
+      // Binary FBX: ASCII "Kaydara FBX Binary" preamble. ASCII FBX
+      // (rare in marketplace pipelines): file opens with "; FBX " or
+      // the "FBXHeaderExtension" token within the first few bytes.
+      return (
+        asciiAt(buf, "Kaydara FBX Binary") ||
+        asciiAt(buf, "; FBX") ||
+        asciiAt(buf, "; FBX ") ||
+        /^.{0,128}FBXHeaderExtension/.test(
+          buf.slice(0, 256).toString("utf8")
+        )
+      );
+    case "usdz":
+      // USDZ is a ZIP container — same magic as zip / sbsar.
+      return (
+        startsWith(buf, [0x50, 0x4b, 0x03, 0x04]) ||
+        startsWith(buf, [0x50, 0x4b, 0x05, 0x06]) ||
+        startsWith(buf, [0x50, 0x4b, 0x07, 0x08])
+      );
     case "mp4":
     case "m4v":
     case "mov":
@@ -414,6 +433,95 @@ export function validateLottieMp4(
       ok: false,
       error:
         "The MP4 file is corrupt or not a real MP4 (missing ISO BMFF ftyp box).",
+    };
+  }
+  return { ok: true };
+}
+
+// 3D companion uploads. The MAIN model file stays .glb/.gltf (web preview
+// + the format the AssetViewer can render in browser). Each of these is
+// an alternate-format export the creator can ship alongside it.
+const MODEL_FBX_EXTENSIONS = ["fbx"];
+const MODEL_OBJ_EXTENSIONS = ["obj"];
+const MODEL_USDZ_EXTENSIONS = ["usdz"];
+
+export function validateModelFbx(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!MODEL_FBX_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "FBX companion must be a .fbx file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "FBX companion was rejected." };
+  }
+  const sig = signatureMatches("fbx", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error: "The FBX file is corrupt or not a real FBX (no Kaydara header).",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * OBJ is plain ASCII text — no magic bytes. We verify it isn't an
+ * executable and that the start of the file looks like Wavefront OBJ
+ * markup: a comment, a vertex / face / group line, or `mtllib` /
+ * `usemtl` references.
+ */
+export function validateModelObj(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!MODEL_OBJ_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "OBJ companion must be a .obj file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "OBJ companion was rejected." };
+  }
+  // Skip leading whitespace / BOM, then verify the first non-blank line
+  // starts with one of the standard OBJ tokens.
+  let start = 0;
+  if (
+    header.length >= 3 &&
+    header[0] === 0xef &&
+    header[1] === 0xbb &&
+    header[2] === 0xbf
+  ) {
+    start = 3;
+  }
+  const head = header.slice(start, Math.min(header.length, start + 2048)).toString("utf8");
+  // First 2KB should contain at least one OBJ line beginning. Permissive
+  // on whitespace and line endings.
+  if (!/(^|\n)\s*(#|v\s|vn\s|vt\s|vp\s|f\s|g\s|o\s|s\s|l\s|mtllib\s|usemtl\s)/.test(head)) {
+    return {
+      ok: false,
+      error: "This file doesn't look like a Wavefront OBJ export.",
+    };
+  }
+  return { ok: true };
+}
+
+export function validateModelUsdz(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!MODEL_USDZ_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "USDZ companion must be a .usdz file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "USDZ companion was rejected." };
+  }
+  const sig = signatureMatches("usdz", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error: "The USDZ file is corrupt or not a valid ZIP container.",
     };
   }
   return { ok: true };

@@ -28,16 +28,33 @@ export const runtime = "nodejs";
  *     the *current* buyer; size limits at upload time keep this safe.
  *   - All other types: the single private file streamed back unchanged.
  */
-// Lottie download is selectable — the ZIP bundle is the default but the
-// buyer can request a single format. Any unknown / unsupported value
-// silently falls back to the ZIP so a bookmarked stale URL never breaks.
-type LottieFormat = "zip" | "json" | "lottie" | "gif" | "mp4";
-const LOTTIE_FORMATS: ReadonlyArray<LottieFormat> = [
+// Download is selectable — the buyer can request a single format via
+// ?format=. Lottie still defaults to the full ZIP bundle when no value
+// is sent; 3D assets default to the primary file (.glb / .gltf).
+// Any unknown value silently falls back to the asset's default behaviour
+// so a stale bookmark never breaks.
+type DownloadFormat =
+  | "zip"
+  | "json"
+  | "lottie"
+  | "gif"
+  | "mp4"
+  | "glb"
+  | "gltf"
+  | "fbx"
+  | "obj"
+  | "usdz";
+const VALID_FORMATS: ReadonlyArray<DownloadFormat> = [
   "zip",
   "json",
   "lottie",
   "gif",
   "mp4",
+  "glb",
+  "gltf",
+  "fbx",
+  "obj",
+  "usdz",
 ];
 
 export async function GET(
@@ -50,10 +67,12 @@ export async function GET(
   }
 
   const { id } = await params;
-  const rawFormat = new URL(req.url).searchParams.get("format") ?? "zip";
-  const format: LottieFormat = LOTTIE_FORMATS.includes(rawFormat as LottieFormat)
-    ? (rawFormat as LottieFormat)
-    : "zip";
+  const rawFormat = new URL(req.url).searchParams.get("format") ?? "";
+  const format: DownloadFormat | "" = VALID_FORMATS.includes(
+    rawFormat as DownloadFormat
+  )
+    ? (rawFormat as DownloadFormat)
+    : "";
 
   const asset = await prisma.asset.findUnique({
     where: { id },
@@ -63,6 +82,9 @@ export async function GET(
       fileKey: true,
       lottieGifKey: true,
       lottieMp4Key: true,
+      modelFbxKey: true,
+      modelObjKey: true,
+      modelUsdzKey: true,
       price: true,
       status: true,
       fileType: true,
@@ -139,13 +161,81 @@ export async function GET(
     );
   }
 
+  // ── MODEL_3D single-format download ───────────────────────────────────
+  // 3D assets never bundle. The primary file (.glb / .gltf) ships as the
+  // default; the FBX / OBJ / USDZ companions ship on explicit ?format=.
+  if (asset.fileType === "MODEL_3D") {
+    let singleKey: string | null = null;
+    let ext = "glb";
+    switch (format) {
+      case "fbx":
+        singleKey = asset.modelFbxKey;
+        ext = "fbx";
+        break;
+      case "obj":
+        singleKey = asset.modelObjKey;
+        ext = "obj";
+        break;
+      case "usdz":
+        singleKey = asset.modelUsdzKey;
+        ext = "usdz";
+        break;
+      case "gltf":
+        singleKey = asset.fileKey;
+        ext = "gltf";
+        break;
+      case "glb":
+      case "":
+      default:
+        singleKey = asset.fileKey;
+        ext = "glb";
+        break;
+    }
+
+    if (singleKey) {
+      try {
+        const buf = await readPrivate(singleKey);
+        if (!isOwner && !isAdmin) {
+          await prisma.asset
+            .update({
+              where: { id: asset.id },
+              data: { downloads: { increment: 1 } },
+            })
+            .catch(() => {});
+        }
+        const downloadName = `${slugify(asset.title)}.${ext}`;
+        return new NextResponse(new Uint8Array(buf), {
+          status: 200,
+          headers: {
+            "Content-Type": contentTypeForFormat(ext as DownloadFormat),
+            "Content-Length": String(buf.length),
+            "Content-Disposition": `attachment; filename="${downloadName}"`,
+            "Cache-Control": "private, no-store",
+          },
+        });
+      } catch (err) {
+        console.error(
+          `[asset download] model-3d (${ext}) read failed:`,
+          err
+        );
+        return NextResponse.json(
+          { error: "File could not be read." },
+          { status: 500 }
+        );
+      }
+    }
+    // Companion was requested but not available — fall through to the
+    // generic non-Lottie single-file path below which returns the
+    // primary file.
+  }
+
   // ── LOTTIE single-format download (json / lottie / gif / mp4) ─────────
   // Buyer picked one specific format from the download dropdown instead
   // of the full bundle. Return just that file, still with a private,
   // no-cache header so it never lands in a CDN. Falls through to the
   // ZIP path below if the requested companion isn't actually present
   // (e.g. someone hit ?format=gif on a Lottie that didn't ship a GIF).
-  if (asset.fileType === "LOTTIE" && format !== "zip") {
+  if (asset.fileType === "LOTTIE" && format !== "" && format !== "zip") {
     const singleKey: string | null =
       format === "gif"
         ? asset.lottieGifKey
@@ -363,8 +453,8 @@ function renderReadmeText(title: string): string {
   ].join("\r\n");
 }
 
-/** MIME type to send back when serving a single Lottie format. */
-function contentTypeForFormat(format: LottieFormat): string {
+/** MIME type to send back when serving a single asset format. */
+function contentTypeForFormat(format: DownloadFormat): string {
   switch (format) {
     case "json":
       return "application/json";
@@ -374,6 +464,16 @@ function contentTypeForFormat(format: LottieFormat): string {
       return "image/gif";
     case "mp4":
       return "video/mp4";
+    case "glb":
+      return "model/gltf-binary";
+    case "gltf":
+      return "model/gltf+json";
+    case "fbx":
+      return "application/octet-stream";
+    case "obj":
+      return "model/obj";
+    case "usdz":
+      return "model/vnd.usdz+zip";
     case "zip":
     default:
       return "application/zip";

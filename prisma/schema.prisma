@@ -224,6 +224,14 @@ model Asset {
   lottieGifKey String?
   lottieMp4Key String?
 
+  // 3D model bundle companion files. When fileType = MODEL_3D and the
+  // creator ships alternate formats (engine-specific exports), these
+  // hold the private R2 keys for each. The download endpoint serves
+  // them when ?format=fbx|obj|usdz is requested. Null otherwise.
+  modelFbxKey  String?
+  modelObjKey  String?
+  modelUsdzKey String?
+
   price  Int @default(0) // INR paise; 0 = free
 
   status        AssetStatus @default(PENDING)
