@@ -28,8 +28,20 @@ export const runtime = "nodejs";
  *     the *current* buyer; size limits at upload time keep this safe.
  *   - All other types: the single private file streamed back unchanged.
  */
+// Lottie download is selectable — the ZIP bundle is the default but the
+// buyer can request a single format. Any unknown / unsupported value
+// silently falls back to the ZIP so a bookmarked stale URL never breaks.
+type LottieFormat = "zip" | "json" | "lottie" | "gif" | "mp4";
+const LOTTIE_FORMATS: ReadonlyArray<LottieFormat> = [
+  "zip",
+  "json",
+  "lottie",
+  "gif",
+  "mp4",
+];
+
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -38,6 +50,10 @@ export async function GET(
   }
 
   const { id } = await params;
+  const rawFormat = new URL(req.url).searchParams.get("format") ?? "zip";
+  const format: LottieFormat = LOTTIE_FORMATS.includes(rawFormat as LottieFormat)
+    ? (rawFormat as LottieFormat)
+    : "zip";
 
   const asset = await prisma.asset.findUnique({
     where: { id },
@@ -121,6 +137,51 @@ export async function GET(
       { error: "You don't have access to this file." },
       { status: 403 }
     );
+  }
+
+  // ── LOTTIE single-format download (json / lottie / gif / mp4) ─────────
+  // Buyer picked one specific format from the download dropdown instead
+  // of the full bundle. Return just that file, still with a private,
+  // no-cache header so it never lands in a CDN. Falls through to the
+  // ZIP path below if the requested companion isn't actually present
+  // (e.g. someone hit ?format=gif on a Lottie that didn't ship a GIF).
+  if (asset.fileType === "LOTTIE" && format !== "zip") {
+    const singleKey: string | null =
+      format === "gif"
+        ? asset.lottieGifKey
+        : format === "mp4"
+          ? asset.lottieMp4Key
+          : asset.fileKey; // json or .lottie are the same primary key
+    if (singleKey) {
+      try {
+        const buf = await readPrivate(singleKey);
+        if (!isOwner && !isAdmin) {
+          await prisma.asset
+            .update({
+              where: { id: asset.id },
+              data: { downloads: { increment: 1 } },
+            })
+            .catch(() => {});
+        }
+        const ext = format === "lottie" ? "lottie" : format;
+        const downloadName = `${slugify(asset.title)}.${ext}`;
+        return new NextResponse(new Uint8Array(buf), {
+          status: 200,
+          headers: {
+            "Content-Type": contentTypeForFormat(format),
+            "Content-Length": String(buf.length),
+            "Content-Disposition": `attachment; filename="${downloadName}"`,
+            "Cache-Control": "private, no-store",
+          },
+        });
+      } catch (err) {
+        console.error(
+          `[asset download] single-format (${format}) read failed:`,
+          err
+        );
+        // Drop through to the ZIP fallback so the buyer still gets something.
+      }
+    }
   }
 
   // ── LOTTIE bundle download ─────────────────────────────────────────────
@@ -300,4 +361,21 @@ function renderReadmeText(title: string): string {
     "Need help? Reach out via https://designzo.com/contact",
     "",
   ].join("\r\n");
+}
+
+/** MIME type to send back when serving a single Lottie format. */
+function contentTypeForFormat(format: LottieFormat): string {
+  switch (format) {
+    case "json":
+      return "application/json";
+    case "lottie":
+      return "application/zip"; // dotLottie is a ZIP container
+    case "gif":
+      return "image/gif";
+    case "mp4":
+      return "video/mp4";
+    case "zip":
+    default:
+      return "application/zip";
+  }
 }

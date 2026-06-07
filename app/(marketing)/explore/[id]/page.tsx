@@ -57,6 +57,10 @@ interface UnifiedAsset {
   format: string;
   fileSizeBytes: number;
   price: number;
+  // Companion availability for Lottie bundles — drives the format
+  // chooser in the download dropdown. Both are false for non-Lottie.
+  hasLottieGif: boolean;
+  hasLottieMp4: boolean;
   // Preview sources, in priority order: modelUrl > shape/shapeColor > previewImage
   modelUrl?: string;
   shape?: MockAssetShape;
@@ -107,6 +111,8 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     shapeColor: !hasModelUrl && !hasPreviewImage ? FALLBACK_COLOR : undefined,
     previewImage:
       !hasModelUrl && hasPreviewImage ? dbAsset.previewKey : undefined,
+    hasLottieGif: !!dbAsset.lottieGifKey,
+    hasLottieMp4: !!dbAsset.lottieMp4Key,
   };
 }
 
@@ -348,7 +354,13 @@ export default async function AssetDetailPage({
               )}
             </div>
 
-            <AssetActionButton mode={mode} assetId={asset.id} />
+            <AssetActionButton
+              mode={mode}
+              assetId={asset.id}
+              fileType={asset.fileType}
+              hasLottieGif={asset.hasLottieGif}
+              hasLottieMp4={asset.hasLottieMp4}
+            />
 
             <div className="mt-3">
               <AssetSocialButtons
