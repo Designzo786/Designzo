@@ -234,9 +234,14 @@ function checkSvgContent(buf: Buffer): true | false | "unsafe" {
 
 /**
  * Lottie JSON has no magic bytes, so we have to peek at the structure.
- * A real Lottie file is a JSON object containing the `v` (version) and
- * `layers` keys at the top level. We bail at the first 16KB to avoid
- * parsing megabyte-sized animations on the validation hot path.
+ * A real Lottie animation is a JSON object whose top-level keys overlap
+ * with the Bodymovin / Lottie spec — `v` (version), `fr` (framerate),
+ * `ip` / `op` (in/out point), `layers`, `assets`, `animations`. Older
+ * Bodymovin exports always carry `v` + `layers`; newer dotLottie-style
+ * exports and partial exports may drop one of those. We accept the file
+ * if at least one of these well-known keys appears in the first 32KB —
+ * keeps the structural sanity check without rejecting valid Lottie
+ * variants that legitimate exporters produce.
  */
 function looksLikeLottieJson(buf: Buffer): boolean {
   // Skip a UTF-8 BOM if present.
@@ -260,11 +265,11 @@ function looksLikeLottieJson(buf: Buffer): boolean {
     start++;
   }
   if (buf[start] !== 0x7b /* '{' */) return false;
-  // Look for Lottie's signature keys in the first 16KB.
+  // Accept the file if any Lottie-typical key appears in the first 32KB.
   const head = buf
-    .slice(start, Math.min(buf.length, start + 16384))
+    .slice(start, Math.min(buf.length, start + 32768))
     .toString("utf8");
-  return /"v"\s*:/.test(head) && /"layers"\s*:/.test(head);
+  return /"(v|fr|ip|op|layers|assets|animations|markers)"\s*:/.test(head);
 }
 
 export interface ValidationResult {

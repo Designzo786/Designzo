@@ -26,6 +26,21 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_LOTTIE_GIF_BYTES = 15 * 1024 * 1024;
 const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
 
+// MIME types paired with each accepted extension. Mobile file pickers
+// (especially iOS) gate "selectable" files by MIME type, so the accept
+// attribute needs both `.json` AND `application/json` for the user to
+// actually be able to pick a .json file from their Files app. Only the
+// few extensions where this matters are listed — everything else still
+// passes via the bare `.ext` form.
+const EXT_TO_MIME: Record<string, string> = {
+  json: "application/json",
+  lottie: "application/zip",
+  glb: "model/gltf-binary",
+  gltf: "model/gltf+json",
+  svg: "image/svg+xml",
+  zip: "application/zip",
+};
+
 interface UploadResult {
   ok: boolean;
   data: { error?: string; id?: string };
@@ -122,8 +137,20 @@ export function UploadForm() {
 
   // Extensions valid for the currently-selected file type. Drives both the
   // file picker's `accept` filter and the instant validation below.
+  // For each extension we ALSO emit the matching MIME type — some mobile
+  // file pickers (iOS Safari, Chrome Android) refuse otherwise-valid files
+  // when the accept attribute is extension-only. Most notably .json on
+  // iOS — the OS file roll only enables files matching `application/json`,
+  // not just `.json`.
   const allowedExtensions = EXTENSIONS_BY_TYPE[fileType as FileType] ?? [];
-  const fileAccept = allowedExtensions.map((e) => `.${e}`).join(",");
+  const fileAccept = allowedExtensions
+    .flatMap((e) => {
+      const exts = [`.${e}`];
+      const mime = EXT_TO_MIME[e];
+      if (mime) exts.push(mime);
+      return exts;
+    })
+    .join(",");
   const allowedLabel = allowedExtensions.map((e) => `.${e}`).join(", ");
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
