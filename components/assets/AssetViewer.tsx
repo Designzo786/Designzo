@@ -339,6 +339,21 @@ export default function AssetViewer({
   shape,
   color,
 }: Props) {
+  // ─── Hooks MUST run on every render, before any early returns ────────
+  // Lottie + SVG branches return before the Three.js path; the lighting
+  // state these hooks own isn't used by those branches, but it still has
+  // to be declared unconditionally or React's hook-order assumption breaks
+  // (rules-of-hooks). Cheap — just a string slot in state.
+  const [lighting, setLighting] = useState<LightingMode>("studio");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(
+      LIGHTING_STORAGE_KEY
+    ) as LightingMode | null;
+    if (saved === "studio" || saved === "ambience") setLighting(saved);
+  }, []);
+
   // Branch on the asset's declared file type — each one has its own renderer.
   // Lottie + SVG paths short-circuit out before any of the Three.js setup
   // runs, so we don't waste a Canvas + WebGL context on a 4KB icon.
@@ -362,18 +377,6 @@ export default function AssetViewer({
   }
 
   const hasModel = !!modelUrl;
-  // Lighting preference, persisted across sessions. Studio is the default
-  // because it's the most useful for evaluation (no warm/cool tint hiding
-  // the real material colors).
-  const [lighting, setLighting] = useState<LightingMode>("studio");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(
-      LIGHTING_STORAGE_KEY
-    ) as LightingMode | null;
-    if (saved === "studio" || saved === "ambience") setLighting(saved);
-  }, []);
 
   function updateLighting(next: LightingMode) {
     setLighting(next);

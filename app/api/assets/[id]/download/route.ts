@@ -235,7 +235,16 @@ export async function GET(
   // no-cache header so it never lands in a CDN. Falls through to the
   // ZIP path below if the requested companion isn't actually present
   // (e.g. someone hit ?format=gif on a Lottie that didn't ship a GIF).
-  if (asset.fileType === "LOTTIE" && format !== "" && format !== "zip") {
+  // Hard-restrict to Lottie-valid formats so a hand-crafted URL like
+  // ?format=fbx on a Lottie asset can't trick us into serving the JSON
+  // source mislabelled with a 3D extension.
+  const LOTTIE_VALID_SINGLE = ["json", "lottie", "gif", "mp4"] as const;
+  if (
+    asset.fileType === "LOTTIE" &&
+    LOTTIE_VALID_SINGLE.includes(
+      format as (typeof LOTTIE_VALID_SINGLE)[number]
+    )
+  ) {
     const singleKey: string | null =
       format === "gif"
         ? asset.lottieGifKey
@@ -253,12 +262,15 @@ export async function GET(
             })
             .catch(() => {});
         }
-        const ext = format === "lottie" ? "lottie" : format;
+        // `format` is narrowed to one of LOTTIE_VALID_SINGLE here, so the
+        // cast is safe — both type aliases share the same string members.
+        const lottieFormat = format as DownloadFormat;
+        const ext = lottieFormat === "lottie" ? "lottie" : lottieFormat;
         const downloadName = `${slugify(asset.title)}.${ext}`;
         return new NextResponse(new Uint8Array(buf), {
           status: 200,
           headers: {
-            "Content-Type": contentTypeForFormat(format),
+            "Content-Type": contentTypeForFormat(lottieFormat),
             "Content-Length": String(buf.length),
             "Content-Disposition": `attachment; filename="${downloadName}"`,
             "Cache-Control": "private, no-store",

@@ -114,7 +114,7 @@ export function VerifyEmailClient({
         <XCircle className="w-8 h-8 text-rose-400" />
       </div>
       <h1 className="text-2xl font-bold tracking-tight text-primary">
-        Couldn't verify
+        Couldn&apos;t verify
       </h1>
       <p className="text-sm text-secondary max-w-sm mx-auto">{errorMsg}</p>
       <div className="pt-2 flex flex-col gap-2 items-center">

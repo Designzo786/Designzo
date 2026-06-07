@@ -28,7 +28,7 @@ interface BaseOptions {
   icon?: LucideIcon;
 }
 
-export interface ConfirmOptions extends BaseOptions {}
+export type ConfirmOptions = BaseOptions;
 
 export interface PromptOptions extends BaseOptions {
   placeholder?: string;
