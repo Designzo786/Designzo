@@ -9,6 +9,7 @@ import {
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, commissionCalc, creatorDisplayName } from "@/lib/utils";
+import { IncludedFormats } from "@/components/assets/IncludedFormats";
 import { CheckoutClient } from "./CheckoutClient";
 
 export const metadata = { title: "Checkout" };
@@ -32,6 +33,12 @@ export default async function CheckoutPage({
         price: true,
         status: true,
         uploaderId: true,
+        fileType: true,
+        lottieGifKey: true,
+        lottieMp4Key: true,
+        modelFbxKey: true,
+        modelObjKey: true,
+        modelUsdzKey: true,
         uploader: { select: { name: true, role: true, email: true } },
       },
     }),
@@ -177,6 +184,19 @@ export default async function CheckoutPage({
               </span>
             </div>
           </section>
+
+          {/* Per-format breakdown for multi-format assets — shows the
+              buyer the exact list of files they'll download, with the
+              same icons + subtitles they see on the asset detail page.
+              Renders nothing for single-file assets. */}
+          <IncludedFormats
+            fileType={asset.fileType}
+            hasLottieGif={!!asset.lottieGifKey}
+            hasLottieMp4={!!asset.lottieMp4Key}
+            hasModelFbx={!!asset.modelFbxKey}
+            hasModelObj={!!asset.modelObjKey}
+            hasModelUsdz={!!asset.modelUsdzKey}
+          />
 
           <section className="rounded-xl border border-border bg-surface p-5 text-sm space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1">

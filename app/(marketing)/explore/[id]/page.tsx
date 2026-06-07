@@ -26,6 +26,7 @@ import {
 import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 import { AssetActionButton } from "@/components/assets/AssetActionButton";
 import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
+import { IncludedFormats } from "@/components/assets/IncludedFormats";
 import { AssetReviews } from "./AssetReviews";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -388,6 +389,18 @@ export default async function AssetDetailPage({
               Royalty-free commercial license included
             </div>
           </div>
+
+          {/* "What's included" — listed BEFORE the buy click so the buyer
+              sees every format and license file they'll receive. Renders
+              nothing for single-file asset types. */}
+          <IncludedFormats
+            fileType={asset.fileType}
+            hasLottieGif={asset.hasLottieGif}
+            hasLottieMp4={asset.hasLottieMp4}
+            hasModelFbx={asset.hasModelFbx}
+            hasModelObj={asset.hasModelObj}
+            hasModelUsdz={asset.hasModelUsdz}
+          />
 
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 space-y-3">
             {asset.rating > 0 && (
