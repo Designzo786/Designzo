@@ -109,6 +109,15 @@ model User {
   creatorStatus    CreatorStatus @default(NONE)
   creatorDecidedAt DateTime?
 
+  // ─── Collaborator application materials ──────────────────────────────
+  // Captured on the /dashboard/become-creator submit so admins reviewing
+  // /admin/creators have actual portfolio evidence to judge against.
+  // Empty / null on legacy applications submitted before this surface
+  // existed.
+  creatorPortfolioUrl String? // external portfolio (Behance, ArtStation, etc.)
+  creatorDemoNote     String? @db.Text // 50-2000 char self-introduction
+  creatorSampleKeys   String[] @default([]) // up to 3 public R2 URLs
+
   // Legal — proof that the user accepted Terms & Privacy at registration.
   acceptedTermsAt DateTime?
 
