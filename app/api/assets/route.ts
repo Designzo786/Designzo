@@ -12,6 +12,7 @@ import {
   validateModelObj,
   validateModelUsdz,
 } from "@/lib/upload-validation";
+import { isValidSubcategory } from "@/lib/mock/assets";
 import type { FileType } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -86,6 +87,10 @@ export async function POST(req: Request) {
   const title = String(form.get("title") ?? "").trim();
   const description = String(form.get("description") ?? "").trim();
   const category = String(form.get("category") ?? "").trim();
+  // Subcategory is optional — empty string normalises to null at write
+  // time. The form sends "" when the creator hasn't picked one.
+  const subcategoryRaw = String(form.get("subcategory") ?? "").trim();
+  const subcategory = subcategoryRaw.length > 0 ? subcategoryRaw : null;
   const fileType = String(form.get("fileType") ?? "").trim() as FileType;
   const tagsRaw = String(form.get("tags") ?? "").trim();
   const priceCentsRaw = String(form.get("priceCents") ?? "0").trim();
@@ -117,6 +122,19 @@ export async function POST(req: Request) {
   if (!VALID_CATEGORIES.includes(category)) {
     return NextResponse.json(
       { error: "Invalid category." },
+      { status: 400 }
+    );
+  }
+  // Subcategory is optional, but when present it MUST be one of the
+  // valid slugs for the chosen category. Catches both unknown slugs and
+  // category/subcategory mismatches (e.g. ?subcategory=loaders sent
+  // with category=3d-models).
+  if (!isValidSubcategory(category, subcategory)) {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid sub-category for the chosen category. Pick one of the available options or leave it blank.",
+      },
       { status: 400 }
     );
   }
@@ -413,6 +431,7 @@ export async function POST(req: Request) {
         title,
         description,
         category,
+        subcategory,
         tags,
         fileType,
         price: priceCents,

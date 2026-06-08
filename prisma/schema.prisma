@@ -208,6 +208,11 @@ model Asset {
   title       String
   description String
   category    String
+  // Optional refined bucket under the main category. Per-category list
+  // lives in lib/mock/assets.ts → SUBCATEGORIES; validated server-side
+  // at upload time. Null on legacy uploads and on assets where no
+  // sub-category fits.
+  subcategory String?
   tags        String[]    @default([])
   fileType    FileType
   license     LicenseType @default(STANDARD)
@@ -264,6 +269,7 @@ model Asset {
   // Composite indexes targeting the actual browse query patterns —
   // the marketplace filters all hit `status = APPROVED` first.
   @@index([status, category, createdAt(sort: Desc)])
+  @@index([status, category, subcategory])
   @@index([status, downloads(sort: Desc)])
   @@index([status, price])
   @@index([status, fileType, createdAt(sort: Desc)])

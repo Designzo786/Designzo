@@ -25,6 +25,7 @@ export const revalidate = 60;
 interface SearchParams {
   q?: string;
   category?: string;
+  subcategory?: string;
   price?: string;
   fileType?: string;
   sort?: string;
@@ -58,6 +59,11 @@ function buildWhere(filters: AssetFilters): Prisma.AssetWhereInput {
   const where: Prisma.AssetWhereInput = { status: "APPROVED" };
 
   if (filters.category) where.category = filters.category;
+  // Sub-category is composable with category — both contribute to the
+  // WHERE clause. A subcategory-only filter (no category) still works
+  // but is unusual since the UI only surfaces the picker after a
+  // category is chosen.
+  if (filters.subcategory) where.subcategory = filters.subcategory;
   if (filters.fileType) {
     where.fileType = filters.fileType as Prisma.AssetWhereInput["fileType"];
   }
@@ -146,6 +152,7 @@ export default async function ExplorePage({
   const filters: AssetFilters = {
     q: sp.q,
     category: sp.category,
+    subcategory: sp.subcategory,
     price: sp.price as AssetFilters["price"],
     fileType: sp.fileType,
     sort: sp.sort as AssetFilters["sort"],

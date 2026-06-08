@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
-import { CATEGORIES, FILE_TYPES } from "@/lib/mock/assets";
+import { CATEGORIES, FILE_TYPES, subcategoriesFor } from "@/lib/mock/assets";
 import { EXTENSIONS_BY_TYPE, getExtension } from "@/lib/upload-validation";
 import { formatFileSize } from "@/lib/utils";
 import type { FileType } from "@prisma/client";
@@ -114,9 +114,17 @@ export function UploadForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0].slug);
+  // Sub-category dropdown — optional, blank by default. Cleared whenever
+  // the parent category changes so a stale slug from a different category
+  // can never reach the server.
+  const [subcategory, setSubcategory] = useState<string>("");
   const [fileType, setFileType] = useState<string>(
     CATEGORY_TO_FILE_TYPE[CATEGORIES[0].slug] ?? FILE_TYPES[0].slug
   );
+
+  // Per-category sub-category options. Re-derived on every render — the
+  // SUBCATEGORIES map is static so this is just a constant lookup.
+  const subcategoryOptions = subcategoriesFor(category);
   const [priceInr, setPriceInr] = useState("0");
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -327,6 +335,10 @@ export function UploadForm() {
   // have a non-standard pairing in mind.
   function onCategoryChange(next: string) {
     setCategory(next);
+    // The sub-category list is category-specific — a slug from the old
+    // category won't be valid for the new one. Reset to blank so the
+    // user re-picks deliberately.
+    setSubcategory("");
     const suggested = CATEGORY_TO_FILE_TYPE[next];
     if (suggested && suggested !== fileType) {
       onFileTypeChange(suggested);
@@ -396,6 +408,7 @@ export function UploadForm() {
       fd.append("title", title.trim());
       fd.append("description", description.trim());
       fd.append("category", category);
+      fd.append("subcategory", subcategory);
       fd.append("fileType", fileType);
       fd.append("priceCents", String(priceCents));
       fd.append("tags", tags.trim());
@@ -501,6 +514,37 @@ export function UploadForm() {
           </select>
         </div>
       </div>
+
+      {/* Sub-category — only rendered when the chosen main category has
+          a defined sub-category list. Optional; the empty leading option
+          submits as null on the server. */}
+      {subcategoryOptions.length > 0 && (
+        <div>
+          <label
+            htmlFor="subcategory"
+            className="block text-xs font-medium text-secondary mb-2"
+          >
+            Sub-category{" "}
+            <span className="text-muted font-normal">(optional)</span>
+          </label>
+          <select
+            id="subcategory"
+            value={subcategory}
+            onChange={(e) => setSubcategory(e.target.value)}
+            className="w-full h-11 px-4 bg-input border border-border rounded-lg text-sm text-primary focus:outline-none focus:bg-surface focus:border-border-focus transition-all"
+          >
+            <option value="">— Pick a sub-category —</option>
+            {subcategoryOptions.map((s) => (
+              <option key={s.slug} value={s.slug}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-muted">
+            Helps buyers filter to assets like yours. Skip if nothing fits.
+          </p>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Input

@@ -3,7 +3,12 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { X, SlidersHorizontal } from "lucide-react";
-import { CATEGORIES, FILE_TYPES, PRICE_RANGES } from "@/lib/mock/assets";
+import {
+  CATEGORIES,
+  FILE_TYPES,
+  PRICE_RANGES,
+  subcategoriesFor,
+} from "@/lib/mock/assets";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,6 +42,7 @@ export function MobileFilterButton() {
   // Active-filter count drives the badge on the button.
   const activeCount = [
     params.get("category"),
+    params.get("subcategory"),
     params.get("price"),
     params.get("fileType"),
     params.get("q"),
@@ -64,7 +70,8 @@ export function MobileFilterButton() {
         onClick={() => setOpen(true)}
         className="lg:hidden inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium border bg-surface border-border text-secondary hover:text-primary hover:border-border-hover transition-colors"
         aria-haspopup="dialog"
-        aria-expanded={open ? "true" : "false"}
+        // eslint-disable-next-line jsx-a11y/aria-proptypes
+        aria-expanded={open}
       >
         <SlidersHorizontal className="w-3.5 h-3.5" />
         Filter
@@ -147,11 +154,33 @@ function FilterContent({ onChange }: { onChange?: () => void } = {}) {
   };
 
   const currentCategory = params.get("category");
+  const currentSubcategory = params.get("subcategory");
   const currentPrice = params.get("price");
   const currentFileType = params.get("fileType");
+  // Sub-category options depend on the currently-selected main category.
+  // When no category is picked the list is empty and the whole filter
+  // group is hidden — avoids dumping the full union of every type's
+  // sub-categories onto the user.
+  const subcategoryOptions = subcategoriesFor(currentCategory);
+
+  // When the buyer switches main category the prior subcategory becomes
+  // invalid (each category has its own list). Strip it from the URL so
+  // the filter chips stay coherent.
+  const setCategoryAndResetSubcategory = useCallback(
+    (value: string | null) => {
+      const next = new URLSearchParams(params.toString());
+      if (value) next.set("category", value);
+      else next.delete("category");
+      next.delete("subcategory");
+      router.push(`${pathname}?${next.toString()}`, { scroll: false });
+      onChange?.();
+    },
+    [params, pathname, router, onChange]
+  );
 
   const hasActive = !!(
     currentCategory ||
+    currentSubcategory ||
     currentPrice ||
     currentFileType ||
     params.get("q")
@@ -192,17 +221,39 @@ function FilterContent({ onChange }: { onChange?: () => void } = {}) {
         <FilterOption
           label="All categories"
           active={!currentCategory}
-          onClick={() => setParam("category", null)}
+          onClick={() => setCategoryAndResetSubcategory(null)}
         />
         {CATEGORIES.map((c) => (
           <FilterOption
             key={c.slug}
             label={c.name}
             active={currentCategory === c.slug}
-            onClick={() => setParam("category", c.slug)}
+            onClick={() => setCategoryAndResetSubcategory(c.slug)}
           />
         ))}
       </FilterGroup>
+
+      {/* Sub-category — only shown when the buyer has picked a main
+          category. Each category has its own list (see SUBCATEGORIES
+          in lib/mock/assets.ts) so the options are scoped to what
+          actually makes sense for the chosen surface. */}
+      {subcategoryOptions.length > 0 && (
+        <FilterGroup title="Sub-category">
+          <FilterOption
+            label="All sub-categories"
+            active={!currentSubcategory}
+            onClick={() => setParam("subcategory", null)}
+          />
+          {subcategoryOptions.map((s) => (
+            <FilterOption
+              key={s.slug}
+              label={s.name}
+              active={currentSubcategory === s.slug}
+              onClick={() => setParam("subcategory", s.slug)}
+            />
+          ))}
+        </FilterGroup>
+      )}
 
       <FilterGroup title="Price">
         <FilterOption

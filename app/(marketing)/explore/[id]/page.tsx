@@ -14,6 +14,7 @@ import {
 import {
   CATEGORIES,
   FILE_TYPES,
+  subcategoryName,
   type MockAssetShape,
 } from "@/lib/mock/assets";
 import {
@@ -49,6 +50,7 @@ interface UnifiedAsset {
   creatorId: string;
   description: string;
   category: string;
+  subcategory: string | null;
   fileType: string;
   tags: string[];
   rating: number;
@@ -101,6 +103,7 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     creatorId: dbAsset.uploaderId,
     description: dbAsset.description,
     category: dbAsset.category,
+    subcategory: dbAsset.subcategory,
     fileType: dbAsset.fileType,
     tags: dbAsset.tags,
     rating: dbAsset.avgRating,
@@ -311,9 +314,12 @@ export default async function AssetDetailPage({
                 <div className="text-muted text-xs uppercase tracking-wide mb-1">
                   Category
                 </div>
-                <div className="text-primary font-medium">
+                <Link
+                  href={`/explore?category=${asset.category}`}
+                  className="text-primary font-medium hover:text-accent-light transition-colors"
+                >
                   {category?.name ?? asset.category}
-                </div>
+                </Link>
               </div>
               <div>
                 <div className="text-muted text-xs uppercase tracking-wide mb-1">
@@ -323,6 +329,20 @@ export default async function AssetDetailPage({
                   {fileTypeMeta?.name ?? asset.fileType}
                 </div>
               </div>
+              {asset.subcategory && (
+                <div>
+                  <div className="text-muted text-xs uppercase tracking-wide mb-1">
+                    Sub-category
+                  </div>
+                  <Link
+                    href={`/explore?category=${asset.category}&subcategory=${asset.subcategory}`}
+                    className="text-primary font-medium hover:text-accent-light transition-colors"
+                  >
+                    {subcategoryName(asset.category, asset.subcategory) ??
+                      asset.subcategory}
+                  </Link>
+                </div>
+              )}
             </div>
           </section>
 
