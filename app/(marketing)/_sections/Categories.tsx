@@ -6,7 +6,6 @@ import {
   Layers,
   Hexagon,
   Wand2,
-  Palette,
   ArrowUpRight,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -58,16 +57,6 @@ const CARDS = [
     accent: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
     bloom: "bg-emerald-500/30",
     href: "/explore?category=svg-icons",
-    countable: true,
-    badge: null,
-  },
-  {
-    slug: "materials",
-    name: "Materials",
-    icon: Palette,
-    accent: "text-amber-300 bg-amber-500/15 border-amber-400/30",
-    bloom: "bg-amber-500/30",
-    href: "/explore?category=materials",
     countable: true,
     badge: null,
   },
@@ -141,7 +130,7 @@ export async function Categories() {
             The negative-margin + padding trick lets cards scroll all the
             way to the edge of the viewport on phones instead of being
             constrained by the container's px-4 padding. */}
-        <div className="scroll-row scroll-row--tile scroll-row--cols-2 scroll-row--cols-3 scroll-row--cols-6">
+        <div className="scroll-row scroll-row--tile scroll-row--cols-2 scroll-row--cols-3 scroll-row--cols-5">
           {CARDS.map((card) => {
             const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;

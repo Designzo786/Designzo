@@ -113,8 +113,8 @@ export function Hero() {
           </h1>
 
           <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-secondary max-w-md mx-auto leading-relaxed">
-            3D, Lottie, SVG, and materials — crafted by the world&apos;s
-            best creators.
+            3D models, Lottie animations, and SVG icons — crafted by the
+            world&apos;s best creators.
           </p>
 
           {/* ─── Social-proof trust row ─────────────────────────────────
@@ -231,13 +231,6 @@ export function Hero() {
                 className="hover:text-accent-light transition-colors"
               >
                 SVG Icons
-              </Link>
-              <span className="text-subtle">·</span>
-              <Link
-                href="/explore?category=materials"
-                className="hover:text-accent-light transition-colors"
-              >
-                Materials
               </Link>
             </div>
           </div>

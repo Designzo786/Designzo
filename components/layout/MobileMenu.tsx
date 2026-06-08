@@ -9,7 +9,6 @@ import {
   Hexagon,
   Sparkles,
   Layers,
-  Palette,
   Wand2,
   Compass,
 } from "lucide-react";
@@ -41,12 +40,6 @@ const CATEGORIES = [
     name: "SVG Icons",
     icon: Layers,
     iconClass: "text-emerald-300 bg-emerald-500/15",
-  },
-  {
-    slug: "materials",
-    name: "Materials",
-    icon: Palette,
-    iconClass: "text-amber-300 bg-amber-500/15",
   },
 ];
 

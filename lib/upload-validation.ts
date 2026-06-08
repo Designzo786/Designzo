@@ -37,7 +37,10 @@ export const EXTENSIONS_BY_TYPE: Record<
   HDRI: [],
   IMAGE_2D: [],
   PLUGIN: [],
-  MATERIAL: ["zip", "sbsar", "mtl", "mat", "glsl"],
+  // MATERIAL stays on the enum for the few legacy rows still tagged with
+  // it, but is no longer offered as an upload target — empty allowlist
+  // rejects any new MATERIAL upload at validation.
+  MATERIAL: [],
   // .json = standard Lottie animation (Bodymovin export). .lottie = the new
   // ZIP-packaged dotLottie format from LottieFiles. Both validated by their
   // own magic bytes / structure below.

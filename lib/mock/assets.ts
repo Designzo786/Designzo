@@ -36,14 +36,12 @@ export const CATEGORIES = [
   { slug: "3d-icons", name: "3D Icons" },
   { slug: "lottie", name: "Lottie Animations" },
   { slug: "svg-icons", name: "SVG Icons" },
-  { slug: "materials", name: "Materials" },
 ] as const;
 
 export const FILE_TYPES = [
   { slug: "MODEL_3D", name: "3D Model" },
   { slug: "LOTTIE", name: "Lottie Animation" },
   { slug: "SVG_ICON", name: "SVG Icon" },
-  { slug: "MATERIAL", name: "Material" },
 ] as const;
 
 export const PRICE_RANGES = [

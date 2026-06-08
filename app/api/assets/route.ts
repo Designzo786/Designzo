@@ -35,7 +35,6 @@ const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024; // 20 MB
 // regenerates cleanly (after the next dev-server restart).
 const VALID_FILE_TYPES = [
   "MODEL_3D",
-  "MATERIAL",
   "LOTTIE",
   "SVG_ICON",
 ] as FileType[];
@@ -45,7 +44,6 @@ const VALID_CATEGORIES = [
   "3d-icons",
   "lottie",
   "svg-icons",
-  "materials",
 ];
 
 export async function POST(req: Request) {

@@ -7,7 +7,6 @@ import {
   Hexagon,
   Sparkles,
   Layers,
-  Palette,
   Wand2,
   ArrowUpRight,
 } from "lucide-react";
@@ -44,13 +43,6 @@ const CATEGORIES = [
     description: "Scalable SVG icons in every style",
     icon: Layers,
     iconClass: "text-emerald-300 bg-emerald-500/15",
-  },
-  {
-    slug: "materials",
-    name: "Materials",
-    description: "PBR materials, shaders, surfaces",
-    icon: Palette,
-    iconClass: "text-amber-300 bg-amber-500/15",
   },
 ];
 

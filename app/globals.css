@@ -728,6 +728,7 @@ p {
   .scroll-row--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1280px) {
+  .scroll-row--cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .scroll-row--cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 

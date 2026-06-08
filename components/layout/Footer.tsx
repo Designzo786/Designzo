@@ -22,7 +22,8 @@ const SECTIONS = [
     title: "Marketplace",
     links: [
       { label: "3D Models", href: "/explore?category=3d-models" },
-      { label: "Materials", href: "/explore?category=materials" },
+      { label: "Lottie Animations", href: "/explore?category=lottie" },
+      { label: "SVG Icons", href: "/explore?category=svg-icons" },
       { label: "Free Assets", href: "/explore?price=free" },
     ],
   },

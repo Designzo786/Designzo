@@ -89,7 +89,6 @@ const CATEGORY_TO_FILE_TYPE: Record<string, string> = {
   "3d-icons": "MODEL_3D",
   lottie: "LOTTIE",
   "svg-icons": "SVG_ICON",
-  materials: "MATERIAL",
 };
 
 // Per-file-type guidance shown right under the file-picker so creators know
@@ -106,10 +105,6 @@ const FILE_TYPE_HINTS: Record<string, { what: string; note: string }> = {
   SVG_ICON: {
     what: "Upload a single .svg icon. Scripts and event handlers are blocked at validation for security.",
     note: "Re-export from Figma/Sketch/Illustrator as plain SVG with no JS or external references.",
-  },
-  MATERIAL: {
-    what: "Upload a .zip / .sbsar / .mtl / .mat / .glsl material or shader bundle.",
-    note: "Include readme + sample render inside the zip if your material has dependencies.",
   },
 };
 
