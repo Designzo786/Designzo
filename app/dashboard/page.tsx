@@ -6,11 +6,18 @@ import {
   DollarSign,
   ArrowRight,
   ArrowUpRight,
+  ArrowDownRight,
   ImageOff,
   ShoppingBag,
   TrendingUp,
   Sparkles,
   Clock,
+  Banknote,
+  ShieldCheck,
+  FileCheck,
+  Bell,
+  Minus,
+  CheckCircle2,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -26,10 +33,11 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
   REJECTED: "text-danger bg-danger-muted border-danger/20",
 };
 
-/**
- * Returns a time-of-day greeting in the server's locale. Runs once per
- * request (RSC), no client-side hydration mismatch.
- */
+// Minimum payout — kept in sync with /api/payouts/request and the
+// earnings page. Used here to decide whether to nudge the creator to
+// withdraw their balance.
+const MIN_PAYOUT_PAISE = 50000;
+
 function greeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -37,77 +45,176 @@ function greeting(): string {
   return "Good evening";
 }
 
+/**
+ * Compares two counts over equal time windows and returns a signed
+ * percentage delta. Caps the absolute value at 999 so a "1 → 100"
+ * spike doesn't render as 9900% and break the layout. Returns null
+ * when the prior period was zero AND the current period is zero —
+ * "no change from nothing" is more honest than infinity.
+ */
+function delta(current: number, prior: number): {
+  pct: number | null;
+  direction: "up" | "down" | "flat";
+} {
+  if (current === 0 && prior === 0) return { pct: null, direction: "flat" };
+  if (prior === 0)
+    return { pct: 100, direction: "up" }; // any growth from zero is "new"
+  const raw = ((current - prior) / prior) * 100;
+  const pct = Math.max(-999, Math.min(999, Math.round(raw)));
+  const direction = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+  return { pct, direction };
+}
+
 export default async function DashboardHome() {
   const session = await auth();
   if (!session) return null;
-  // Buy-only USER accounts have no creator overview — their home is the library.
   if (session.user.role === "USER") redirect("/dashboard/library");
 
-  // All dashboard data in one parallel batch — keeps the page snappy.
-  const [user, purchaseCount, uploadCount, recentUploads, recentPurchases, topAssets, salesAgg] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          name: true,
-          email: true,
-          image: true,
-          balance: true,
-          role: true,
+  // ── Time windows for trend deltas ──────────────────────────────────
+  // Compare the last 30 days against the prior 30. Computed once so we
+  // can pass identical bounds into every Promise.all branch.
+  const now = new Date();
+  const thirtyAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const [
+    user,
+    purchaseCount,
+    uploadCount,
+    recentUploads,
+    recentPurchases,
+    recentSales,
+    topAssets,
+    salesAgg,
+    pendingAssetsCount,
+    inflightPayout,
+    purchases30d,
+    purchases60d,
+    sales30d,
+    sales60d,
+  ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        name: true,
+        email: true,
+        image: true,
+        balance: true,
+        role: true,
+        kycStatus: true,
+      },
+    }),
+    prisma.purchase.count({
+      where: { buyerId: session.user.id, status: "COMPLETED" },
+    }),
+    prisma.asset.count({ where: { uploaderId: session.user.id } }),
+    prisma.asset.findMany({
+      where: { uploaderId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: {
+        id: true,
+        title: true,
+        previewKey: true,
+        status: true,
+        price: true,
+        createdAt: true,
+      },
+    }),
+    prisma.purchase.findMany({
+      where: { buyerId: session.user.id, status: "COMPLETED" },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: {
+        id: true,
+        createdAt: true,
+        asset: {
+          select: { id: true, title: true, previewKey: true, price: true },
         },
-      }),
-      prisma.purchase.count({
-        where: { buyerId: session.user.id, status: "COMPLETED" },
-      }),
-      prisma.asset.count({ where: { uploaderId: session.user.id } }),
-      prisma.asset.findMany({
-        where: { uploaderId: session.user.id },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-        select: {
-          id: true,
-          title: true,
-          previewKey: true,
-          status: true,
-          price: true,
-          createdAt: true,
+      },
+    }),
+    // Sales of THIS user's uploads — distinct from `recentPurchases`
+    // which is what they bought. Same shape so the panel renders with
+    // the same component.
+    prisma.purchase.findMany({
+      where: {
+        status: "COMPLETED",
+        asset: { uploaderId: session.user.id },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: {
+        id: true,
+        createdAt: true,
+        amount: true,
+        creatorEarning: true,
+        buyer: { select: { name: true, email: true, image: true } },
+        asset: {
+          select: { id: true, title: true, previewKey: true },
         },
-      }),
-      prisma.purchase.findMany({
-        where: { buyerId: session.user.id, status: "COMPLETED" },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-        select: {
-          id: true,
-          createdAt: true,
-          asset: {
-            select: { id: true, title: true, previewKey: true, price: true },
-          },
-        },
-      }),
-      prisma.asset.findMany({
-        where: { uploaderId: session.user.id, status: "APPROVED" },
-        orderBy: { downloads: "desc" },
-        take: 3,
-        select: {
-          id: true,
-          title: true,
-          previewKey: true,
-          downloads: true,
-          price: true,
-        },
-      }),
-      // Lifetime creator earnings — only counts COMPLETED purchases of
-      // assets this user uploaded.
-      prisma.purchase.aggregate({
-        where: {
-          status: "COMPLETED",
-          asset: { uploaderId: session.user.id },
-        },
-        _sum: { creatorEarning: true },
-        _count: { _all: true },
-      }),
-    ]);
+      },
+    }),
+    prisma.asset.findMany({
+      where: { uploaderId: session.user.id, status: "APPROVED" },
+      orderBy: { downloads: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        previewKey: true,
+        downloads: true,
+        price: true,
+      },
+    }),
+    prisma.purchase.aggregate({
+      where: {
+        status: "COMPLETED",
+        asset: { uploaderId: session.user.id },
+      },
+      _sum: { creatorEarning: true },
+      _count: { _all: true },
+    }),
+    prisma.asset.count({
+      where: { uploaderId: session.user.id, status: "PENDING" },
+    }),
+    prisma.payout.findFirst({
+      where: {
+        creatorId: session.user.id,
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+      select: { id: true, amount: true, status: true },
+    }),
+    // 30-day windows for trend deltas — count purchases and creator-
+    // side sales separately so each stat card can show its own arrow.
+    prisma.purchase.count({
+      where: {
+        buyerId: session.user.id,
+        status: "COMPLETED",
+        createdAt: { gte: thirtyAgo },
+      },
+    }),
+    prisma.purchase.count({
+      where: {
+        buyerId: session.user.id,
+        status: "COMPLETED",
+        createdAt: { gte: sixtyAgo, lt: thirtyAgo },
+      },
+    }),
+    prisma.purchase.count({
+      where: {
+        status: "COMPLETED",
+        asset: { uploaderId: session.user.id },
+        createdAt: { gte: thirtyAgo },
+      },
+    }),
+    prisma.purchase.count({
+      where: {
+        status: "COMPLETED",
+        asset: { uploaderId: session.user.id },
+        createdAt: { gte: sixtyAgo, lt: thirtyAgo },
+      },
+    }),
+  ]);
 
   if (!user) return null;
 
@@ -116,6 +223,21 @@ export default async function DashboardHome() {
   const salesCount = salesAgg._count._all;
   const hasAnyUpload = recentUploads.length > 0;
   const hasAnyPurchase = recentPurchases.length > 0;
+  const hasAnySales = recentSales.length > 0;
+
+  // ── Action items (only shown when there's something to surface) ────
+  // Five conditions, evaluated in priority order. The first one with
+  // signal renders at the top of the dashboard with a clear CTA.
+  const actionItems = buildActionItems({
+    role: user.role,
+    kycStatus: user.kycStatus,
+    balance: user.balance,
+    pendingAssetsCount,
+    inflightPayout,
+  });
+
+  const purchaseDelta = delta(purchases30d, purchases60d);
+  const salesDelta = delta(sales30d, sales60d);
 
   const stats = [
     {
@@ -125,6 +247,7 @@ export default async function DashboardHome() {
       href: "/dashboard/library",
       accent:
         "from-violet-500/15 to-violet-500/0 text-violet-300 border-violet-400/25",
+      delta: purchaseDelta,
     },
     {
       label: "Uploaded",
@@ -133,6 +256,7 @@ export default async function DashboardHome() {
       href: "/dashboard/uploads",
       accent:
         "from-pink-500/15 to-pink-500/0 text-pink-300 border-pink-400/25",
+      delta: null,
     },
     {
       label: "Sales",
@@ -141,6 +265,7 @@ export default async function DashboardHome() {
       href: "/dashboard/earnings",
       accent:
         "from-emerald-500/15 to-emerald-500/0 text-emerald-300 border-emerald-400/25",
+      delta: salesDelta,
     },
     {
       label: "Available balance",
@@ -148,16 +273,14 @@ export default async function DashboardHome() {
       icon: DollarSign,
       href: "/dashboard/earnings",
       accent: "from-gold/15 to-gold/0 text-gold border-gold/25",
+      delta: null,
     },
   ];
 
   return (
-    <div className="space-y-8">
-      {/* ─── Hero ────────────────────────────────────────────────────────
-          Time-of-day greeting + larger avatar + role badge + tagline
-          tailored to the account role. Anchors the page emotionally. */}
+    <div className="space-y-6 sm:space-y-8">
+      {/* ─── Hero ────────────────────────────────────────────────────── */}
       <header className="relative overflow-hidden rounded-2xl border border-border bg-surface p-6 sm:p-7">
-        {/* Soft violet glow tucked in the corner — premium ambient touch */}
         <div
           aria-hidden
           className="pointer-events-none absolute -top-16 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl"
@@ -176,18 +299,72 @@ export default async function DashboardHome() {
               </span>
             </div>
             <p className="text-sm text-muted mt-1">
-              {user.role === "ADMIN"
-                ? "Here's your studio overview — manage assets, payouts, and creators."
-                : "Here's your creator overview — track uploads, sales, and earnings."}
+              {actionItems.length > 0
+                ? `You have ${actionItems.length} item${actionItems.length === 1 ? "" : "s"} that need your attention.`
+                : user.role === "ADMIN"
+                  ? "Here's your studio overview — manage assets, payouts, and creators."
+                  : "Here's your creator overview — track uploads, sales, and earnings."}
             </p>
           </div>
         </div>
       </header>
 
-      {/* ─── Stats ───────────────────────────────────────────────────────
-          Four cards. Each is a Link so the whole tile is clickable. The
-          icon plate inherits a per-card colour gradient so the row reads
-          as a balanced palette rather than four identical violet boxes. */}
+      {/* ─── Needs-your-attention panel ───────────────────────────────
+          Only rendered when there's at least one action item. Lives at
+          the top of the page so it's the first thing the user sees
+          after the greeting. Each row carries its own CTA. */}
+      {actionItems.length > 0 && (
+        <section className="rounded-2xl border border-gold/30 bg-gradient-to-br from-gold-muted via-gold-muted/40 to-transparent overflow-hidden">
+          <header className="flex items-center justify-between px-5 py-3 border-b border-gold/20">
+            <div className="inline-flex items-center gap-2">
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full rounded-full bg-gold opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-gold" />
+              </span>
+              <Bell className="w-4 h-4 text-gold" />
+              <h2 className="text-sm font-semibold text-primary">
+                Needs your attention
+              </h2>
+            </div>
+            <span className="text-xs font-semibold text-gold/90 tabular-nums">
+              {actionItems.length}
+            </span>
+          </header>
+          <ul className="divide-y divide-gold/10">
+            {actionItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    className="group flex items-center gap-3 p-4 sm:p-5 hover:bg-gold/5 transition-colors"
+                  >
+                    <span
+                      className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${item.tone}`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-primary">
+                        {item.title}
+                      </div>
+                      <div className="text-xs text-muted mt-0.5">
+                        {item.body}
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-gold inline-flex items-center gap-1 shrink-0">
+                      {item.cta}
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* ─── Stats ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s) => {
           const Icon = s.icon;
@@ -212,19 +389,23 @@ export default async function DashboardHome() {
               <div className="relative text-xl sm:text-2xl font-bold text-primary tabular-nums">
                 {s.value}
               </div>
-              <div className="relative text-[11px] sm:text-xs text-muted mt-0.5 uppercase tracking-wider">
-                {s.label}
+              <div className="relative flex items-center justify-between gap-2 mt-0.5">
+                <span className="text-[11px] sm:text-xs text-muted uppercase tracking-wider">
+                  {s.label}
+                </span>
+                {s.delta && s.delta.pct !== null && <DeltaPill delta={s.delta} />}
               </div>
             </Link>
           );
         })}
       </div>
 
-      {/* ─── Two-column work area ────────────────────────────────────────
-          Recent uploads on the left, recent purchases on the right.
-          Each card has a clear header + a stacked list of avatars + a
-          "see all" footer link. Stacks to one column on phone. */}
-      <div className="grid lg:grid-cols-2 gap-5">
+      {/* ─── Recent uploads + Recent activity (sales OR purchases) ────
+          Creators see "Recent sales" on the right — feedback loop from
+          their own uploads. Buyers (or creators with no sales yet) see
+          "Recent purchases". This makes the panel always useful regardless
+          of where the user is in their journey. */}
+      <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
         <Panel
           title="Recent uploads"
           icon={Upload}
@@ -273,49 +454,96 @@ export default async function DashboardHome() {
           </ul>
         </Panel>
 
-        <Panel
-          title="Recent purchases"
-          icon={ShoppingBag}
-          seeAllHref="/dashboard/library"
-          empty={
-            !hasAnyPurchase && (
-              <EmptyState
-                title="No purchases yet"
-                body="Browse the marketplace and pick up your first asset."
-                ctaLabel="Browse marketplace"
-                ctaHref="/explore"
-              />
-            )
-          }
-        >
-          <ul className="divide-y divide-border">
-            {recentPurchases.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={`/explore/${p.asset.id}`}
-                  className="group flex items-center gap-3 p-3 sm:p-4 hover:bg-elevated/50 transition-colors"
-                >
-                  <Thumbnail src={p.asset.previewKey} alt={p.asset.title} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-primary truncate group-hover:text-accent-light transition-colors">
-                      {p.asset.title}
+        {hasAnySales ? (
+          <Panel
+            title="Recent sales"
+            icon={TrendingUp}
+            seeAllHref="/dashboard/earnings"
+          >
+            <ul className="divide-y divide-border">
+              {recentSales.map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href={`/explore/${s.asset.id}`}
+                    className="group flex items-center gap-3 p-3 sm:p-4 hover:bg-elevated/50 transition-colors"
+                  >
+                    <Avatar
+                      src={s.buyer.image}
+                      name={s.buyer.name ?? s.buyer.email}
+                      size={32}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-primary truncate">
+                        <span className="text-secondary font-normal">
+                          {s.buyer.name ?? "Someone"} bought
+                        </span>{" "}
+                        <span className="group-hover:text-accent-light transition-colors">
+                          {s.asset.title}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted mt-0.5 inline-flex items-center gap-2">
+                        <Clock className="w-3 h-3" />
+                        {formatRelativeTime(s.createdAt)}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted mt-0.5 inline-flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      {formatRelativeTime(p.createdAt)}
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-semibold text-info tabular-nums">
+                        +{formatMoney(s.creatorEarning)}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted">
+                        Earned
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs font-medium text-secondary shrink-0 tabular-nums">
-                    {formatPrice(p.asset.price)}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Panel>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        ) : (
+          <Panel
+            title="Recent purchases"
+            icon={ShoppingBag}
+            seeAllHref="/dashboard/library"
+            empty={
+              !hasAnyPurchase && (
+                <EmptyState
+                  title="No purchases yet"
+                  body="Browse the marketplace and pick up your first asset."
+                  ctaLabel="Browse marketplace"
+                  ctaHref="/explore"
+                />
+              )
+            }
+          >
+            <ul className="divide-y divide-border">
+              {recentPurchases.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/explore/${p.asset.id}`}
+                    className="group flex items-center gap-3 p-3 sm:p-4 hover:bg-elevated/50 transition-colors"
+                  >
+                    <Thumbnail src={p.asset.previewKey} alt={p.asset.title} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-primary truncate group-hover:text-accent-light transition-colors">
+                        {p.asset.title}
+                      </div>
+                      <div className="text-xs text-muted mt-0.5 inline-flex items-center gap-2">
+                        <Clock className="w-3 h-3" />
+                        {formatRelativeTime(p.createdAt)}
+                      </div>
+                    </div>
+                    <div className="text-xs font-medium text-secondary shrink-0 tabular-nums">
+                      {formatPrice(p.asset.price)}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
       </div>
 
-      {/* ─── Top-performing assets (creator only) ────────────────────── */}
+      {/* ─── Top-performing assets (creator only) ─────────────────── */}
       {topAssets.length > 0 && (
         <Panel
           title="Top performing assets"
@@ -352,7 +580,7 @@ export default async function DashboardHome() {
         </Panel>
       )}
 
-      {/* ─── Lifetime earnings highlight (creator only) ──────────────── */}
+      {/* ─── Lifetime earnings highlight (creator only) ─────────────── */}
       {lifetimeEarned > 0 && (
         <Link
           href="/dashboard/earnings"
@@ -382,11 +610,123 @@ export default async function DashboardHome() {
   );
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────
+
+interface ActionItem {
+  id: string;
+  icon: typeof Bell;
+  tone: string;
+  title: string;
+  body: string;
+  cta: string;
+  href: string;
+}
+
 /**
- * Reusable card wrapper for the dashboard's grouped lists. Each panel
- * has the same header + body + footer rhythm so the page reads as a
- * coherent dashboard rather than a stack of one-off cards.
+ * Build the "Needs your attention" list. Priorities, top-to-bottom:
+ *  1. In-flight payout — the most actionable signal (status update).
+ *  2. Pending asset reviews — creator wants to know about the queue.
+ *  3. KYC not verified — blocks payouts entirely.
+ *  4. Balance ready for payout — earnings sitting idle.
+ *
+ * Returns the rendered items in that priority order. Empty array means
+ * nothing to surface and the whole panel is hidden.
  */
+function buildActionItems(input: {
+  role: string;
+  kycStatus: string;
+  balance: number;
+  pendingAssetsCount: number;
+  inflightPayout: { status: string; amount: number } | null;
+}): ActionItem[] {
+  const items: ActionItem[] = [];
+
+  if (input.inflightPayout) {
+    items.push({
+      id: "inflight-payout",
+      icon: Banknote,
+      tone: "bg-info-muted text-info border-info/30",
+      title: `Payout ${input.inflightPayout.status.toLowerCase()}`,
+      body: `${formatMoney(input.inflightPayout.amount)} is on the way — usually 1-3 business days.`,
+      cta: "View status",
+      href: "/dashboard/earnings",
+    });
+  }
+
+  if (input.pendingAssetsCount > 0) {
+    items.push({
+      id: "pending-assets",
+      icon: FileCheck,
+      tone: "bg-gold-muted text-gold border-gold/30",
+      title: `${input.pendingAssetsCount} asset${
+        input.pendingAssetsCount === 1 ? "" : "s"
+      } awaiting review`,
+      body: "An admin typically approves new uploads within 1 business day.",
+      cta: "See queue",
+      href: "/dashboard/uploads",
+    });
+  }
+
+  if (input.kycStatus !== "VERIFIED" && input.role !== "USER") {
+    items.push({
+      id: "kyc",
+      icon: ShieldCheck,
+      tone: "bg-danger-muted text-danger border-danger/30",
+      title: "KYC verification required",
+      body: "Verify your identity to unlock bank payouts. Takes 2 minutes.",
+      cta: "Start KYC",
+      href: "/dashboard/kyc",
+    });
+  }
+
+  if (
+    !input.inflightPayout &&
+    input.kycStatus === "VERIFIED" &&
+    input.balance >= MIN_PAYOUT_PAISE
+  ) {
+    items.push({
+      id: "payout-ready",
+      icon: Banknote,
+      tone: "bg-emerald-500/10 text-emerald-300 border-emerald-400/30",
+      title: `${formatMoney(input.balance)} ready to withdraw`,
+      body: "Request a payout — funds typically arrive in 1-3 business days.",
+      cta: "Request payout",
+      href: "/dashboard/earnings",
+    });
+  }
+
+  return items;
+}
+
+function DeltaPill({
+  delta,
+}: {
+  delta: { pct: number | null; direction: "up" | "down" | "flat" };
+}) {
+  if (delta.pct === null) return null;
+  const Icon =
+    delta.direction === "up"
+      ? ArrowUpRight
+      : delta.direction === "down"
+        ? ArrowDownRight
+        : Minus;
+  const tone =
+    delta.direction === "up"
+      ? "text-info"
+      : delta.direction === "down"
+        ? "text-danger"
+        : "text-muted";
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-[10px] font-semibold tabular-nums ${tone}`}
+      title="vs prior 30 days"
+    >
+      <Icon className="w-3 h-3" />
+      {Math.abs(delta.pct)}%
+    </span>
+  );
+}
+
 function Panel({
   title,
   icon: Icon,
@@ -454,6 +794,9 @@ function EmptyState({
 }) {
   return (
     <div className="text-center py-4">
+      <div className="inline-flex w-10 h-10 rounded-full bg-accent-muted border border-accent/20 text-accent-light items-center justify-center mb-3">
+        <CheckCircle2 className="w-5 h-5" />
+      </div>
       <p className="text-sm font-medium text-primary">{title}</p>
       <p className="text-xs text-muted mt-1">{body}</p>
       <Link
@@ -466,3 +809,4 @@ function EmptyState({
     </div>
   );
 }
+
