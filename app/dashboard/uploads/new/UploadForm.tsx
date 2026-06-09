@@ -91,6 +91,43 @@ const CATEGORY_TO_FILE_TYPE: Record<string, string> = {
   "svg-icons": "SVG_ICON",
 };
 
+// Inverse map — when a creator drops a file we infer the file type from
+// the extension and snap the category to the matching slug. Default
+// category for MODEL_3D is "3d-models" rather than "3d-icons" because
+// the average .glb upload is a full model, not an icon.
+const FILE_TYPE_TO_DEFAULT_CATEGORY: Record<string, string> = {
+  MODEL_3D: "3d-models",
+  LOTTIE: "lottie",
+  SVG_ICON: "svg-icons",
+};
+
+const EXTENSION_TO_FILE_TYPE: Record<string, string> = {
+  glb: "MODEL_3D",
+  gltf: "MODEL_3D",
+  json: "LOTTIE",
+  lottie: "LOTTIE",
+  svg: "SVG_ICON",
+};
+
+/**
+ * Turn `crystal-octahedron_pack.glb` into `Crystal Octahedron Pack`.
+ * Used to pre-fill the title field when the creator picks a file and
+ * the title is still empty — saves them a typing step.
+ */
+function humanizeFilename(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  const base = dot > 0 ? filename.slice(0, dot) : filename;
+  return base
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+    .slice(0, 100);
+}
+
 // Per-file-type guidance shown right under the file-picker so creators know
 // exactly what to upload and what each format does.
 const FILE_TYPE_HINTS: Record<string, { what: string; note: string }> = {
@@ -168,13 +205,38 @@ export function UploadForm() {
     .join(",");
   const allowedLabel = allowedExtensions.map((e) => `.${e}`).join(", ");
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  /**
+   * Accept an incoming asset file from either the <input> change event
+   * or a drag-and-drop. Auto-detects the file type from the extension so
+   * the creator doesn't have to manually flip the Category / File-type
+   * selectors, AND auto-fills the title from the filename if it's still
+   * blank. The form stays editable — anything we infer is just a sensible
+   * default, the user can override.
+   */
+  function pickAssetFile(f: File): void {
     const ext = getExtension(f.name);
-    if (!allowedExtensions.includes(ext)) {
+
+    // If the extension cleanly maps to a known file type, snap the form
+    // to it BEFORE running the per-type validation. That way dropping a
+    // .json file into the form while it's still set to MODEL_3D (the
+    // default) re-targets it to LOTTIE instead of rejecting it.
+    const detectedType = EXTENSION_TO_FILE_TYPE[ext];
+    if (detectedType && detectedType !== fileType) {
+      setFileType(detectedType);
+      const defaultCategory = FILE_TYPE_TO_DEFAULT_CATEGORY[detectedType];
+      if (defaultCategory && defaultCategory !== category) {
+        setCategory(defaultCategory);
+        setSubcategory(""); // category changed → stale subcategory
+      }
+    }
+
+    // Re-derive the allowed list based on the (possibly just-flipped)
+    // file type so a freshly-detected file still passes validation.
+    const allowedAfterDetect =
+      EXTENSIONS_BY_TYPE[(detectedType ?? fileType) as FileType] ?? [];
+    if (!allowedAfterDetect.includes(ext)) {
       setError(
-        `A ".${ext}" file isn't valid for this asset type. Accepted: ${allowedLabel}.`
+        `A ".${ext}" file isn't valid for this asset type. Accepted: ${allowedAfterDetect.map((e) => `.${e}`).join(", ")}.`
       );
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
@@ -185,6 +247,19 @@ export function UploadForm() {
     }
     setError(null);
     setFile(f);
+
+    // Auto-fill title from filename if the creator hasn't typed anything.
+    // Respect their input if they already started — don't overwrite.
+    if (title.trim().length === 0) {
+      const suggested = humanizeFilename(f.name);
+      if (suggested) setTitle(suggested);
+    }
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    pickAssetFile(f);
   }
 
   // Changing the file type can invalidate an already-picked file — drop it
@@ -450,38 +525,213 @@ export function UploadForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-6">
       <FormError message={error} />
 
-      <Input
-        label="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
-        minLength={3}
-        maxLength={100}
-        placeholder="e.g. Crystal Octahedron Pack"
-      />
+      {/* ─── Step 1: Files ──────────────────────────────────────────────
+          Files first. Dropping a .glb auto-flips Category + File-type to
+          match, and the filename pre-fills the Title field below. */}
+      <section className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <header className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-lg bg-accent-muted border border-accent/20 text-accent-light text-sm font-bold flex items-center justify-center shrink-0 tabular-nums">
+            1
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-primary">
+              Drop your files
+            </h2>
+            <p className="text-xs text-muted mt-0.5">
+              Drag & drop straight from your file manager — we&apos;ll
+              detect the format and pre-fill the rest.
+            </p>
+          </div>
+        </header>
 
-      <div className="w-full">
-        <label htmlFor="description" className="block text-xs font-medium text-secondary mb-2">
-          Description
-        </label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-          minLength={10}
-          maxLength={2000}
-          rows={4}
-          placeholder="What's in this pack? Polygon count, materials, intended use…"
-          className="w-full px-4 py-3 bg-input border border-border rounded-lg text-sm text-primary placeholder:text-muted/70 focus:outline-none focus:bg-surface focus:border-border-focus transition-all resize-y"
+        {/* Asset file picker — drives auto-detection of category and
+            file type, and prefills the title from the filename. */}
+        <FilePicker
+          label={
+            fileType === "LOTTIE"
+              ? "Lottie source (.json or .lottie)"
+              : "Asset file"
+          }
+          sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
+          icon={FileBox}
+          file={file}
+          accept={fileAccept}
+          inputRef={fileInputRef}
+          onChange={onFileChange}
+          onClear={clearFile}
         />
-        <p className="mt-1.5 text-xs text-muted">{description.length}/2000</p>
-      </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
+        {/* Preview image picker */}
+        <FilePicker
+          label="Preview image"
+          sublabel="PNG, JPEG, or WebP · max 5 MB"
+          icon={ImageIcon}
+          file={preview}
+          previewSrc={previewUrl ?? undefined}
+          accept="image/png,image/jpeg,image/webp"
+          inputRef={previewInputRef}
+          onChange={onPreviewChange}
+          onClear={clearPreview}
+        />
+
+        {/* 3D bundle companions — only visible when MODEL_3D */}
+        {fileType === "MODEL_3D" && (
+          <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
+            <div className="flex items-start gap-2.5">
+              <Boxes className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-primary">
+                  Optional alternate formats
+                </h3>
+                <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                  Ship the same model in additional formats. Buyers pick
+                  which one to download from the format menu on the asset
+                  page — useful for game engines, legacy DCC tools, and
+                  Apple AR.
+                </p>
+              </div>
+            </div>
+
+            <FilePicker
+              label="FBX export (optional)"
+              sublabel="Single .fbx — max 30 MB. Best for Unity / Unreal pipelines."
+              icon={Box}
+              file={modelFbx}
+              accept=".fbx,application/octet-stream"
+              inputRef={modelFbxRef}
+              onChange={onModelFbxChange}
+              onClear={clearModelFbx}
+            />
+
+            <FilePicker
+              label="OBJ export (optional)"
+              sublabel="Single .obj — max 20 MB. Universal text format, no animations."
+              icon={Box}
+              file={modelObj}
+              accept=".obj,model/obj,text/plain"
+              inputRef={modelObjRef}
+              onChange={onModelObjChange}
+              onClear={clearModelObj}
+            />
+
+            <FilePicker
+              label="USDZ export (optional)"
+              sublabel="Single .usdz — max 20 MB. Apple AR Quick Look / Vision Pro."
+              icon={Box}
+              file={modelUsdz}
+              accept=".usdz,model/vnd.usdz+zip,application/zip"
+              inputRef={modelUsdzRef}
+              onChange={onModelUsdzChange}
+              onClear={clearModelUsdz}
+            />
+          </div>
+        )}
+
+        {/* Lottie bundle companions — only visible when LOTTIE */}
+        {fileType === "LOTTIE" && (
+          <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
+            <div className="flex items-start gap-2.5">
+              <Film className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-primary">
+                  Optional bundle companions
+                </h3>
+                <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                  Add a GIF and/or MP4 export of the same animation. Buyers
+                  download all formats together as a ZIP, with a per-buyer
+                  LICENSE.txt included automatically.
+                </p>
+              </div>
+            </div>
+
+            <FilePicker
+              label="GIF preview (optional)"
+              sublabel="Single .gif — max 15 MB. Used as a fallback for environments without Lottie support."
+              icon={ImagePlay}
+              file={lottieGif}
+              accept=".gif,image/gif"
+              inputRef={lottieGifRef}
+              onChange={onLottieGifChange}
+              onClear={clearLottieGif}
+            />
+
+            <FilePicker
+              label="MP4 render (optional)"
+              sublabel="Single .mp4 — max 25 MB. Useful for social/video tools that can't import Lottie."
+              icon={Film}
+              file={lottieMp4}
+              accept=".mp4,video/mp4"
+              inputRef={lottieMp4Ref}
+              onChange={onLottieMp4Change}
+              onClear={clearLottieMp4}
+            />
+          </div>
+        )}
+
+        {/* Per-type guidance — keeps the format hint inside the Files
+            step so creators see it next to the picker, not 200px away
+            in a separate block below the details. */}
+        {FILE_TYPE_HINTS[fileType] && (
+          <div className="rounded-lg border border-border bg-elevated/40 p-3 space-y-1.5">
+            <p className="text-xs text-primary leading-relaxed">
+              <span className="font-semibold">What to upload:</span>{" "}
+              {FILE_TYPE_HINTS[fileType].what}
+            </p>
+            <p className="text-xs text-muted leading-relaxed">
+              {FILE_TYPE_HINTS[fileType].note}
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* ─── Step 2: Details ─────────────────────────────────────────── */}
+      <section className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <header className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-lg bg-accent-muted border border-accent/20 text-accent-light text-sm font-bold flex items-center justify-center shrink-0 tabular-nums">
+            2
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-primary">
+              Asset details
+            </h2>
+            <p className="text-xs text-muted mt-0.5">
+              The title is pre-filled from the filename — feel free to edit.
+            </p>
+          </div>
+        </header>
+
+        <Input
+          label="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          minLength={3}
+          maxLength={100}
+          placeholder="e.g. Crystal Octahedron Pack"
+        />
+
+        <div className="w-full">
+          <label htmlFor="description" className="block text-xs font-medium text-secondary mb-2">
+            Description
+          </label>
+          <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+            minLength={10}
+            maxLength={2000}
+            rows={4}
+            placeholder="What's in this pack? Polygon count, materials, intended use…"
+            className="w-full px-4 py-3 bg-input border border-border rounded-lg text-sm text-primary placeholder:text-muted/70 focus:outline-none focus:bg-surface focus:border-border-focus transition-all resize-y"
+          />
+          <p className="mt-1.5 text-xs text-muted">{description.length}/2000</p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="category" className="block text-xs font-medium text-secondary mb-2">
             Category
@@ -567,152 +817,10 @@ export function UploadForm() {
           hint="Comma-separated, up to 10"
         />
       </div>
+      </section>
 
-      {/* Preview image picker */}
-      <FilePicker
-        label="Preview image"
-        sublabel="PNG, JPEG, or WebP · max 5 MB"
-        icon={ImageIcon}
-        file={preview}
-        previewSrc={previewUrl ?? undefined}
-        accept="image/png,image/jpeg,image/webp"
-        inputRef={previewInputRef}
-        onChange={onPreviewChange}
-        onClear={clearPreview}
-      />
-
-      {/* Asset file picker */}
-      <FilePicker
-        label={
-          fileType === "LOTTIE" ? "Lottie source (.json or .lottie)" : "Asset file"
-        }
-        sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
-        icon={FileBox}
-        file={file}
-        accept={fileAccept}
-        inputRef={fileInputRef}
-        onChange={onFileChange}
-        onClear={clearFile}
-      />
-
-      {/* 3D bundle companions — only visible when the asset type is
-          MODEL_3D. The main .glb/.gltf still drives the in-browser
-          viewer; these are alternate-format exports the buyer can pick
-          at download time (Unity / Unreal pipelines prefer .fbx,
-          legacy tools prefer .obj, Apple AR prefers .usdz). */}
-      {fileType === "MODEL_3D" && (
-        <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
-          <div className="flex items-start gap-2.5">
-            <Boxes className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
-            <div>
-              <h3 className="text-sm font-semibold text-primary">
-                Optional alternate formats
-              </h3>
-              <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                Ship the same model in additional formats. Buyers pick
-                which one to download from the format menu on the asset
-                page — useful for game engines, legacy DCC tools, and
-                Apple AR.
-              </p>
-            </div>
-          </div>
-
-          <FilePicker
-            label="FBX export (optional)"
-            sublabel="Single .fbx — max 30 MB. Best for Unity / Unreal pipelines."
-            icon={Box}
-            file={modelFbx}
-            accept=".fbx,application/octet-stream"
-            inputRef={modelFbxRef}
-            onChange={onModelFbxChange}
-            onClear={clearModelFbx}
-          />
-
-          <FilePicker
-            label="OBJ export (optional)"
-            sublabel="Single .obj — max 20 MB. Universal text format, no animations."
-            icon={Box}
-            file={modelObj}
-            accept=".obj,model/obj,text/plain"
-            inputRef={modelObjRef}
-            onChange={onModelObjChange}
-            onClear={clearModelObj}
-          />
-
-          <FilePicker
-            label="USDZ export (optional)"
-            sublabel="Single .usdz — max 20 MB. Apple AR Quick Look / Vision Pro."
-            icon={Box}
-            file={modelUsdz}
-            accept=".usdz,model/vnd.usdz+zip,application/zip"
-            inputRef={modelUsdzRef}
-            onChange={onModelUsdzChange}
-            onClear={clearModelUsdz}
-          />
-        </div>
-      )}
-
-      {/* Lottie bundle companions — only visible when the asset type is
-          LOTTIE. Both fields are OPTIONAL — a Lottie pack can ship JSON-only
-          or with one/both companion formats. When the buyer downloads, the
-          server ZIPs whatever the creator provided plus the LICENSE.txt. */}
-      {fileType === "LOTTIE" && (
-        <div className="space-y-4 rounded-xl border border-accent/20 bg-accent-muted/30 p-4">
-          <div className="flex items-start gap-2.5">
-            <Film className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
-            <div>
-              <h3 className="text-sm font-semibold text-primary">
-                Optional bundle companions
-              </h3>
-              <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                Add a GIF and/or MP4 export of the same animation. Buyers
-                download all formats together as a ZIP, with a per-buyer
-                LICENSE.txt included automatically.
-              </p>
-            </div>
-          </div>
-
-          <FilePicker
-            label="GIF preview (optional)"
-            sublabel="Single .gif — max 15 MB. Used as a fallback for environments without Lottie support."
-            icon={ImagePlay}
-            file={lottieGif}
-            accept=".gif,image/gif"
-            inputRef={lottieGifRef}
-            onChange={onLottieGifChange}
-            onClear={clearLottieGif}
-          />
-
-          <FilePicker
-            label="MP4 render (optional)"
-            sublabel="Single .mp4 — max 25 MB. Useful for social/video tools that can't import Lottie."
-            icon={Film}
-            file={lottieMp4}
-            accept=".mp4,video/mp4"
-            inputRef={lottieMp4Ref}
-            onChange={onLottieMp4Change}
-            onClear={clearLottieMp4}
-          />
-        </div>
-      )}
-
-      {/* Per-type guidance — sits under the file picker so creators know
-          exactly what format they should be uploading and what buyers will
-          see on the asset page. Each entry is keyed by fileType in
-          FILE_TYPE_HINTS at the top of the file. */}
-      {FILE_TYPE_HINTS[fileType] && (
-        <div className="rounded-lg border border-border bg-elevated/40 p-3 space-y-1.5">
-          <p className="text-xs text-primary leading-relaxed">
-            <span className="font-semibold">What to upload:</span>{" "}
-            {FILE_TYPE_HINTS[fileType].what}
-          </p>
-          <p className="text-xs text-muted leading-relaxed">
-            {FILE_TYPE_HINTS[fileType].note}
-          </p>
-        </div>
-      )}
-
-      <div className="pt-2">
+      {/* ─── Submit footer ───────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         {loading && (
           <div className="mb-3">
             <div className="flex items-center justify-between text-xs mb-1.5">
@@ -750,6 +858,18 @@ export function UploadForm() {
   );
 }
 
+/**
+ * File picker with drag-and-drop. The dashed drop zone becomes the entire
+ * empty-state surface — creators can either click to open the OS picker
+ * or drop the file straight from their file manager. Once a file is
+ * attached the zone collapses to a compact row showing name + size + a
+ * Remove button.
+ *
+ * Drag state is tracked on the wrapper so the border lights up the moment
+ * a dragged file enters the zone, even if the cursor never reaches the
+ * inner <label>. Counters guard against rapid enter/leave from child
+ * elements firing dragleave when we're still inside the zone.
+ */
 function FilePicker({
   label,
   sublabel,
@@ -771,6 +891,42 @@ function FilePicker({
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClear: () => void;
 }) {
+  const [dragging, setDragging] = useState(0);
+
+  function onDragEnter(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer?.types?.includes("Files")) {
+      setDragging((n) => n + 1);
+    }
+  }
+  function onDragOver(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging((n) => Math.max(0, n - 1));
+  }
+  function onDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(0);
+    const dropped = e.dataTransfer?.files?.[0];
+    if (!dropped) return;
+    // Synthesise a change event so the form's existing handler runs the
+    // same validation path it does for the OS file picker.
+    if (inputRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(dropped);
+      inputRef.current.files = dt.files;
+      const evt = new Event("change", { bubbles: true });
+      inputRef.current.dispatchEvent(evt);
+    }
+  }
+
   return (
     <div className="w-full">
       <label className="block text-xs font-medium text-secondary mb-2">
@@ -807,11 +963,23 @@ function FilePicker({
       ) : (
         <label
           htmlFor={`${label}-input`}
-          className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed border-border bg-surface/50 hover:border-accent/40 hover:bg-elevated cursor-pointer transition-colors"
+          onDragEnter={onDragEnter}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+            dragging > 0
+              ? "border-accent bg-accent-muted/60"
+              : "border-border bg-surface/50 hover:border-accent/40 hover:bg-elevated"
+          }`}
         >
-          <Icon className="w-6 h-6 text-muted" />
+          <Icon
+            className={`w-6 h-6 transition-colors ${
+              dragging > 0 ? "text-accent-light" : "text-muted"
+            }`}
+          />
           <div className="text-sm font-medium text-secondary">
-            Click to choose a file
+            {dragging > 0 ? "Drop to upload" : "Drag & drop, or click to choose"}
           </div>
           <div className="text-xs text-muted">{sublabel}</div>
         </label>
