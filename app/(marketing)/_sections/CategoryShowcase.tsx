@@ -50,7 +50,7 @@ async function fetchCategoryAssets(categorySlug: string) {
     return await prisma.asset.findMany({
       where: { status: "APPROVED", category: categorySlug },
       orderBy: { createdAt: "desc" },
-      take: 6,
+      take: 3,
       select: {
         id: true,
         title: true,
@@ -137,7 +137,7 @@ export async function CategoryShowcase({
         </Link>
       </div>
 
-      <div className="scroll-row scroll-row--cols-2 scroll-row--cols-3">
+      <div className="scroll-row scroll-row--cols-3-at-sm">
         {items.map((asset) => (
           <div key={asset.id}>
             <AssetCard asset={asset} />

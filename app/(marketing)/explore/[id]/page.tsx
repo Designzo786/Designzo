@@ -514,7 +514,7 @@ export default async function AssetDetailPage({
               View all →
             </Link>
           </div>
-          <div className="scroll-row scroll-row--cols-2 scroll-row--cols-3">
+          <div className="scroll-row scroll-row--cols-3-at-sm">
             {related.map((a) => (
               <div key={a.id}>
                 <AssetCard asset={a} />

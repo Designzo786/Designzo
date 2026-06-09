@@ -22,7 +22,7 @@ const fetchJustLanded = unstable_cache(
       return await prisma.asset.findMany({
         where: { status: "APPROVED" },
         orderBy: { createdAt: "desc" },
-        take: 6,
+        take: 3,
         select: {
           id: true,
           title: true,
@@ -80,8 +80,8 @@ export async function JustLanded() {
             Fresh drops, straight from the studio
           </h2>
           <p className="mt-2 text-sm sm:text-base text-secondary max-w-lg">
-            The six most recent assets to clear our review queue. New every
-            day.
+            The three most recent assets to clear our review queue. New
+            every day.
           </p>
         </div>
         <Link
@@ -94,7 +94,7 @@ export async function JustLanded() {
         </Link>
       </div>
 
-      <div className="scroll-row scroll-row--cols-2 scroll-row--cols-3">
+      <div className="scroll-row scroll-row--cols-3-at-sm">
         {items.map((asset) => (
           <div key={asset.id}>
             <AssetCard asset={asset} />

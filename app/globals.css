@@ -720,6 +720,10 @@ p {
   .scroll-row > * { width: auto; }
   .scroll-row--cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .scroll-row--cols-3-at-md { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Three columns the moment we're past phone — used by home page rails
+     that ship exactly 3 cards so the row always fills cleanly (no
+     orphan card on an unbalanced second row at tablet width). */
+  .scroll-row--cols-3-at-sm { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 768px) {
   .scroll-row--cols-3-at-md { grid-template-columns: repeat(3, minmax(0, 1fr)); }

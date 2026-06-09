@@ -22,7 +22,7 @@ const fetchFeatured = unstable_cache(
       return await prisma.asset.findMany({
         where: { status: "APPROVED" },
         orderBy: { downloads: "desc" },
-        take: 6,
+        take: 3,
         select: {
           id: true,
           title: true,
@@ -82,7 +82,7 @@ export async function Showcase() {
       </div>
 
       {/* Phone: swipeable horizontal carousel; sm+: grid */}
-      <div className="scroll-row scroll-row--cols-2 scroll-row--cols-3">
+      <div className="scroll-row scroll-row--cols-3-at-sm">
         {featured.map((asset) => (
           <div key={asset.id}>
             <AssetCard asset={asset} />
