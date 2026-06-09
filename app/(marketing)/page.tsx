@@ -4,7 +4,6 @@ import { Features } from "./_sections/Features";
 import { Categories } from "./_sections/Categories";
 import { Showcase } from "./_sections/Showcase";
 import { JustLanded } from "./_sections/JustLanded";
-import { FeaturedCreators } from "./_sections/FeaturedCreators";
 import { HowItWorks } from "./_sections/HowItWorks";
 import { Testimonials } from "./_sections/Testimonials";
 import { FAQ } from "./_sections/FAQ";
@@ -46,11 +45,9 @@ export default function HomePage() {
       <TrustBar />
       <Features />
       {/* Top-downloaded popular work first, then freshest drops, then
-          the people making everything. Gives a discovery arc: popular →
-          new → who's behind it → how it all works. */}
+          how it all works. Discovery arc: popular → new → how it works. */}
       <Showcase />
       <JustLanded />
-      <FeaturedCreators />
       <HowItWorks />
       <Testimonials />
       <FAQ />
