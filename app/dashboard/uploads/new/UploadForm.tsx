@@ -11,6 +11,7 @@ import {
   ImagePlay,
   Boxes,
   Box,
+  Check,
   Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
@@ -533,10 +534,16 @@ export function UploadForm() {
           match, and the filename pre-fills the Title field below. */}
       <section className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <header className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-lg bg-accent-muted border border-accent/20 text-accent-light text-sm font-bold flex items-center justify-center shrink-0 tabular-nums">
-            1
+          <span
+            className={`w-8 h-8 rounded-lg border text-sm font-bold flex items-center justify-center shrink-0 tabular-nums transition-colors ${
+              file && preview
+                ? "bg-info-muted border-info/30 text-info"
+                : "bg-accent-muted border-accent/20 text-accent-light"
+            }`}
+          >
+            {file && preview ? <Check className="w-4 h-4" /> : "1"}
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-primary">
               Drop your files
             </h2>
@@ -545,6 +552,10 @@ export function UploadForm() {
               detect the format and pre-fill the rest.
             </p>
           </div>
+          {/* Tiny progress hint — '2 of 2 files added' */}
+          <span className="text-[11px] text-muted tabular-nums shrink-0">
+            {[file, preview].filter(Boolean).length} of 2 files
+          </span>
         </header>
 
         {/* Asset file picker — drives auto-detection of category and
@@ -690,10 +701,20 @@ export function UploadForm() {
       {/* ─── Step 2: Details ─────────────────────────────────────────── */}
       <section className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <header className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-lg bg-accent-muted border border-accent/20 text-accent-light text-sm font-bold flex items-center justify-center shrink-0 tabular-nums">
-            2
+          <span
+            className={`w-8 h-8 rounded-lg border text-sm font-bold flex items-center justify-center shrink-0 tabular-nums transition-colors ${
+              title.trim().length >= 3 && description.trim().length >= 10
+                ? "bg-info-muted border-info/30 text-info"
+                : "bg-accent-muted border-accent/20 text-accent-light"
+            }`}
+          >
+            {title.trim().length >= 3 && description.trim().length >= 10 ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              "2"
+            )}
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-primary">
               Asset details
             </h2>
@@ -703,15 +724,20 @@ export function UploadForm() {
           </div>
         </header>
 
-        <Input
-          label="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          minLength={3}
-          maxLength={100}
-          placeholder="e.g. Crystal Octahedron Pack"
-        />
+        <div>
+          <Input
+            label="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            minLength={3}
+            maxLength={100}
+            placeholder="e.g. Crystal Octahedron Pack"
+          />
+          <p className="mt-1.5 text-xs text-muted tabular-nums text-right">
+            {title.length}/100
+          </p>
+        </div>
 
         <div className="w-full">
           <label htmlFor="description" className="block text-xs font-medium text-secondary mb-2">
@@ -796,27 +822,16 @@ export function UploadForm() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Input
-          label="Price (INR)"
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="1"
-          value={priceInr}
-          onChange={(e) => setPriceInr(e.target.value)}
-          placeholder="0"
-          hint="₹ — use 0 for free assets, minimum ₹1 otherwise"
-        />
-
-        <Input
-          label="Tags"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="lowpoly, neon, abstract"
-          hint="Comma-separated, up to 10"
-        />
-      </div>
+      {/* Price & Tags get dedicated picker components instead of plain
+          number/text inputs — quick-pick presets remove the "how much
+          should I charge?" stall, and tag chips make the field feel
+          like a real curated taxonomy instead of a comma string. */}
+      <PricePicker value={priceInr} onChange={setPriceInr} />
+      <TagPicker
+        value={tags}
+        onChange={setTags}
+        categorySlug={category}
+      />
       </section>
 
       {/* ─── Submit footer ───────────────────────────────────────────── */}
@@ -855,6 +870,276 @@ export function UploadForm() {
         </p>
       </div>
     </form>
+  );
+}
+
+// ─── Price picker ────────────────────────────────────────────────────
+// Four preset buttons (Free / ₹99 / ₹249 / ₹499) plus a Custom input.
+// Most first-time creators stall on "how much should I charge?" — these
+// presets cover the realistic range for hobbyist 3D / icon / animation
+// drops and remove a small but real source of upload abandonment.
+const PRICE_PRESETS = [
+  { label: "Free", value: "0" },
+  { label: "₹99", value: "99" },
+  { label: "₹249", value: "249" },
+  { label: "₹499", value: "499" },
+] as const;
+
+function PricePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  // A preset is "active" only when the typed value exactly matches it.
+  // Anything else falls into Custom — so typing 350 keeps the input row
+  // visible and de-highlights all presets.
+  const activePreset = PRICE_PRESETS.find((p) => p.value === value);
+  const isCustom = !activePreset;
+
+  return (
+    <div>
+      <label
+        htmlFor="price"
+        className="block text-xs font-medium text-secondary mb-2"
+      >
+        Price (INR)
+      </label>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {PRICE_PRESETS.map((p) => {
+          const active = activePreset?.value === p.value;
+          return (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => onChange(p.value)}
+              className={
+                active
+                  ? "px-3 h-9 rounded-lg text-sm font-semibold border bg-accent text-white border-accent shadow-[0_0_16px_-2px_rgba(124,58,237,0.6)] transition-all"
+                  : "px-3 h-9 rounded-lg text-sm font-medium border bg-input text-secondary border-border hover:text-primary hover:border-border-hover transition-colors"
+              }
+            >
+              {p.label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() =>
+            // Switching to Custom from a preset clears the input so the
+            // creator types a fresh value instead of editing the preset.
+            onChange(activePreset ? "" : value)
+          }
+          className={
+            isCustom
+              ? "px-3 h-9 rounded-lg text-sm font-semibold border bg-accent text-white border-accent shadow-[0_0_16px_-2px_rgba(124,58,237,0.6)] transition-all"
+              : "px-3 h-9 rounded-lg text-sm font-medium border bg-input text-secondary border-border hover:text-primary hover:border-border-hover transition-colors"
+          }
+        >
+          Custom
+        </button>
+      </div>
+      {isCustom && (
+        <div className="relative">
+          <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted pointer-events-none">
+            ₹
+          </span>
+          <input
+            id="price"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="1"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="e.g. 350"
+            className="w-full h-11 pl-7 pr-4 bg-input border border-border rounded-lg text-sm text-primary placeholder:text-muted/70 focus:outline-none focus:bg-surface focus:border-border-focus transition-all"
+          />
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-muted">
+        Use 0 for free assets. Minimum paid price is ₹1.
+      </p>
+    </div>
+  );
+}
+
+// ─── Tag picker ──────────────────────────────────────────────────────
+// Chip UI with category-aware suggestions. Creators type a tag and press
+// Enter / comma / Tab to commit it; click the × to remove. Suggestions
+// live below the chips — clicking one adds it. Hard-capped at 10 tags
+// because the server-side validation also enforces that.
+const TAG_SUGGESTIONS: Record<string, string[]> = {
+  "3d-models": [
+    "low-poly",
+    "stylized",
+    "realistic",
+    "character",
+    "weapon",
+    "vehicle",
+    "prop",
+    "rigged",
+    "game-ready",
+    "pbr",
+  ],
+  "3d-icons": [
+    "ui",
+    "icon-set",
+    "isometric",
+    "rounded",
+    "minimal",
+    "glossy",
+    "outline",
+    "color",
+    "neon",
+    "gradient",
+  ],
+  lottie: [
+    "loader",
+    "spinner",
+    "success",
+    "error",
+    "onboarding",
+    "celebration",
+    "icon-animation",
+    "logo",
+    "transition",
+    "ui",
+  ],
+  "svg-icons": [
+    "outline",
+    "filled",
+    "duotone",
+    "stroked",
+    "thin",
+    "bold",
+    "ui",
+    "minimal",
+    "rounded",
+    "social",
+  ],
+};
+
+const MAX_TAGS = 10;
+
+function TagPicker({
+  value,
+  onChange,
+  categorySlug,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  categorySlug: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  // Tags live on the wire as a CSV string so the existing submit code
+  // doesn't change — convert on the fly.
+  const tags = value
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length >= 2 && t.length <= 30);
+  const tagSet = new Set(tags);
+
+  function commit(raw: string) {
+    const next = raw.trim().toLowerCase();
+    if (next.length < 2 || next.length > 30) return;
+    if (tagSet.has(next)) return;
+    if (tags.length >= MAX_TAGS) return;
+    onChange([...tags, next].join(","));
+    setDraft("");
+  }
+
+  function remove(tag: string) {
+    onChange(tags.filter((t) => t !== tag).join(","));
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+      if (draft.trim()) {
+        e.preventDefault();
+        commit(draft);
+      }
+    } else if (e.key === "Backspace" && draft === "" && tags.length > 0) {
+      // Quick-undo: backspace on an empty input pops the last chip.
+      remove(tags[tags.length - 1]);
+    }
+  }
+
+  const suggestions = (TAG_SUGGESTIONS[categorySlug] ?? []).filter(
+    (s) => !tagSet.has(s)
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label
+          htmlFor="tags-input"
+          className="text-xs font-medium text-secondary"
+        >
+          Tags
+        </label>
+        <span className="text-xs text-muted tabular-nums">
+          {tags.length}/{MAX_TAGS}
+        </span>
+      </div>
+
+      {/* Chip row + inline input */}
+      <div className="min-h-11 px-2 py-1.5 bg-input border border-border rounded-lg flex flex-wrap items-center gap-1.5 focus-within:bg-surface focus-within:border-border-focus transition-all">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 pl-2.5 pr-1 h-7 rounded-full text-xs bg-accent-muted text-accent-light border border-accent/20"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => remove(tag)}
+              aria-label={`Remove ${tag}`}
+              className="w-5 h-5 inline-flex items-center justify-center rounded-full hover:bg-accent/20 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          id="tags-input"
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => draft.trim() && commit(draft)}
+          maxLength={30}
+          placeholder={
+            tags.length === 0
+              ? "Type a tag, press Enter"
+              : tags.length >= MAX_TAGS
+                ? "Max 10 tags"
+                : "Add another"
+          }
+          disabled={tags.length >= MAX_TAGS}
+          className="flex-1 min-w-32 bg-transparent text-sm text-primary placeholder:text-muted/70 focus:outline-none disabled:cursor-not-allowed py-1"
+        />
+      </div>
+
+      {/* Suggestions for this category */}
+      {suggestions.length > 0 && tags.length < MAX_TAGS && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted">Suggested:</span>
+          {suggestions.slice(0, 8).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => commit(s)}
+              className="px-2.5 h-6 rounded-full text-[11px] bg-elevated border border-border text-secondary hover:border-accent/40 hover:text-accent-light transition-colors"
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
