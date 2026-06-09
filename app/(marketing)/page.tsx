@@ -4,6 +4,8 @@ import { Features } from "./_sections/Features";
 import { Categories } from "./_sections/Categories";
 import { Showcase } from "./_sections/Showcase";
 import { JustLanded } from "./_sections/JustLanded";
+import { CategoryShowcase } from "./_sections/CategoryShowcase";
+import { Hexagon, Sparkles, Layers } from "lucide-react";
 import { HowItWorks } from "./_sections/HowItWorks";
 import { Testimonials } from "./_sections/Testimonials";
 import { FAQ } from "./_sections/FAQ";
@@ -45,9 +47,39 @@ export default function HomePage() {
       <TrustBar />
       <Features />
       {/* Top-downloaded popular work first, then freshest drops, then
-          how it all works. Discovery arc: popular → new → how it works. */}
+          per-category rails. Each category rail auto-hides when it has
+          no APPROVED assets so a new marketplace doesn't show empty
+          'Premium Lottie' panels. Discovery arc: popular → new → by
+          format → how it works. */}
       <Showcase />
       <JustLanded />
+      <CategoryShowcase
+        categorySlug="3d-icons"
+        eyebrow="3D Icons"
+        icon={Hexagon}
+        heading="Premium 3D icons, ready for any product"
+        subheading="Royalty-free 3D icons in PNG + glTF — drop them into apps, decks, and ads."
+        pillAccent="bg-sky-500/15 border border-sky-500/25 text-sky-300"
+        ctaLabel="Browse all 3D icons"
+      />
+      <CategoryShowcase
+        categorySlug="lottie"
+        eyebrow="Lottie animations"
+        icon={Sparkles}
+        heading="Lightweight Lottie for the web"
+        subheading="Tiny JSON animations that play crisply at any size. Drop into Lottie web, dotLottie, or React in a single line."
+        pillAccent="bg-pink-500/15 border border-pink-500/25 text-pink-300"
+        ctaLabel="Browse all Lottie"
+      />
+      <CategoryShowcase
+        categorySlug="svg-icons"
+        eyebrow="SVG icons"
+        icon={Layers}
+        heading="Scalable SVG icons in every style"
+        subheading="Outline, filled, duotone — vector icons that crisp up at every size on every device."
+        pillAccent="bg-emerald-500/15 border border-emerald-500/25 text-emerald-300"
+        ctaLabel="Browse all SVG icons"
+      />
       <HowItWorks />
       <Testimonials />
       <FAQ />
