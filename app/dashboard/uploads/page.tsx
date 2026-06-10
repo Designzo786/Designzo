@@ -10,6 +10,7 @@ import {
   FileBox,
   ExternalLink,
   Download,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -197,16 +198,16 @@ export default async function UploadsPage({
       ) : (
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-160 text-sm">
+            <table className="w-full min-w-200 text-sm">
               <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
                 <tr>
-                  <th className="text-left font-medium px-4 py-3">Asset</th>
-                  <th className="text-left font-medium px-4 py-3">Type</th>
-                  <th className="text-left font-medium px-4 py-3">Price</th>
-                  <th className="text-left font-medium px-4 py-3">Downloads</th>
-                  <th className="text-left font-medium px-4 py-3">Status</th>
-                  <th className="text-left font-medium px-4 py-3">Uploaded</th>
-                  <th className="text-right font-medium px-4 py-3">Actions</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Asset</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Type</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Price</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Downloads</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Status</th>
+                  <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Uploaded</th>
+                  <th className="text-right font-medium px-4 py-3 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -292,12 +293,15 @@ export default async function UploadsPage({
                       <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
                         {formatRelativeTime(a.createdAt)}
                       </td>
-                      <td className="px-4 py-3">
-                        {/* Manage toolkit — three inline icon buttons.
-                            Open / Re-download / Delete. The whole row
-                            also navigates via the title link in the
-                            first cell; these are the explicit actions
-                            for buyers who want a more direct path. */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {/* Manage toolkit — four icon-only buttons sharing
+                            the same w-8 h-8 footprint so the column reads
+                            as one grouped control rather than a mismatched
+                            row. Open / Edit / Re-download in neutral grey
+                            with an accent hover; Delete in neutral grey
+                            with a red hover to keep destructive intent
+                            obvious without shouting at the creator on
+                            every scan. */}
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
                             href={`/explore/${a.id}`}
@@ -308,6 +312,14 @@ export default async function UploadsPage({
                             className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-accent-light hover:bg-elevated border border-border hover:border-accent/40 transition-colors"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <Link
+                            href={`/dashboard/uploads/${a.id}/edit`}
+                            title="Edit title, price, category or tags"
+                            aria-label={`Edit ${a.title}`}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-accent-light hover:bg-elevated border border-border hover:border-accent/40 transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
                           </Link>
                           <a
                             href={`/api/assets/${a.id}/download`}

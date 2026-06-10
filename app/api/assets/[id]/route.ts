@@ -5,8 +5,175 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAdminLog } from "@/lib/admin";
 import { deletePublic, deletePrivate } from "@/lib/storage";
+import { isValidSubcategory } from "@/lib/mock/assets";
 
 export const runtime = "nodejs";
+
+const VALID_CATEGORIES = ["3d-models", "3d-icons", "lottie", "svg-icons"];
+
+/**
+ * Patch an asset's editable metadata.
+ *
+ *   • Allowed for the uploader themselves, or for any ADMIN.
+ *   • Editable fields: title, description, price, category, subcategory, tags.
+ *   • Files (preview / source / companions) are NOT editable here — the
+ *     creator deletes + re-uploads if they need to swap the actual asset.
+ *   • Status transitions:
+ *       PENDING  → stays PENDING (still in queue).
+ *       REJECTED → re-enters PENDING and rejectionNote is cleared so the
+ *                  admin sees a fresh row to review.
+ *       APPROVED → stays APPROVED (already vetted; metadata edits are
+ *                  small enough that they don't require re-review).
+ *   • Cache invalidation matches DELETE so the explore + detail pages
+ *     reflect the edit on the next request.
+ */
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const existing = await prisma.asset.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      uploaderId: true,
+      status: true,
+      category: true,
+    },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Asset not found." }, { status: 404 });
+  }
+
+  const isOwner = existing.uploaderId === session.user.id;
+  const isAdmin = session.user.role === "ADMIN";
+  if (!isOwner && !isAdmin) {
+    return NextResponse.json(
+      { error: "You can only edit your own assets." },
+      { status: 403 }
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400 }
+    );
+  }
+
+  const title = String(body.title ?? "").trim();
+  const description = String(body.description ?? "").trim();
+  const category = String(body.category ?? "").trim();
+  const subcategoryRaw = String(body.subcategory ?? "").trim();
+  const subcategory = subcategoryRaw.length > 0 ? subcategoryRaw : null;
+  const tagsInput = body.tags;
+  const priceRaw = body.price;
+
+  if (title.length < 3 || title.length > 100) {
+    return NextResponse.json(
+      { error: "Title must be 3–100 characters." },
+      { status: 400 }
+    );
+  }
+  if (description.length < 10 || description.length > 2000) {
+    return NextResponse.json(
+      { error: "Description must be 10–2000 characters." },
+      { status: 400 }
+    );
+  }
+  if (!VALID_CATEGORIES.includes(category)) {
+    return NextResponse.json({ error: "Invalid category." }, { status: 400 });
+  }
+  if (!isValidSubcategory(category, subcategory)) {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid sub-category for the chosen category. Pick one of the available options or leave it blank.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Tags: accept either a CSV string (same wire format as upload) or a
+  // pre-split array. Normalise → trimmed, lowercased, deduped, capped at 10.
+  const rawTagList = Array.isArray(tagsInput)
+    ? tagsInput.map((t) => String(t))
+    : String(tagsInput ?? "").split(",");
+  const tags = Array.from(
+    new Set(
+      rawTagList
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length >= 2 && t.length <= 30)
+    )
+  ).slice(0, 10);
+
+  const price = Number(priceRaw);
+  if (!Number.isInteger(price) || price < 0 || price > 999999) {
+    return NextResponse.json(
+      { error: "Price must be a whole number of paise (0–999999)." },
+      { status: 400 }
+    );
+  }
+  if (price > 0 && price < 100) {
+    return NextResponse.json(
+      { error: "Price must be either 0 (free) or at least ₹1 (100 paise)." },
+      { status: 400 }
+    );
+  }
+
+  // REJECTED → PENDING resubmission. PENDING and APPROVED keep their
+  // current status. rejectionNote clears on any successful edit so the
+  // moderation list always reflects the latest state.
+  const nextStatus =
+    existing.status === "REJECTED" ? "PENDING" : existing.status;
+
+  const updated = await prisma.asset.update({
+    where: { id },
+    data: {
+      title,
+      description,
+      category,
+      subcategory,
+      tags,
+      price,
+      status: nextStatus,
+      rejectionNote: null,
+    },
+    select: { id: true, status: true },
+  });
+
+  if (isAdmin && !isOwner) {
+    await writeAdminLog({
+      adminId: session.user.id,
+      action: "EDIT_ASSET",
+      targetId: id,
+      targetType: "ASSET",
+      note: `Edited "${title}"`,
+    });
+  }
+
+  revalidateTag("assets", { expire: 0 });
+  revalidateTag(`assets:${existing.category}`, { expire: 0 });
+  if (category !== existing.category) {
+    revalidateTag(`assets:${category}`, { expire: 0 });
+  }
+  revalidatePath("/");
+  revalidatePath("/explore");
+  revalidatePath(`/explore/${id}`);
+  revalidatePath("/dashboard/uploads");
+
+  return NextResponse.json({ ok: true, status: updated.status });
+}
 
 /**
  * Hard-delete an asset.

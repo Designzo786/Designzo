@@ -2,14 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 /**
- * Trash-can button rendered in the My Assets row. Confirms via the branded
- * modal before firing the DELETE so a stray click doesn't nuke an upload,
- * and surfaces the server's 409 message inline (e.g. "asset has been
- * purchased") rather than a generic failure toast.
+ * Icon-only delete button rendered in the My Assets toolkit. Matches the
+ * sibling Open / Re-download / Edit buttons in size and shape so the
+ * actions column reads as a single grouped control. The destructive
+ * intent stays clear through the red-on-hover tint and the confirm modal
+ * — the icon itself stays neutral when idle so the row doesn't shout
+ * "delete" at the creator every time they scan their library.
+ *
+ * Surfaces the server's 409 message inline (e.g. "asset has been
+ * purchased") so the creator sees why the delete was refused without a
+ * separate toast layer.
  */
 export function DeleteAssetButton({
   assetId,
@@ -21,6 +27,7 @@ export function DeleteAssetButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { confirm, dialog } = useConfirm();
 
   async function onDelete() {
@@ -33,27 +40,34 @@ export function DeleteAssetButton({
     });
     if (!ok) return;
 
+    setDeleting(true);
     const res = await fetch(`/api/assets/${assetId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Could not delete this asset.");
+      setDeleting(false);
       return;
     }
     startTransition(() => router.refresh());
   }
 
+  const busy = deleting || pending;
+
   return (
-    <div className="inline-flex flex-col items-end gap-1">
+    <span className="inline-flex flex-col items-end gap-1">
       <button
         type="button"
         onClick={onDelete}
-        disabled={pending}
+        disabled={busy}
         title="Delete asset"
         aria-label={`Delete ${title}`}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-danger bg-danger-muted hover:bg-danger/20 border border-danger/20 transition-colors disabled:opacity-50"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-danger hover:bg-danger-muted border border-border hover:border-danger/40 transition-colors disabled:opacity-50 disabled:pointer-events-none"
       >
-        <Trash2 className="w-3.5 h-3.5" />
-        Delete
+        {busy ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="w-3.5 h-3.5" />
+        )}
       </button>
       {error && (
         <span className="text-[11px] text-danger max-w-55 text-right leading-snug">
@@ -61,6 +75,6 @@ export function DeleteAssetButton({
         </span>
       )}
       {dialog}
-    </div>
+    </span>
   );
 }
