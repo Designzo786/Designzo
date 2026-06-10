@@ -8,6 +8,8 @@ import {
   Sparkles,
   Layers,
   FileBox,
+  ExternalLink,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -225,22 +227,30 @@ export default async function UploadsPage({
                   return (
                     <tr key={a.id} className="hover:bg-elevated/50">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3 min-w-0">
+                        {/* The whole asset cell is a link to the public
+                            detail page so the creator can preview their
+                            own listing in one tap — including PENDING
+                            uploads (the uploader is always allowed to
+                            view their own asset, even before approval). */}
+                        <Link
+                          href={`/explore/${a.id}`}
+                          className="group flex items-center gap-3 min-w-0"
+                        >
                           {a.previewKey ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={a.previewKey}
                               alt={a.title}
                               loading="lazy"
-                              className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border"
+                              className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border group-hover:ring-accent transition-shadow"
                             />
                           ) : (
-                            <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border flex items-center justify-center text-subtle">
+                            <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border group-hover:ring-accent transition-shadow flex items-center justify-center text-subtle">
                               <ImageOff className="w-5 h-5" />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="font-medium text-primary truncate max-w-65">
+                            <div className="font-medium text-primary truncate max-w-65 group-hover:text-accent-light transition-colors">
                               {a.title}
                             </div>
                             {/* Category + sub-category meta line so the
@@ -256,7 +266,7 @@ export default async function UploadsPage({
                               </div>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -282,8 +292,33 @@ export default async function UploadsPage({
                       <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
                         {formatRelativeTime(a.createdAt)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <DeleteAssetButton assetId={a.id} title={a.title} />
+                      <td className="px-4 py-3">
+                        {/* Manage toolkit — three inline icon buttons.
+                            Open / Re-download / Delete. The whole row
+                            also navigates via the title link in the
+                            first cell; these are the explicit actions
+                            for buyers who want a more direct path. */}
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/explore/${a.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open public listing in a new tab"
+                            aria-label={`Open ${a.title}`}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-accent-light hover:bg-elevated border border-border hover:border-accent/40 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <a
+                            href={`/api/assets/${a.id}/download`}
+                            title="Re-download your source file"
+                            aria-label={`Download ${a.title}`}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-accent-light hover:bg-elevated border border-border hover:border-accent/40 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                          <DeleteAssetButton assetId={a.id} title={a.title} />
+                        </div>
                       </td>
                     </tr>
                   );
