@@ -270,18 +270,18 @@ export default async function UploadsPage({
                           </div>
                         </Link>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border ${typeMeta.tone}`}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border whitespace-nowrap ${typeMeta.tone}`}
                         >
                           <TypeIcon className="w-3.5 h-3.5" />
                           {typeMeta.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-secondary tabular-nums">
+                      <td className="px-4 py-3 text-secondary tabular-nums whitespace-nowrap">
                         {formatPrice(a.price)}
                       </td>
-                      <td className="px-4 py-3 text-secondary tabular-nums">
+                      <td className="px-4 py-3 text-secondary tabular-nums whitespace-nowrap">
                         {a.downloads.toLocaleString()}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
