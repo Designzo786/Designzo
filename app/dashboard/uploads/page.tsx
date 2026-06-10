@@ -23,6 +23,7 @@ import {
   FILE_TYPES,
 } from "@/lib/mock/assets";
 import { DeleteAssetButton } from "./DeleteAssetButton";
+import { CopyLinkButton } from "./CopyLinkButton";
 import type { AssetStatus } from "@prisma/client";
 
 export const metadata = { title: "My Assets" };
@@ -283,9 +284,9 @@ export default async function UploadsPage({
                       <td className="px-4 py-3 text-secondary tabular-nums">
                         {a.downloads.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[a.status]}`}
+                          className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border whitespace-nowrap ${STATUS_BADGE[a.status]}`}
                         >
                           {a.status}
                         </span>
@@ -313,6 +314,7 @@ export default async function UploadsPage({
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </Link>
+                          <CopyLinkButton assetId={a.id} title={a.title} />
                           <Link
                             href={`/dashboard/uploads/${a.id}/edit`}
                             title="Edit title, price, category or tags"

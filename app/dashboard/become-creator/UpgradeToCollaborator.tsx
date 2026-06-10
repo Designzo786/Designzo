@@ -62,7 +62,13 @@ function getExtension(name: string): string {
 
 export function UpgradeToCollaborator({ initialStatus, decidedAt }: Props) {
   const router = useRouter();
-  const [status] = useState<CreatorStatus>(initialStatus);
+  // Read directly from the prop — `router.refresh()` re-renders the parent
+  // server component and passes the new `initialStatus`, so any router
+  // refresh after a successful submit naturally flips this from NONE → PENDING
+  // and the form unmounts. A previous version mirrored the prop into local
+  // useState which froze it at "NONE" forever and stuck the submit button
+  // on "Sending…".
+  const status = initialStatus;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
