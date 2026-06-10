@@ -1,10 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Upload, Plus, ImageOff } from "lucide-react";
+import {
+  Upload,
+  Plus,
+  ImageOff,
+  Box,
+  Sparkles,
+  Layers,
+  FileBox,
+  type LucideIcon,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatPrice, formatRelativeTime } from "@/lib/utils";
+import {
+  CATEGORIES,
+  subcategoryName,
+  FILE_TYPES,
+} from "@/lib/mock/assets";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import type { AssetStatus } from "@prisma/client";
 
@@ -16,26 +30,94 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
   REJECTED: "text-danger bg-danger-muted border-danger/20",
 };
 
-export default async function UploadsPage() {
+// Per-file-type icon + tone for the "Type" column. Same hue mapping the
+// home-page category tiles use so a creator's mental model stays
+// consistent across the marketplace.
+const TYPE_META: Record<string, { icon: LucideIcon; tone: string; label: string }> = {
+  MODEL_3D: {
+    icon: Box,
+    tone: "text-violet-300 bg-violet-500/15 border-violet-400/30",
+    label: "3D Model",
+  },
+  LOTTIE: {
+    icon: Sparkles,
+    tone: "text-pink-300 bg-pink-500/15 border-pink-400/30",
+    label: "Lottie",
+  },
+  SVG_ICON: {
+    icon: Layers,
+    tone: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
+    label: "SVG Icon",
+  },
+};
+
+const FILTERS = [
+  { value: "ALL", label: "All" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "PENDING", label: "Pending" },
+  { value: "REJECTED", label: "Rejected" },
+] as const;
+
+type FilterValue = (typeof FILTERS)[number]["value"];
+
+export default async function UploadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const session = await auth();
   if (!session) return null;
-  // Buy-only USER accounts don't have an asset workspace.
   if (session.user.role === "USER") redirect("/dashboard/library");
 
-  const assets = await prisma.asset.findMany({
-    where: { uploaderId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      previewKey: true,
-      price: true,
-      status: true,
-      downloads: true,
-      rejectionNote: true,
-      createdAt: true,
-    },
-  });
+  const { status: rawStatus } = await searchParams;
+  const activeFilter: FilterValue = (
+    FILTERS.find((f) => f.value === rawStatus)?.value ?? "ALL"
+  ) as FilterValue;
+
+  // Pull everything in parallel: the (filtered) list of assets the
+  // table renders, plus a full status breakdown for the filter chips.
+  // `groupBy` is one query that returns one row per status so we don't
+  // need three count() calls.
+  const [assets, statusGroups] = await Promise.all([
+    prisma.asset.findMany({
+      where: {
+        uploaderId: session.user.id,
+        ...(activeFilter !== "ALL"
+          ? { status: activeFilter as AssetStatus }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        previewKey: true,
+        price: true,
+        status: true,
+        downloads: true,
+        rejectionNote: true,
+        createdAt: true,
+        category: true,
+        subcategory: true,
+        fileType: true,
+      },
+    }),
+    prisma.asset.groupBy({
+      by: ["status"],
+      where: { uploaderId: session.user.id },
+      _count: { _all: true },
+    }),
+  ]);
+
+  // Build a quick lookup so the filter strip can show "Approved (3)".
+  const statusCounts: Record<string, number> = { ALL: 0 };
+  for (const g of statusGroups) {
+    statusCounts[g.status] = g._count._all;
+    statusCounts.ALL += g._count._all;
+  }
+
+  const totalAssets = statusCounts.ALL;
+  const isEmptyOverall = totalAssets === 0;
+  const isEmptyFiltered = assets.length === 0 && !isEmptyOverall;
 
   return (
     <div className="space-y-6">
@@ -45,9 +127,9 @@ export default async function UploadsPage() {
             My Assets
           </h1>
           <p className="text-sm text-muted mt-1">
-            {assets.length === 0
+            {isEmptyOverall
               ? "You haven't uploaded any assets yet."
-              : `${assets.length} asset${assets.length === 1 ? "" : "s"} uploaded.`}
+              : `${totalAssets} asset${totalAssets === 1 ? "" : "s"} uploaded.`}
           </p>
         </div>
         <Link
@@ -59,84 +141,156 @@ export default async function UploadsPage() {
         </Link>
       </header>
 
-      {assets.length === 0 ? (
+      {/* ─── Status filter strip ──────────────────────────────────────
+          Only renders when the creator has at least one upload — no
+          empty filter row on a fresh account. Each chip shows its live
+          count so the creator can see at a glance "I have 2 pending
+          and 1 rejected" without opening each tab. */}
+      {!isEmptyOverall && (
+        <div className="flex flex-wrap gap-1 border-b border-border">
+          {FILTERS.map((f) => {
+            const active = activeFilter === f.value;
+            const count = statusCounts[f.value] ?? 0;
+            return (
+              <Link
+                key={f.value}
+                href={
+                  f.value === "ALL"
+                    ? "/dashboard/uploads"
+                    : `/dashboard/uploads?status=${f.value}`
+                }
+                className={`px-4 py-2.5 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  active
+                    ? "text-primary border-accent"
+                    : "text-muted border-transparent hover:text-secondary"
+                }`}
+              >
+                {f.label}
+                <span
+                  className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums ${
+                    active
+                      ? "bg-accent text-white"
+                      : "bg-elevated text-muted border border-border"
+                  }`}
+                >
+                  {count}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {isEmptyOverall ? (
         <EmptyState
           icon={Upload}
           title="No assets yet"
           description="Upload your first asset — it will be reviewed by an admin and then appear in the marketplace."
           cta={{ href: "/dashboard/uploads/new", label: "Upload your first asset" }}
         />
+      ) : isEmptyFiltered ? (
+        <div className="rounded-xl border border-border border-dashed bg-surface/50 p-12 text-center text-sm text-muted">
+          No assets match this filter.
+        </div>
       ) : (
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <div className="overflow-x-auto"><table className="w-full min-w-160 text-sm">
-            <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
-              <tr>
-                <th className="text-left font-medium px-4 py-3">Asset</th>
-                <th className="text-left font-medium px-4 py-3">Price</th>
-                <th className="text-left font-medium px-4 py-3">Downloads</th>
-                <th className="text-left font-medium px-4 py-3">Status</th>
-                <th className="text-left font-medium px-4 py-3">Uploaded</th>
-                <th className="text-right font-medium px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {assets.map((a) => (
-                <tr key={a.id} className="hover:bg-elevated/50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {a.previewKey ? (
-                        // Public preview URL is stored directly in previewKey
-                        // (R2 public URL or `/uploads/...` in local dev), so
-                        // it can be used as <img src> unmodified. Plain <img>
-                        // intentional — Next/Image needs domain config and
-                        // these are already small CDN-served thumbnails.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={a.previewKey}
-                          alt={a.title}
-                          loading="lazy"
-                          className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border"
-                        />
-                      ) : (
-                        <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border flex items-center justify-center text-subtle">
-                          <ImageOff className="w-5 h-5" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="font-medium text-primary truncate max-w-65">
-                          {a.title}
-                        </div>
-                        {a.status === "REJECTED" && a.rejectionNote && (
-                          <div className="text-xs text-danger truncate max-w-65 mt-0.5">
-                            {a.rejectionNote}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-secondary">
-                    {formatPrice(a.price)}
-                  </td>
-                  <td className="px-4 py-3 text-secondary">
-                    {a.downloads.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[a.status]}`}
-                    >
-                      {a.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
-                    {formatRelativeTime(a.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <DeleteAssetButton assetId={a.id} title={a.title} />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-160 text-sm">
+              <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
+                <tr>
+                  <th className="text-left font-medium px-4 py-3">Asset</th>
+                  <th className="text-left font-medium px-4 py-3">Type</th>
+                  <th className="text-left font-medium px-4 py-3">Price</th>
+                  <th className="text-left font-medium px-4 py-3">Downloads</th>
+                  <th className="text-left font-medium px-4 py-3">Status</th>
+                  <th className="text-left font-medium px-4 py-3">Uploaded</th>
+                  <th className="text-right font-medium px-4 py-3">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {assets.map((a) => {
+                  const categoryName =
+                    CATEGORIES.find((c) => c.slug === a.category)?.name ??
+                    a.category;
+                  const subName = subcategoryName(a.category, a.subcategory);
+                  const typeMeta =
+                    TYPE_META[a.fileType] ?? {
+                      icon: FileBox,
+                      tone: "text-muted bg-elevated border-border",
+                      label:
+                        FILE_TYPES.find((t) => t.slug === a.fileType)?.name ??
+                        a.fileType,
+                    };
+                  const TypeIcon = typeMeta.icon;
+                  return (
+                    <tr key={a.id} className="hover:bg-elevated/50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {a.previewKey ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={a.previewKey}
+                              alt={a.title}
+                              loading="lazy"
+                              className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border"
+                            />
+                          ) : (
+                            <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border flex items-center justify-center text-subtle">
+                              <ImageOff className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-medium text-primary truncate max-w-65">
+                              {a.title}
+                            </div>
+                            {/* Category + sub-category meta line so the
+                                creator can scan their table for what kind
+                                of asset each row actually is. */}
+                            <div className="text-xs text-muted truncate max-w-65 mt-0.5">
+                              {categoryName}
+                              {subName ? ` · ${subName}` : ""}
+                            </div>
+                            {a.status === "REJECTED" && a.rejectionNote && (
+                              <div className="text-xs text-danger truncate max-w-65 mt-0.5">
+                                {a.rejectionNote}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border ${typeMeta.tone}`}
+                        >
+                          <TypeIcon className="w-3.5 h-3.5" />
+                          {typeMeta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-secondary tabular-nums">
+                        {formatPrice(a.price)}
+                      </td>
+                      <td className="px-4 py-3 text-secondary tabular-nums">
+                        {a.downloads.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[a.status]}`}
+                        >
+                          {a.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
+                        {formatRelativeTime(a.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DeleteAssetButton assetId={a.id} title={a.title} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
