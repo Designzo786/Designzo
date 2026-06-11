@@ -1,7 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { unstable_cache } from "next/cache";
-import { ArrowUpRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  Box,
+  Hexagon,
+  Sparkles,
+  Layers,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 // Hero artwork is uploaded to R2 once by scripts/upload-category-heroes.mjs
@@ -14,32 +22,39 @@ const R2_HERO_BASE =
 /**
  * Category cards — character pop-out layout.
  *
- * The visible "card" is actually a coloured platform that fills the LOWER
- * portion of the Link's bounding box. The hero PNG sits centred at the top,
- * with its top half above the platform (the empty space above) and its
- * bottom half overlapping the platform — giving the "character standing on a
- * pedestal" silhouette that reads instantly even at thumbnail size.
+ * Each tile is a coloured platform; a large hero figure sits centred above
+ * it, top half in empty space and bottom half overlapping the platform.
  *
- * Why platform-as-card rather than image-overhanging-out-of-card:
- *   - At phone sizes the parent scroll-row uses `overflow-x: auto`, which
- *     CSS spec forces to clip on the y-axis too. A real overhang would chop
- *     the character's head off on mobile.
- *   - Keeping everything inside the Link's bounding box means the grid /
- *     scroll-row container never needs ad-hoc top padding, and the layout
- *     stays robust regardless of how tightly the next section above sits.
+ * `image` is OPTIONAL per card. When set, the hero PNG is rendered via
+ * next/image (R2 + image optimizer). When it's null, the card falls back
+ * to its lucide `icon` rendered large with the same drop-shadow treatment
+ * — same silhouette, same vertical rhythm, no broken-image squares while
+ * artwork is being swapped out.
  *
- * platformTint: the saturated colour fill that makes the platform read as
- *   "this card belongs to this category" from across the page. Stronger than
- *   the older subtle heroTint so the categories visually compete with one
- *   another for attention, the way Sketchfab's home rail does.
+ * To enable a card's hero PNG: set `image: \`${R2_HERO_BASE}/<slug>.png\``
+ * and run `node --env-file=.env scripts/upload-category-heroes.mjs`.
  */
-const CARDS = [
+type CardImage = string | null;
+
+interface Card {
+  slug: string;
+  name: string;
+  icon: LucideIcon;
+  platformTint: string;
+  image: CardImage;
+  href: string;
+  countable: boolean;
+  badge: string | null;
+}
+
+const CARDS: readonly Card[] = [
   {
     slug: "3d-models",
     name: "3D Models",
+    icon: Box,
     platformTint:
       "from-violet-500/25 via-violet-600/20 to-violet-900/40 border-violet-400/30",
-    image: `${R2_HERO_BASE}/3d-models.png`,
+    image: null,
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -47,9 +62,10 @@ const CARDS = [
   {
     slug: "3d-icons",
     name: "3D Icons",
+    icon: Hexagon,
     platformTint:
       "from-sky-500/25 via-sky-600/20 to-sky-900/40 border-sky-400/30",
-    image: `${R2_HERO_BASE}/3d-icons.png`,
+    image: null,
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -57,9 +73,10 @@ const CARDS = [
   {
     slug: "lottie",
     name: "Lottie Animations",
+    icon: Sparkles,
     platformTint:
       "from-pink-500/25 via-pink-600/20 to-pink-900/40 border-pink-400/30",
-    image: `${R2_HERO_BASE}/lottie.png`,
+    image: null,
     href: "/explore?category=lottie",
     countable: true,
     badge: null,
@@ -67,9 +84,10 @@ const CARDS = [
   {
     slug: "svg-icons",
     name: "SVG Icons",
+    icon: Layers,
     platformTint:
       "from-emerald-500/25 via-emerald-600/20 to-emerald-900/40 border-emerald-400/30",
-    image: `${R2_HERO_BASE}/svg-icons.png`,
+    image: null,
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -77,16 +95,21 @@ const CARDS = [
   {
     slug: "ai-suite",
     name: "AI Suite",
+    icon: Wand2,
     platformTint:
       "from-accent/30 via-accent/20 to-accent/50 border-accent/40",
-    image: `${R2_HERO_BASE}/ai-suite.png`,
-    // AI Suite is a tool, not an asset category — keeps its accent-tinted
-    // platform so it visually reads as the action tile in the row.
+    image: null,
     href: "/ai-generate",
     countable: false,
     badge: "NEW",
   },
-] as const;
+];
+
+// `R2_HERO_BASE` is referenced by the future-image-enabled cards above; the
+// lint rule otherwise flags it as unused while every card is on the icon
+// fallback. Re-export so the constant stays attached to the module surface
+// and round-trips through tsc cleanly when an image: field gets flipped on.
+export { R2_HERO_BASE };
 
 // Live count of APPROVED assets per category, cached 60s and purged by the
 // "assets" tag on admin approve/reject. Wrapped so a DB outage doesn't crash
@@ -143,6 +166,7 @@ export async function Categories() {
               xl    : 5-col grid (perfect single row on wide displays) */}
         <div className="scroll-row scroll-row--tile scroll-row--cols-2 scroll-row--cols-3 scroll-row--cols-5">
           {CARDS.map((card) => {
+            const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;
             return (
               <Link
@@ -150,32 +174,38 @@ export async function Categories() {
                 href={card.href}
                 className="group relative block transition-transform duration-300 hover:-translate-y-1"
               >
-                {/* Hero artwork — sits at the top, centred. The image is
-                    full-width within its own square box; the platform
-                    underneath rises via negative margin-top to overlap the
-                    lower half so the character visibly stands on the
-                    platform with its head + shoulders above. */}
+                {/* Hero region — fixed-size square at the top, centred.
+                    Renders the R2 PNG when one is configured, else the
+                    lucide icon at large size. Either way the silhouette
+                    sits in the same box and overlaps the platform below
+                    by the same amount via the platform's negative
+                    margin-top. */}
                 <div className="relative aspect-square w-32 sm:w-36 mx-auto z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
-                  <Image
-                    src={card.image}
-                    alt={card.name}
-                    fill
-                    sizes="(max-width: 640px) 144px, (max-width: 1024px) 160px, 180px"
-                    className="object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]"
-                  />
+                  {card.image ? (
+                    <Image
+                      src={card.image}
+                      alt={card.name}
+                      fill
+                      sizes="(max-width: 640px) 144px, (max-width: 1024px) 160px, 180px"
+                      className="object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+                      <Icon
+                        className="w-20 h-20 sm:w-24 sm:h-24 text-white/95"
+                        strokeWidth={1.2}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Platform — the visible card. The negative margin-top
-                    pulls it up to overlap the bottom ~40% of the hero
-                    image, so the character looks like it's standing on
-                    the pedestal. Inner top padding (pt-12 / sm:pt-14)
-                    creates breathing room between the character's feet
-                    and the title. */}
+                    pulls it up to overlap the bottom of the hero figure
+                    so the silhouette looks like it's standing on the
+                    pedestal. */}
                 <div
                   className={`relative -mt-12 sm:-mt-14 rounded-2xl border bg-gradient-to-br ${card.platformTint} px-3 pt-14 sm:pt-16 pb-5 text-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)] group-hover:shadow-[0_16px_36px_-16px_rgba(124,58,237,0.5)] transition-shadow duration-300`}
                 >
-                  {/* NEW pill — anchored to the platform, not the image,
-                      so it visually belongs to the card surface */}
                   {card.badge && (
                     <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-white bg-black/40 backdrop-blur border border-white/15">
                       <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
