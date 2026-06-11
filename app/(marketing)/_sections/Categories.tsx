@@ -1,8 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { unstable_cache } from "next/cache";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import {
   Box,
   Sparkles,
@@ -12,6 +10,13 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+
+// Hero artwork is uploaded to R2 once by scripts/upload-category-heroes.mjs
+// under deterministic keys. Re-running the script overwrites the same keys,
+// so swapping the art doesn't require a code change. Hostname is whitelisted
+// in next.config.ts → images.remotePatterns ("*.r2.dev").
+const R2_HERO_BASE =
+  "https://pub-471747289587402a92b17615e1089adb.r2.dev/public/categories";
 
 /**
  * Category cards — hero image + icon plate.
@@ -35,7 +40,7 @@ const CARDS = [
     accent: "text-violet-300 bg-violet-500/15 border-violet-400/30",
     bloom: "bg-violet-500/30",
     heroTint: "from-violet-500/15 to-transparent",
-    image: "/categories/3d-models.png",
+    image: `${R2_HERO_BASE}/3d-models.png`,
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -47,7 +52,7 @@ const CARDS = [
     accent: "text-sky-300 bg-sky-500/15 border-sky-400/30",
     bloom: "bg-sky-500/30",
     heroTint: "from-sky-500/15 to-transparent",
-    image: "/categories/3d-icons.png",
+    image: `${R2_HERO_BASE}/3d-icons.png`,
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -59,7 +64,7 @@ const CARDS = [
     accent: "text-pink-300 bg-pink-500/15 border-pink-400/30",
     bloom: "bg-pink-500/30",
     heroTint: "from-pink-500/15 to-transparent",
-    image: "/categories/lottie.png",
+    image: `${R2_HERO_BASE}/lottie.png`,
     href: "/explore?category=lottie",
     countable: true,
     badge: null,
@@ -71,7 +76,7 @@ const CARDS = [
     accent: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
     bloom: "bg-emerald-500/30",
     heroTint: "from-emerald-500/15 to-transparent",
-    image: "/categories/svg-icons.png",
+    image: `${R2_HERO_BASE}/svg-icons.png`,
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -83,7 +88,7 @@ const CARDS = [
     accent: "text-accent-light bg-accent/15 border-accent/40",
     bloom: "bg-accent/40",
     heroTint: "from-accent/15 to-transparent",
-    image: "/categories/ai-suite.png",
+    image: `${R2_HERO_BASE}/ai-suite.png`,
     // AI Suite is a tool, not an asset category — keeps its icon-only
     // treatment so it visually reads as the action tile in the row.
     href: "/ai-generate",
@@ -120,20 +125,6 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-// Resolve once per server start whether each card's hero PNG actually
-// lives on disk. Missing files would otherwise render as broken-image
-// squares — we fall back to the icon-only layout for any card whose art
-// hasn't shipped yet. Module-scope so the fs check runs once, not per
-// request.
-const HERO_IMAGE_EXISTS: Record<string, boolean> = (() => {
-  const publicDir = path.join(process.cwd(), "public");
-  const out: Record<string, boolean> = {};
-  for (const c of CARDS) {
-    out[c.slug] = existsSync(path.join(publicDir, c.image.replace(/^\//, "")));
-  }
-  return out;
-})();
-
 export async function Categories() {
   const counts = await fetchCategoryCounts();
 
@@ -166,7 +157,6 @@ export async function Categories() {
           {CARDS.map((card) => {
             const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;
-            const hasImage = HERO_IMAGE_EXISTS[card.slug] ?? false;
             return (
               <Link
                 key={card.slug}
@@ -197,36 +187,22 @@ export async function Categories() {
                     aria-hidden
                     className={`absolute -bottom-10 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full blur-2xl opacity-40 ${card.bloom}`}
                   />
-                  {hasImage ? (
-                    <Image
-                      src={card.image}
-                      alt={card.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                      className="relative object-contain p-4 transition-transform duration-500 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div
-                      className={`absolute inset-0 flex items-center justify-center`}
-                    >
-                      <div
-                        className={`w-14 h-14 rounded-2xl border flex items-center justify-center ${card.accent}`}
-                      >
-                        <Icon className="w-6 h-6" strokeWidth={1.6} />
-                      </div>
-                    </div>
-                  )}
+                  <Image
+                    src={card.image}
+                    alt={card.name}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    className="relative object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+                  />
 
                   {/* Icon plate badge — keeps the category hue legible
                       even when the hero PNG is colourful. Floats over the
                       bottom-left of the hero region. */}
-                  {hasImage && (
-                    <div
-                      className={`absolute bottom-2.5 left-2.5 z-10 w-8 h-8 rounded-lg border flex items-center justify-center backdrop-blur ${card.accent}`}
-                    >
-                      <Icon className="w-4 h-4" strokeWidth={1.7} />
-                    </div>
-                  )}
+                  <div
+                    className={`absolute bottom-2.5 left-2.5 z-10 w-8 h-8 rounded-lg border flex items-center justify-center backdrop-blur ${card.accent}`}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={1.7} />
+                  </div>
                 </div>
 
                 {/* Title + count — same tight block as before, just below
