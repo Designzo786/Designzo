@@ -1,14 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { unstable_cache } from "next/cache";
-import {
-  Box,
-  Sparkles,
-  Layers,
-  Hexagon,
-  Wand2,
-  ArrowUpRight,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 // Hero artwork is uploaded to R2 once by scripts/upload-category-heroes.mjs
@@ -19,27 +12,33 @@ const R2_HERO_BASE =
   "https://pub-471747289587402a92b17615e1089adb.r2.dev/public/categories";
 
 /**
- * Category cards — hero image + icon plate.
+ * Category cards — character pop-out layout.
  *
- * Each card has an optional `image` field pointing at a transparent PNG in
- * `/public/categories/`. When present, the image renders as the hero
- * thumbnail at the top of the card and the icon plate shrinks to a small
- * floating chip in the corner so the category hue still reads at a glance.
- * If the image is missing the card falls back to the icon-only layout —
- * this keeps the home page render-safe while images are still being added.
+ * The visible "card" is actually a coloured platform that fills the LOWER
+ * portion of the Link's bounding box. The hero PNG sits centred at the top,
+ * with its top half above the platform (the empty space above) and its
+ * bottom half overlapping the platform — giving the "character standing on a
+ * pedestal" silhouette that reads instantly even at thumbnail size.
  *
- * Hue mapping: the same violet / sky / pink / emerald / accent palette the
- * rest of the marketing surface uses, so a buyer's mental model stays
- * consistent across Hero → Categories → CategoryShowcase rails.
+ * Why platform-as-card rather than image-overhanging-out-of-card:
+ *   - At phone sizes the parent scroll-row uses `overflow-x: auto`, which
+ *     CSS spec forces to clip on the y-axis too. A real overhang would chop
+ *     the character's head off on mobile.
+ *   - Keeping everything inside the Link's bounding box means the grid /
+ *     scroll-row container never needs ad-hoc top padding, and the layout
+ *     stays robust regardless of how tightly the next section above sits.
+ *
+ * platformTint: the saturated colour fill that makes the platform read as
+ *   "this card belongs to this category" from across the page. Stronger than
+ *   the older subtle heroTint so the categories visually compete with one
+ *   another for attention, the way Sketchfab's home rail does.
  */
 const CARDS = [
   {
     slug: "3d-models",
     name: "3D Models",
-    icon: Box,
-    accent: "text-violet-300 bg-violet-500/15 border-violet-400/30",
-    bloom: "bg-violet-500/30",
-    heroTint: "from-violet-500/15 to-transparent",
+    platformTint:
+      "from-violet-500/25 via-violet-600/20 to-violet-900/40 border-violet-400/30",
     image: `${R2_HERO_BASE}/3d-models.png`,
     href: "/explore?category=3d-models",
     countable: true,
@@ -48,10 +47,8 @@ const CARDS = [
   {
     slug: "3d-icons",
     name: "3D Icons",
-    icon: Hexagon,
-    accent: "text-sky-300 bg-sky-500/15 border-sky-400/30",
-    bloom: "bg-sky-500/30",
-    heroTint: "from-sky-500/15 to-transparent",
+    platformTint:
+      "from-sky-500/25 via-sky-600/20 to-sky-900/40 border-sky-400/30",
     image: `${R2_HERO_BASE}/3d-icons.png`,
     href: "/explore?category=3d-icons",
     countable: true,
@@ -60,10 +57,8 @@ const CARDS = [
   {
     slug: "lottie",
     name: "Lottie Animations",
-    icon: Sparkles,
-    accent: "text-pink-300 bg-pink-500/15 border-pink-400/30",
-    bloom: "bg-pink-500/30",
-    heroTint: "from-pink-500/15 to-transparent",
+    platformTint:
+      "from-pink-500/25 via-pink-600/20 to-pink-900/40 border-pink-400/30",
     image: `${R2_HERO_BASE}/lottie.png`,
     href: "/explore?category=lottie",
     countable: true,
@@ -72,10 +67,8 @@ const CARDS = [
   {
     slug: "svg-icons",
     name: "SVG Icons",
-    icon: Layers,
-    accent: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
-    bloom: "bg-emerald-500/30",
-    heroTint: "from-emerald-500/15 to-transparent",
+    platformTint:
+      "from-emerald-500/25 via-emerald-600/20 to-emerald-900/40 border-emerald-400/30",
     image: `${R2_HERO_BASE}/svg-icons.png`,
     href: "/explore?category=svg-icons",
     countable: true,
@@ -84,13 +77,11 @@ const CARDS = [
   {
     slug: "ai-suite",
     name: "AI Suite",
-    icon: Wand2,
-    accent: "text-accent-light bg-accent/15 border-accent/40",
-    bloom: "bg-accent/40",
-    heroTint: "from-accent/15 to-transparent",
+    platformTint:
+      "from-accent/30 via-accent/20 to-accent/50 border-accent/40",
     image: `${R2_HERO_BASE}/ai-suite.png`,
-    // AI Suite is a tool, not an asset category — keeps its icon-only
-    // treatment so it visually reads as the action tile in the row.
+    // AI Suite is a tool, not an asset category — keeps its accent-tinted
+    // platform so it visually reads as the action tile in the row.
     href: "/ai-generate",
     countable: false,
     badge: "NEW",
@@ -115,7 +106,7 @@ const fetchCategoryCounts = unstable_cache(
     }
     return counts;
   },
-  ["home-category-counts-v4"],
+  ["home-category-counts-v5"],
   { tags: ["assets"], revalidate: 60 }
 );
 
@@ -149,81 +140,63 @@ export async function Categories() {
               phone : horizontal scroll carousel (snap-x for tactile swipe)
               sm    : 2-col grid
               lg    : 3-col grid
-              xl    : 6-col grid (perfect single row on wide displays)
-            The negative-margin + padding trick lets cards scroll all the
-            way to the edge of the viewport on phones instead of being
-            constrained by the container's px-4 padding. */}
+              xl    : 5-col grid (perfect single row on wide displays) */}
         <div className="scroll-row scroll-row--tile scroll-row--cols-2 scroll-row--cols-3 scroll-row--cols-5">
           {CARDS.map((card) => {
-            const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;
             return (
               <Link
                 key={card.slug}
                 href={card.href}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-accent/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-20px_rgba(124,58,237,0.35)] flex flex-col"
+                className="group relative block transition-transform duration-300 hover:-translate-y-1"
               >
-                {/* NEW pill on the AI Suite tile — sits over the hero image */}
-                {card.badge && (
-                  <span className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-accent-light bg-canvas/80 backdrop-blur border border-accent/30">
-                    <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
-                    {card.badge}
-                  </span>
-                )}
-
-                {/* Hero image — fills the upper portion of the card. Falls
-                    back to the icon plate centered in the same region when
-                    the PNG hasn't been added yet, so the layout stays
-                    consistent even before art ships. A subtle category-
-                    tinted gradient sits behind the transparent PNG so the
-                    cut-out artwork blends into the dark surface instead of
-                    floating on it. */}
-                <div className="relative aspect-[5/4] w-full overflow-hidden bg-canvas">
-                  <div
-                    aria-hidden
-                    className={`absolute inset-0 bg-gradient-to-br ${card.heroTint}`}
-                  />
-                  <div
-                    aria-hidden
-                    className={`absolute -bottom-10 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full blur-2xl opacity-40 ${card.bloom}`}
-                  />
+                {/* Hero artwork — sits at the top, centred. The image is
+                    full-width within its own square box; the platform
+                    underneath rises via negative margin-top to overlap the
+                    lower half so the character visibly stands on the
+                    platform with its head + shoulders above. */}
+                <div className="relative aspect-square w-32 sm:w-36 mx-auto z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
                   <Image
                     src={card.image}
                     alt={card.name}
                     fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                    className="relative object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+                    sizes="(max-width: 640px) 144px, (max-width: 1024px) 160px, 180px"
+                    className="object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]"
                   />
-
-                  {/* Icon plate badge — keeps the category hue legible
-                      even when the hero PNG is colourful. Floats over the
-                      bottom-left of the hero region. */}
-                  <div
-                    className={`absolute bottom-2.5 left-2.5 z-10 w-8 h-8 rounded-lg border flex items-center justify-center backdrop-blur ${card.accent}`}
-                  >
-                    <Icon className="w-4 h-4" strokeWidth={1.7} />
-                  </div>
                 </div>
 
-                {/* Title + count — same tight block as before, just below
-                    the hero now. */}
-                <div className="p-4">
-                  <h3 className="text-[15px] font-semibold text-primary tracking-tight">
+                {/* Platform — the visible card. The negative margin-top
+                    pulls it up to overlap the bottom ~40% of the hero
+                    image, so the character looks like it's standing on
+                    the pedestal. Inner top padding (pt-12 / sm:pt-14)
+                    creates breathing room between the character's feet
+                    and the title. */}
+                <div
+                  className={`relative -mt-12 sm:-mt-14 rounded-2xl border bg-gradient-to-br ${card.platformTint} px-3 pt-14 sm:pt-16 pb-5 text-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)] group-hover:shadow-[0_16px_36px_-16px_rgba(124,58,237,0.5)] transition-shadow duration-300`}
+                >
+                  {/* NEW pill — anchored to the platform, not the image,
+                      so it visually belongs to the card surface */}
+                  {card.badge && (
+                    <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-white bg-black/40 backdrop-blur border border-white/15">
+                      <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                      {card.badge}
+                    </span>
+                  )}
+
+                  <h3 className="text-[14px] sm:text-[15px] font-semibold text-white tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                     {card.name}
                   </h3>
-                  <div className="mt-1 text-xs text-muted">
+                  <div className="mt-1 text-[11px] text-white/85">
                     {count === null ? (
-                      <span className="text-accent-light font-medium">
-                        Try it now →
-                      </span>
+                      <span className="font-medium">Try it now →</span>
                     ) : count === 0 ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
+                        <span className="w-1 h-1 rounded-full bg-white/90 animate-pulse" />
                         Coming soon
                       </span>
                     ) : (
                       <span>
-                        <span className="text-primary font-semibold tabular-nums">
+                        <span className="font-semibold tabular-nums text-white">
                           {formatCount(count)}
                         </span>{" "}
                         {count === 1 ? "asset" : "assets"}
