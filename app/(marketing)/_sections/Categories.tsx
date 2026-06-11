@@ -1,5 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { unstable_cache } from "next/cache";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import {
   Box,
   Sparkles,
@@ -11,13 +14,18 @@ import {
 import { prisma } from "@/lib/prisma";
 
 /**
- * Category cards — simplified premium treatment.
+ * Category cards — hero image + icon plate.
  *
- * Earlier versions used per-card gradient backdrops (a radial+linear stack
- * tinted to each category's hue). User feedback was to strip the background
- * light and keep the cards clean and product-like. The hue now lives only in
- * the icon plate and a tiny ring around it — the card surface itself is the
- * standard dark surface that re-tints with the active theme.
+ * Each card has an optional `image` field pointing at a transparent PNG in
+ * `/public/categories/`. When present, the image renders as the hero
+ * thumbnail at the top of the card and the icon plate shrinks to a small
+ * floating chip in the corner so the category hue still reads at a glance.
+ * If the image is missing the card falls back to the icon-only layout —
+ * this keeps the home page render-safe while images are still being added.
+ *
+ * Hue mapping: the same violet / sky / pink / emerald / accent palette the
+ * rest of the marketing surface uses, so a buyer's mental model stays
+ * consistent across Hero → Categories → CategoryShowcase rails.
  */
 const CARDS = [
   {
@@ -26,6 +34,8 @@ const CARDS = [
     icon: Box,
     accent: "text-violet-300 bg-violet-500/15 border-violet-400/30",
     bloom: "bg-violet-500/30",
+    heroTint: "from-violet-500/15 to-transparent",
+    image: "/categories/3d-models.png",
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -36,6 +46,8 @@ const CARDS = [
     icon: Hexagon,
     accent: "text-sky-300 bg-sky-500/15 border-sky-400/30",
     bloom: "bg-sky-500/30",
+    heroTint: "from-sky-500/15 to-transparent",
+    image: "/categories/3d-icons.png",
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -46,6 +58,8 @@ const CARDS = [
     icon: Sparkles,
     accent: "text-pink-300 bg-pink-500/15 border-pink-400/30",
     bloom: "bg-pink-500/30",
+    heroTint: "from-pink-500/15 to-transparent",
+    image: "/categories/lottie.png",
     href: "/explore?category=lottie",
     countable: true,
     badge: null,
@@ -56,6 +70,8 @@ const CARDS = [
     icon: Layers,
     accent: "text-emerald-300 bg-emerald-500/15 border-emerald-400/30",
     bloom: "bg-emerald-500/30",
+    heroTint: "from-emerald-500/15 to-transparent",
+    image: "/categories/svg-icons.png",
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -66,6 +82,8 @@ const CARDS = [
     icon: Wand2,
     accent: "text-accent-light bg-accent/15 border-accent/40",
     bloom: "bg-accent/40",
+    heroTint: "from-accent/15 to-transparent",
+    image: "/categories/ai-suite.png",
     // AI Suite is a tool, not an asset category — keeps its icon-only
     // treatment so it visually reads as the action tile in the row.
     href: "/ai-generate",
@@ -102,6 +120,20 @@ function formatCount(n: number): string {
   return String(n);
 }
 
+// Resolve once per server start whether each card's hero PNG actually
+// lives on disk. Missing files would otherwise render as broken-image
+// squares — we fall back to the icon-only layout for any card whose art
+// hasn't shipped yet. Module-scope so the fs check runs once, not per
+// request.
+const HERO_IMAGE_EXISTS: Record<string, boolean> = (() => {
+  const publicDir = path.join(process.cwd(), "public");
+  const out: Record<string, boolean> = {};
+  for (const c of CARDS) {
+    out[c.slug] = existsSync(path.join(publicDir, c.image.replace(/^\//, "")));
+  }
+  return out;
+})();
+
 export async function Categories() {
   const counts = await fetchCategoryCounts();
 
@@ -134,55 +166,94 @@ export async function Categories() {
           {CARDS.map((card) => {
             const Icon = card.icon;
             const count = card.countable ? counts[card.slug] ?? 0 : null;
+            const hasImage = HERO_IMAGE_EXISTS[card.slug] ?? false;
             return (
               <Link
                 key={card.slug}
                 href={card.href}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-accent/30 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-20px_rgba(124,58,237,0.35)]"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-accent/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-20px_rgba(124,58,237,0.35)] flex flex-col"
               >
-                {/* NEW pill on the AI Suite tile */}
+                {/* NEW pill on the AI Suite tile — sits over the hero image */}
                 {card.badge && (
-                  <span className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-accent-light bg-accent-muted border border-accent/30">
+                  <span className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-accent-light bg-canvas/80 backdrop-blur border border-accent/30">
                     <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
                     {card.badge}
                   </span>
                 )}
 
-                {/* Icon plate — single visual anchor for the whole card. */}
-                <div className="relative inline-flex">
-                  <span
+                {/* Hero image — fills the upper portion of the card. Falls
+                    back to the icon plate centered in the same region when
+                    the PNG hasn't been added yet, so the layout stays
+                    consistent even before art ships. A subtle category-
+                    tinted gradient sits behind the transparent PNG so the
+                    cut-out artwork blends into the dark surface instead of
+                    floating on it. */}
+                <div className="relative aspect-[5/4] w-full overflow-hidden bg-canvas">
+                  <div
                     aria-hidden
-                    className={`absolute -inset-1.5 rounded-2xl blur-lg opacity-0 group-hover:opacity-50 transition-opacity duration-300 ${card.bloom}`}
+                    className={`absolute inset-0 bg-gradient-to-br ${card.heroTint}`}
                   />
                   <div
-                    className={`relative w-11 h-11 rounded-xl border flex items-center justify-center ${card.accent}`}
-                  >
-                    <Icon className="w-5 h-5" strokeWidth={1.6} />
-                  </div>
+                    aria-hidden
+                    className={`absolute -bottom-10 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full blur-2xl opacity-40 ${card.bloom}`}
+                  />
+                  {hasImage ? (
+                    <Image
+                      src={card.image}
+                      alt={card.name}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                      className="relative object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center`}
+                    >
+                      <div
+                        className={`w-14 h-14 rounded-2xl border flex items-center justify-center ${card.accent}`}
+                      >
+                        <Icon className="w-6 h-6" strokeWidth={1.6} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Icon plate badge — keeps the category hue legible
+                      even when the hero PNG is colourful. Floats over the
+                      bottom-left of the hero region. */}
+                  {hasImage && (
+                    <div
+                      className={`absolute bottom-2.5 left-2.5 z-10 w-8 h-8 rounded-lg border flex items-center justify-center backdrop-blur ${card.accent}`}
+                    >
+                      <Icon className="w-4 h-4" strokeWidth={1.7} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Title + count — single tight block, no tagline */}
-                <h3 className="mt-4 text-[15px] font-semibold text-primary tracking-tight">
-                  {card.name}
-                </h3>
-                <div className="mt-1 text-xs text-muted">
-                  {count === null ? (
-                    <span className="text-accent-light font-medium">
-                      Try it now →
-                    </span>
-                  ) : count === 0 ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
-                      Coming soon
-                    </span>
-                  ) : (
-                    <span>
-                      <span className="text-primary font-semibold tabular-nums">
-                        {formatCount(count)}
-                      </span>{" "}
-                      {count === 1 ? "asset" : "assets"}
-                    </span>
-                  )}
+                {/* Title + count — same tight block as before, just below
+                    the hero now. */}
+                <div className="p-4">
+                  <h3 className="text-[15px] font-semibold text-primary tracking-tight">
+                    {card.name}
+                  </h3>
+                  <div className="mt-1 text-xs text-muted">
+                    {count === null ? (
+                      <span className="text-accent-light font-medium">
+                        Try it now →
+                      </span>
+                    ) : count === 0 ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-accent-light animate-pulse" />
+                        Coming soon
+                      </span>
+                    ) : (
+                      <span>
+                        <span className="text-primary font-semibold tabular-nums">
+                          {formatCount(count)}
+                        </span>{" "}
+                        {count === 1 ? "asset" : "assets"}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );
