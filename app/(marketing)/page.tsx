@@ -2,7 +2,7 @@ import { Hero } from "./_sections/Hero";
 import { TrustBar } from "./_sections/TrustBar";
 import { Features } from "./_sections/Features";
 import { Categories } from "./_sections/Categories";
-import { Showcase } from "./_sections/Showcase";
+// import { Showcase } from "./_sections/Showcase";
 import { JustLanded } from "./_sections/JustLanded";
 import { CategoryShowcase } from "./_sections/CategoryShowcase";
 import { Hexagon, Sparkles, Layers } from "lucide-react";
@@ -51,7 +51,9 @@ export default function HomePage() {
           no APPROVED assets so a new marketplace doesn't show empty
           'Premium Lottie' panels. Discovery arc: popular → new → by
           format → how it works. */}
-      <Showcase />
+      {/* Showcase ("See it before you buy") hidden for now per request —
+          uncomment + restore the import above to bring it back. */}
+      {/* <Showcase /> */}
       <JustLanded />
       <CategoryShowcase
         categorySlug="3d-icons"
