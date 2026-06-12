@@ -233,13 +233,19 @@ export async function POST(req: Request) {
   }
 
   const requested = obj.slots ?? {};
-  if (
-    typeof requested !== "object" ||
-    !requested.file ||
-    !requested.preview
-  ) {
+  if (typeof requested !== "object" || !requested.file) {
     return NextResponse.json(
-      { error: "Both `file` and `preview` slots are required." },
+      { error: "The `file` slot is required." },
+      { status: 400 }
+    );
+  }
+  // Preview is optional only for LOTTIE — the Lottie animation itself
+  // doubles as the listing thumbnail (the public-viewer copy of the
+  // .json is reused as `previewKey` server-side). Every other fileType
+  // still needs a still-image preview for buyers scanning listings.
+  if (fileType !== ("LOTTIE" as FileType) && !requested.preview) {
+    return NextResponse.json(
+      { error: "The `preview` slot is required for this asset type." },
       { status: 400 }
     );
   }

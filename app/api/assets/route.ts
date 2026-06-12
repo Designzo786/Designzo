@@ -192,9 +192,18 @@ export async function POST(req: Request) {
   }
 
   // ─── Key shape + ownership validation ─────────────────────────────────────
-  if (!keys.file || !keys.preview) {
+  if (!keys.file) {
     return NextResponse.json(
-      { error: "Both `file` and `preview` upload keys are required." },
+      { error: "The `file` upload key is required." },
+      { status: 400 }
+    );
+  }
+  // Lottie uploads are allowed to skip the preview slot — the public copy
+  // of the animation itself is reused as previewKey further down. Every
+  // other fileType still needs a still-image preview.
+  if (fileType !== ("LOTTIE" as FileType) && !keys.preview) {
+    return NextResponse.json(
+      { error: "The `preview` upload key is required for this asset type." },
       { status: 400 }
     );
   }
@@ -316,48 +325,55 @@ export async function POST(req: Request) {
     }
 
     // ── Preview ────────────────────────────────────────────────────────────
-    const previewHead = await r2Head(keys.preview);
-    if (!previewHead) {
-      await rollback();
-      return NextResponse.json(
-        { error: "Preview upload didn't land in storage. Please retry." },
-        { status: 400 }
-      );
-    }
-    if (previewHead.contentLength > MAX_PREVIEW_BYTES) {
+    // Lottie uploads skip the still-image preview — the public copy of
+    // the animation itself is reused as `previewKey` further down so
+    // listing cards play the .json directly.
+    let previewByteCount = 0;
+    if (keys.preview) {
+      const previewHead = await r2Head(keys.preview);
+      if (!previewHead) {
+        await rollback();
+        return NextResponse.json(
+          { error: "Preview upload didn't land in storage. Please retry." },
+          { status: 400 }
+        );
+      }
+      if (previewHead.contentLength > MAX_PREVIEW_BYTES) {
+        touched.push(keys.preview);
+        await rollback();
+        return NextResponse.json(
+          { error: "Preview image exceeds 5 MB limit." },
+          { status: 400 }
+        );
+      }
       touched.push(keys.preview);
-      await rollback();
-      return NextResponse.json(
-        { error: "Preview image exceeds 5 MB limit." },
-        { status: 400 }
-      );
-    }
-    touched.push(keys.preview);
 
-    const previewBytes = await r2GetRange(
-      keys.preview,
-      0,
-      Math.min(VALIDATION_BYTE_RANGE, previewHead.contentLength - 1)
-    );
-    // The S3 SDK's HeadObject returns the Content-Type the file was
-    // PUT with; we passed image/* in the signed URL so this should match.
-    const previewCheck = validatePreviewImage(
-      // Pass through a synthetic name with the same extension as the
-      // preview key so the validator's extension check works regardless
-      // of what the client chose to name the original.
-      keys.preview,
-      previewHead.contentType ?? "image/*",
-      previewBytes
-    );
-    if (!previewCheck.ok) {
-      await rollback();
-      return NextResponse.json(
-        { error: previewCheck.error },
-        { status: 400 }
+      const previewBytes = await r2GetRange(
+        keys.preview,
+        0,
+        Math.min(VALIDATION_BYTE_RANGE, previewHead.contentLength - 1)
       );
+      // The S3 SDK's HeadObject returns the Content-Type the file was
+      // PUT with; we passed image/* in the signed URL so this should match.
+      const previewCheck = validatePreviewImage(
+        // Pass through a synthetic name with the same extension as the
+        // preview key so the validator's extension check works regardless
+        // of what the client chose to name the original.
+        keys.preview,
+        previewHead.contentType ?? "image/*",
+        previewBytes
+      );
+      if (!previewCheck.ok) {
+        await rollback();
+        return NextResponse.json(
+          { error: previewCheck.error },
+          { status: 400 }
+        );
+      }
+      previewByteCount = previewHead.contentLength;
     }
 
-    let totalBundleBytes = fileHead.contentLength + previewHead.contentLength;
+    let totalBundleBytes = fileHead.contentLength + previewByteCount;
 
     // ── Lottie GIF companion ──────────────────────────────────────────────
     if (keys.lottieGif) {
@@ -496,7 +512,31 @@ export async function POST(req: Request) {
     }
 
     // ── Commit DB row ─────────────────────────────────────────────────────
-    const previewUrl = r2PublicUrl(keys.preview);
+    // previewKey is the URL marketplace cards render as the thumbnail.
+    //   - LOTTIE: reuse the public Lottie URL so the animation plays
+    //     on cards. We just CopyObjected the source into public/models
+    //     above, so savedModelUrl is guaranteed populated here.
+    //   - Everything else: use the still-image preview the creator
+    //     uploaded.
+    // Schema keeps previewKey as a non-null string for back-compat with
+    // every consumer that assumes a populated URL — we just point it at
+    // a different URL family for Lottie.
+    const previewUrl =
+      fileType === ("LOTTIE" as FileType) && savedModelUrl
+        ? savedModelUrl
+        : keys.preview
+          ? r2PublicUrl(keys.preview)
+          : null;
+    if (!previewUrl) {
+      await rollback();
+      return NextResponse.json(
+        {
+          error:
+            "Could not resolve a preview URL for this asset. Please retry the upload.",
+        },
+        { status: 500 }
+      );
+    }
 
     const asset = await prisma.asset.create({
       data: {

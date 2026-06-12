@@ -9,6 +9,28 @@ const AssetCardPreview = dynamic(
   { loading: () => <div className="absolute inset-0 skeleton" /> }
 );
 
+// Lottie player is heavy (~80 KB gzipped) — only pull it in for cards
+// that actually render an animation. The dynamic loader keeps the rest
+// of the explore page from carrying the cost.
+const LottieCardPreview = dynamic(
+  () => import("./LottieCardPreview").then((m) => m.LottieCardPreview),
+  { loading: () => <div className="absolute inset-0 skeleton" /> }
+);
+
+/**
+ * A previewImage URL that ends in .json or .lottie is the public copy of
+ * a Lottie animation — that's how /api/assets serves uploads where the
+ * creator didn't (and shouldn't have to) provide a still thumbnail. The
+ * card plays the animation directly instead of trying to load JSON into
+ * an <img>. Lowercase + ignore querystrings so a CDN cache-buster like
+ * `?v=123` doesn't trip the check.
+ */
+function isLottieUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase().split("?")[0];
+  return lower.endsWith(".json") || lower.endsWith(".lottie");
+}
+
 export interface AssetCardData {
   id: string;
   title: string;
@@ -33,7 +55,8 @@ export interface AssetCardData {
  */
 export function AssetCard({ asset }: { asset: AssetCardData }) {
   const isFree = asset.price === 0;
-  const hasImage = !!asset.previewImage;
+  const isLottie = isLottieUrl(asset.previewImage);
+  const hasImage = !!asset.previewImage && !isLottie;
   const hasRating = !!(asset.reviewCount && asset.reviewCount > 0);
   // One stat at the bottom — rating if there is one, otherwise downloads
   // if there are any. If neither, the row is omitted entirely so the
@@ -51,9 +74,15 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
         hover:border-accent/40 hover:-translate-y-0.5
       "
     >
-      {/* Image area — neutral elevated surface behind transparent uploads. */}
+      {/* Image area — neutral elevated surface behind transparent uploads.
+          Three rendering paths in priority order:
+            1. Lottie URL    → animated preview via dotlottie-react.
+            2. Still image   → standard <img>.
+            3. No preview    → fallback Three.js shape from the seed. */}
       <div className="relative aspect-[4/3] overflow-hidden bg-elevated">
-        {hasImage ? (
+        {isLottie ? (
+          <LottieCardPreview src={asset.previewImage!} />
+        ) : hasImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={asset.previewImage}

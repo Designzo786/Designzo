@@ -515,12 +515,20 @@ export function UploadForm() {
     if (previewInputRef.current) previewInputRef.current.value = "";
   }
 
+  // Lottie assets render their own animation as the preview — the
+  // marketplace cards play the Lottie file directly on hover, so asking
+  // the creator for a separate thumbnail is dead weight. For LOTTIE,
+  // the server reuses the public Lottie URL as previewKey.
+  const previewRequired = fileType !== "LOTTIE";
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (!file) return setError("Please select an asset file.");
-    if (!preview) return setError("Please select a preview image.");
+    if (previewRequired && !preview) {
+      return setError("Please select a preview image.");
+    }
 
     // Final guard — the file extension must match the selected file type.
     const ext = getExtension(file.name);
@@ -549,10 +557,11 @@ export function UploadForm() {
     // upload, in declaration order. The server-side allowlist gates
     // which slots are permitted for each fileType so a tampered client
     // can't sneak unwanted companions into an SVG/Lottie upload.
-    const slots: SlotSpec[] = [
-      { slot: "file", file },
-      { slot: "preview", file: preview },
-    ];
+    // For Lottie uploads the preview slot is intentionally omitted —
+    // the server reuses the public Lottie URL as previewKey so the
+    // animation itself is the card thumbnail.
+    const slots: SlotSpec[] = [{ slot: "file", file }];
+    if (preview) slots.push({ slot: "preview", file: preview });
     if (fileType === "LOTTIE") {
       if (lottieGif) slots.push({ slot: "lottieGif", file: lottieGif });
       if (lottieMp4) slots.push({ slot: "lottieMp4", file: lottieMp4 });
@@ -677,7 +686,11 @@ export function UploadForm() {
                 : "bg-accent-muted border-accent/20 text-accent-light"
             }`}
           >
-            {file && preview ? <Check className="w-4 h-4" /> : "1"}
+            {file && (preview || !previewRequired) ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              "1"
+            )}
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-primary">
@@ -688,9 +701,13 @@ export function UploadForm() {
               detect the format and pre-fill the rest.
             </p>
           </div>
-          {/* Tiny progress hint — '2 of 2 files added' */}
+          {/* Tiny progress hint — counts the slots this fileType
+              actually requires. Lottie shows "X of 1" (source only) since
+              the animation is its own preview. */}
           <span className="text-[11px] text-muted tabular-nums shrink-0">
-            {[file, preview].filter(Boolean).length} of 2 files
+            {[file, ...(previewRequired ? [preview] : [])].filter(Boolean).length}{" "}
+            of {previewRequired ? 2 : 1} file
+            {previewRequired ? "s" : ""}
           </span>
         </header>
 
@@ -711,18 +728,31 @@ export function UploadForm() {
           onClear={clearFile}
         />
 
-        {/* Preview image picker */}
-        <FilePicker
-          label="Preview image"
-          sublabel="PNG, JPEG, or WebP · max 5 MB"
-          icon={ImageIcon}
-          file={preview}
-          previewSrc={previewUrl ?? undefined}
-          accept="image/png,image/jpeg,image/webp"
-          inputRef={previewInputRef}
-          onChange={onPreviewChange}
-          onClear={clearPreview}
-        />
+        {/* Preview image picker — hidden for Lottie. The Lottie animation
+            renders itself on every card and detail page (the public copy
+            of the .json doubles as the thumbnail), so a static preview
+            image would be redundant + a friction point that loses
+            uploads. Non-Lottie types still require the picker since
+            buyers need a still thumbnail to scan listing pages. */}
+        {previewRequired ? (
+          <FilePicker
+            label="Preview image"
+            sublabel="PNG, JPEG, or WebP · max 5 MB"
+            icon={ImageIcon}
+            file={preview}
+            previewSrc={previewUrl ?? undefined}
+            accept="image/png,image/jpeg,image/webp"
+            inputRef={previewInputRef}
+            onChange={onPreviewChange}
+            onClear={clearPreview}
+          />
+        ) : (
+          <div className="rounded-lg border border-info/20 bg-info-muted/40 px-3 py-2.5 text-xs text-info leading-relaxed">
+            <span className="font-semibold">No preview image needed.</span>{" "}
+            Your Lottie animation plays directly on the listing card and
+            detail page — buyers see exactly what they're getting.
+          </div>
+        )}
 
         {/* 3D bundle companions — only visible when MODEL_3D */}
         {fileType === "MODEL_3D" && (
