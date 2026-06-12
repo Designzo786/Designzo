@@ -312,8 +312,13 @@ function LottieDownloadButton({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 popover rounded-xl p-1.5 shadow-lg animate-fade-in z-30"
+          className="absolute right-0 top-full mt-2 w-72 popover rounded-xl p-1.5 shadow-lg animate-fade-in z-30"
         >
+          {/* Every Lottie format is listed so the buyer sees the full
+              menu at a glance. Companion formats the creator didn't
+              upload stay visible but disabled with a "Not included"
+              caption, so a buyer knows what the creator chose to ship
+              rather than wondering whether the menu is broken. */}
           <FormatRow
             icon={Package}
             title="All formats (.zip)"
@@ -332,28 +337,34 @@ function LottieDownloadButton({
               onDownload("json");
             }}
           />
-          {hasGif && (
-            <FormatRow
-              icon={ImagePlay}
-              title="GIF preview"
-              subtitle="Fallback for email + presentations"
-              onClick={() => {
-                setOpen(false);
-                onDownload("gif");
-              }}
-            />
-          )}
-          {hasMp4 && (
-            <FormatRow
-              icon={Film}
-              title="MP4 render"
-              subtitle="For social and video tools"
-              onClick={() => {
-                setOpen(false);
-                onDownload("mp4");
-              }}
-            />
-          )}
+          <FormatRow
+            icon={ImagePlay}
+            title="GIF preview"
+            subtitle={
+              hasGif
+                ? "Fallback for email + presentations"
+                : "Not included by the creator"
+            }
+            disabled={!hasGif}
+            onClick={() => {
+              setOpen(false);
+              onDownload("gif");
+            }}
+          />
+          <FormatRow
+            icon={Film}
+            title="MP4 render"
+            subtitle={
+              hasMp4
+                ? "For social and video tools"
+                : "Not included by the creator"
+            }
+            disabled={!hasMp4}
+            onClick={() => {
+              setOpen(false);
+              onDownload("mp4");
+            }}
+          />
         </div>
       )}
     </div>
@@ -432,8 +443,11 @@ function Model3dDownloadButton({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 popover rounded-xl p-1.5 shadow-lg animate-fade-in z-30"
+          className="absolute right-0 top-full mt-2 w-72 popover rounded-xl p-1.5 shadow-lg animate-fade-in z-30"
         >
+          {/* All four 3D formats listed. Companion formats the creator
+              didn't upload show as disabled rows with a "Not included"
+              caption — same pattern as the Lottie chooser. */}
           <FormatRow
             icon={Box}
             title="glTF Binary (.glb)"
@@ -443,39 +457,48 @@ function Model3dDownloadButton({
               onDownload("glb");
             }}
           />
-          {hasFbx && (
-            <FormatRow
-              icon={Box}
-              title="FBX export (.fbx)"
-              subtitle="Unity, Unreal, Autodesk pipelines"
-              onClick={() => {
-                setOpen(false);
-                onDownload("fbx");
-              }}
-            />
-          )}
-          {hasObj && (
-            <FormatRow
-              icon={Box}
-              title="OBJ export (.obj)"
-              subtitle="Universal text format, no rig"
-              onClick={() => {
-                setOpen(false);
-                onDownload("obj");
-              }}
-            />
-          )}
-          {hasUsdz && (
-            <FormatRow
-              icon={Box}
-              title="USDZ export (.usdz)"
-              subtitle="Apple AR Quick Look / Vision Pro"
-              onClick={() => {
-                setOpen(false);
-                onDownload("usdz");
-              }}
-            />
-          )}
+          <FormatRow
+            icon={Box}
+            title="FBX export (.fbx)"
+            subtitle={
+              hasFbx
+                ? "Unity, Unreal, Autodesk pipelines"
+                : "Not included by the creator"
+            }
+            disabled={!hasFbx}
+            onClick={() => {
+              setOpen(false);
+              onDownload("fbx");
+            }}
+          />
+          <FormatRow
+            icon={Box}
+            title="OBJ export (.obj)"
+            subtitle={
+              hasObj
+                ? "Universal text format, no rig"
+                : "Not included by the creator"
+            }
+            disabled={!hasObj}
+            onClick={() => {
+              setOpen(false);
+              onDownload("obj");
+            }}
+          />
+          <FormatRow
+            icon={Box}
+            title="USDZ export (.usdz)"
+            subtitle={
+              hasUsdz
+                ? "Apple AR Quick Look / Vision Pro"
+                : "Not included by the creator"
+            }
+            disabled={!hasUsdz}
+            onClick={() => {
+              setOpen(false);
+              onDownload("usdz");
+            }}
+          />
         </div>
       )}
     </div>
@@ -487,25 +510,60 @@ function FormatRow({
   title,
   subtitle,
   onClick,
+  disabled = false,
 }: {
   icon: typeof Package;
   title: string;
   subtitle: string;
   onClick: () => void;
+  /** Render the row but block the click. Used for formats the creator
+   *  didn't upload — buyer sees the full catalogue and instantly
+   *  understands which formats are part of *this* purchase. */
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left hover:bg-elevated transition-colors"
+      disabled={disabled}
+      className={cn(
+        "w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors",
+        disabled
+          ? "opacity-50 cursor-not-allowed"
+          : "hover:bg-elevated cursor-pointer"
+      )}
     >
-      <span className="w-8 h-8 rounded-lg bg-elevated border border-border text-accent-light flex items-center justify-center shrink-0">
+      <span
+        className={cn(
+          "w-8 h-8 rounded-lg border flex items-center justify-center shrink-0",
+          disabled
+            ? "bg-elevated/40 border-border/60 text-muted"
+            : "bg-elevated border-border text-accent-light"
+        )}
+      >
         <Icon className="w-4 h-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-primary">{title}</span>
-        <span className="block text-[11px] text-muted truncate">
+        <span
+          className={cn(
+            "flex items-center gap-1.5 text-sm font-medium",
+            disabled ? "text-secondary" : "text-primary"
+          )}
+        >
+          {title}
+          {disabled && (
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-muted bg-elevated/60 border border-border rounded px-1 py-0.5">
+              Unavailable
+            </span>
+          )}
+        </span>
+        <span
+          className={cn(
+            "block text-[11px] truncate",
+            disabled ? "text-muted/70" : "text-muted"
+          )}
+        >
           {subtitle}
         </span>
       </span>

@@ -3,6 +3,7 @@ import { Heart, ShoppingCart, Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 import { formatPrice, creatorDisplayName } from "@/lib/utils";
 
 export const metadata = { title: "Wishlist" };
@@ -68,18 +69,11 @@ export default async function WishlistPage() {
                   href={`/explore/${asset.id}`}
                   className="block aspect-[4/3] bg-elevated relative overflow-hidden group"
                 >
-                  {asset.previewKey ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={asset.previewKey}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-muted text-xs">
-                      No preview
-                    </div>
-                  )}
+                  <AssetThumb
+                    src={asset.previewKey}
+                    alt={asset.title}
+                    className="absolute inset-0 w-full h-full"
+                  />
                   {isFree && (
                     <div className="absolute top-2 left-2 badge badge-free pointer-events-none">
                       Free

@@ -9,6 +9,7 @@ import {
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, commissionCalc, creatorDisplayName } from "@/lib/utils";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 import { IncludedFormats } from "@/components/assets/IncludedFormats";
 import { CheckoutClient } from "./CheckoutClient";
 
@@ -134,16 +135,11 @@ export default async function CheckoutPage({
 
           <section className="rounded-xl border border-border bg-surface p-5">
             <div className="flex items-center gap-4">
-              {asset.previewKey ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={asset.previewKey}
-                  alt=""
-                  className="w-16 h-16 rounded-lg object-cover bg-canvas shrink-0"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-lg bg-elevated shrink-0" />
-              )}
+              <AssetThumb
+                src={asset.previewKey}
+                alt={asset.title}
+                className="w-16 h-16 rounded-lg shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-primary truncate">
                   {asset.title}

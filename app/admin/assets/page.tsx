@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ImageOff } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 import { formatPrice } from "@/lib/utils";
 import { AssetActions } from "./AssetActions";
 import type { AssetStatus } from "@prisma/client";
@@ -102,19 +102,11 @@ export default async function AdminAssetsPage({
                         className="shrink-0 group"
                         title="Open asset in new tab"
                       >
-                        {a.previewKey ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={a.previewKey}
-                            alt={a.title}
-                            loading="lazy"
-                            className="w-20 h-14 rounded-lg object-cover bg-canvas ring-1 ring-border group-hover:ring-accent transition-shadow"
-                          />
-                        ) : (
-                          <div className="w-20 h-14 rounded-lg bg-canvas ring-1 ring-border group-hover:ring-accent transition-shadow flex items-center justify-center text-subtle">
-                            <ImageOff className="w-5 h-5" />
-                          </div>
-                        )}
+                        <AssetThumb
+                          src={a.previewKey}
+                          alt={a.title}
+                          className="w-20 h-14 rounded-lg group-hover:ring-accent transition-shadow"
+                        />
                       </Link>
                       <div className="min-w-0">
                         <div className="font-medium text-primary truncate max-w-65">

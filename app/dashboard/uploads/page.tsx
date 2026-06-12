@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import {
   Upload,
   Plus,
-  ImageOff,
   Box,
   Sparkles,
   Layers,
@@ -16,6 +15,7 @@ import {
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 import { formatPrice, formatRelativeTime } from "@/lib/utils";
 import {
   CATEGORIES,
@@ -238,19 +238,11 @@ export default async function UploadsPage({
                           href={`/explore/${a.id}`}
                           className="group flex items-center gap-3 min-w-0"
                         >
-                          {a.previewKey ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={a.previewKey}
-                              alt={a.title}
-                              loading="lazy"
-                              className="w-20 h-14 rounded-lg object-cover bg-canvas shrink-0 ring-1 ring-border group-hover:ring-accent transition-shadow"
-                            />
-                          ) : (
-                            <div className="w-20 h-14 rounded-lg bg-canvas shrink-0 ring-1 ring-border group-hover:ring-accent transition-shadow flex items-center justify-center text-subtle">
-                              <ImageOff className="w-5 h-5" />
-                            </div>
-                          )}
+                          <AssetThumb
+                            src={a.previewKey}
+                            alt={a.title}
+                            className="w-20 h-14 rounded-lg shrink-0 group-hover:ring-accent transition-shadow"
+                          />
                           <div className="min-w-0">
                             <div className="font-medium text-primary truncate max-w-65 group-hover:text-accent-light transition-colors">
                               {a.title}

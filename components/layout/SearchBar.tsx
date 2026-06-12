@@ -4,6 +4,7 @@ import { Search, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn, formatPrice } from "@/lib/utils";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 
 interface SearchBarProps {
   className?: string;
@@ -203,16 +204,11 @@ export function SearchBar({
                         i === activeIndex ? "bg-elevated" : "hover:bg-elevated"
                       )}
                     >
-                      {r.previewKey ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={r.previewKey}
-                          alt=""
-                          className="w-10 h-10 rounded-md object-cover bg-canvas shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-md bg-canvas shrink-0" />
-                      )}
+                      <AssetThumb
+                        src={r.previewKey}
+                        alt={r.title}
+                        className="w-10 h-10 rounded-md shrink-0"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-primary truncate">
                           {r.title}

@@ -3,6 +3,7 @@ import { Library, Download, Receipt, CheckCircle2 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AssetThumb } from "@/components/assets/AssetThumb";
 import { formatPrice, formatDate, creatorDisplayName } from "@/lib/utils";
 
 export const metadata = { title: "My Library" };
@@ -94,18 +95,15 @@ export default async function LibraryPage({
                 href={`/explore/${p.asset.id}`}
                 className="block aspect-[4/3] bg-elevated relative overflow-hidden group"
               >
-                {p.asset.previewKey ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.asset.previewKey}
-                    alt=""
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-muted text-xs">
-                    No preview
-                  </div>
-                )}
+                {/* AssetThumb renders a LottiePlayer when previewKey is
+                    a .json/.lottie URL and falls back to <img> otherwise.
+                    That keeps Lottie assets animated even in the
+                    library's tile view. */}
+                <AssetThumb
+                  src={p.asset.previewKey}
+                  alt={p.asset.title}
+                  className="absolute inset-0 w-full h-full"
+                />
                 {p.amount === 0 && (
                   <div className="absolute top-2 left-2 badge badge-free pointer-events-none">
                     Free
