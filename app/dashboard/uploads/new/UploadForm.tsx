@@ -102,7 +102,16 @@ function putToSignedUrl(
       }
     });
     xhr.addEventListener("error", () =>
-      reject(new Error("Network error while uploading to storage."))
+      // The XHR error event fires with no detail when a CORS preflight
+      // is rejected, the network drops mid-PUT, or the signed URL host
+      // is unreachable. Of those, CORS is by far the most common cause
+      // in production — surface that hint so the operator knows where
+      // to look first instead of chasing a phantom network issue.
+      reject(
+        new Error(
+          "Could not reach storage. If this is the first upload after a deploy, the R2 bucket may be missing its CORS rules — see scripts/setup-r2-cors.mjs or the Cloudflare R2 dashboard."
+        )
+      )
     );
     xhr.addEventListener("abort", () =>
       reject(new Error("Upload was cancelled."))
