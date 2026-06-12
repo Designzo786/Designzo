@@ -47,38 +47,94 @@ const EXT_TO_MIME: Record<string, string> = {
   zip: "application/zip",
 };
 
-interface UploadResult {
-  ok: boolean;
-  data: { error?: string; id?: string };
+interface SlotSpec {
+  /** Logical slot name on the server (file / preview / lottieGif / ...) */
+  slot: string;
+  /** The actual File the browser will PUT to the signed URL. */
+  file: File;
 }
 
-// fetch() can't report upload progress — XMLHttpRequest can. This wraps an
-// XHR POST so the form can show a real progress bar for large asset files.
-function uploadWithProgress(
+interface SignedSlot {
+  key: string;
+  url: string;
+  publicUrl?: string;
+  contentType: string;
+  expiresIn: number;
+}
+
+interface SignedUrlResponse {
+  slots: Record<string, SignedSlot>;
+  expiresIn: number;
+}
+
+/**
+ * PUT a single File to R2 via the signed URL. XHR is used (not fetch)
+ * because we need the upload-progress event to drive the form's progress
+ * bar — fetch() can't surface that yet.
+ *
+ * R2 rejects the PUT if the Content-Type doesn't match what the signed
+ * URL was issued with, so we always set it from the server's response.
+ */
+function putToSignedUrl(
   url: string,
-  formData: FormData,
-  onProgress: (pct: number) => void
-): Promise<UploadResult> {
+  contentType: string,
+  file: File,
+  onChunk: (loaded: number, total: number) => void
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
+      if (e.lengthComputable) onChunk(e.loaded, e.total);
     });
     xhr.addEventListener("load", () => {
-      let data: UploadResult["data"] = {};
-      try {
-        data = JSON.parse(xhr.responseText);
-      } catch {
-        // non-JSON response — leave data empty
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        // R2 returns an XML body on failure — we don't try to parse it;
+        // the HTTP status alone is enough context for a clear retry.
+        reject(
+          new Error(
+            `Upload to storage failed (HTTP ${xhr.status}). ${xhr.statusText || ""}`.trim()
+          )
+        );
       }
-      resolve({ ok: xhr.status >= 200 && xhr.status < 300, data });
     });
-    xhr.addEventListener("error", () => reject(new Error("Network error")));
-    xhr.send(formData);
+    xhr.addEventListener("error", () =>
+      reject(new Error("Network error while uploading to storage."))
+    );
+    xhr.addEventListener("abort", () =>
+      reject(new Error("Upload was cancelled."))
+    );
+    xhr.send(file);
   });
+}
+
+/**
+ * Translate a non-2xx JSON response from one of our own routes into a
+ * useful error string. Falls back to a status-code-specific message when
+ * the server returned no error body (e.g. an edge layer 413 / 504 / 502).
+ */
+async function readJsonError(
+  res: Response,
+  fallbackByStatus: Record<number, string> = {}
+): Promise<string> {
+  let body: { error?: string } = {};
+  try {
+    body = await res.json();
+  } catch {
+    // not JSON
+  }
+  if (body.error) return body.error;
+  if (fallbackByStatus[res.status]) return fallbackByStatus[res.status];
+  if (res.status === 413)
+    return "That file is too large for the current upload limit.";
+  if (res.status === 504)
+    return "Upload timed out. Try a smaller file or a faster connection.";
+  if (res.status === 401)
+    return "Your session expired — please sign in again.";
+  return `Upload failed (HTTP ${res.status}). Please try again.`;
 }
 
 // Each category maps to its natural file type. When the user picks a
@@ -479,47 +535,118 @@ export function UploadForm() {
 
     setLoading(true);
     setProgress(0);
+
+    // Build the full slot manifest — every File the browser needs to
+    // upload, in declaration order. The server-side allowlist gates
+    // which slots are permitted for each fileType so a tampered client
+    // can't sneak unwanted companions into an SVG/Lottie upload.
+    const slots: SlotSpec[] = [
+      { slot: "file", file },
+      { slot: "preview", file: preview },
+    ];
+    if (fileType === "LOTTIE") {
+      if (lottieGif) slots.push({ slot: "lottieGif", file: lottieGif });
+      if (lottieMp4) slots.push({ slot: "lottieMp4", file: lottieMp4 });
+    }
+    if (fileType === "MODEL_3D") {
+      if (modelFbx) slots.push({ slot: "modelFbx", file: modelFbx });
+      if (modelObj) slots.push({ slot: "modelObj", file: modelObj });
+      if (modelUsdz) slots.push({ slot: "modelUsdz", file: modelUsdz });
+    }
+
     try {
-      const fd = new FormData();
-      fd.append("title", title.trim());
-      fd.append("description", description.trim());
-      fd.append("category", category);
-      fd.append("subcategory", subcategory);
-      fd.append("fileType", fileType);
-      fd.append("priceCents", String(priceCents));
-      fd.append("tags", tags.trim());
-      fd.append("file", file);
-      fd.append("preview", preview);
-      // Optional Lottie bundle companions — only sent for LOTTIE uploads.
-      // Server-side validation rejects them with a clear error if a creator
-      // somehow attaches them to a non-Lottie asset.
-      if (fileType === "LOTTIE") {
-        if (lottieGif) fd.append("lottieGif", lottieGif);
-        if (lottieMp4) fd.append("lottieMp4", lottieMp4);
-      }
-      // 3D companion files — only sent for MODEL_3D uploads. Server
-      // rejects them on any other fileType so a tampered request can't
-      // store them against a non-3D asset.
-      if (fileType === "MODEL_3D") {
-        if (modelFbx) fd.append("modelFbx", modelFbx);
-        if (modelObj) fd.append("modelObj", modelObj);
-        if (modelUsdz) fd.append("modelUsdz", modelUsdz);
-      }
-
-      const res = await uploadWithProgress("/api/assets", fd, setProgress);
-
-      if (!res.ok) {
-        setError(res.data.error ?? "Upload failed. Please try again.");
+      // ─── Step 1: Ask the server for pre-signed PUT URLs ──────────────
+      // The server validates extension + size + per-fileType slot gating
+      // before issuing any URL, so an obvious mistake (wrong extension,
+      // file too large) is caught BEFORE the browser uploads megabytes.
+      const signRes = await fetch("/api/assets/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileType,
+          slots: Object.fromEntries(
+            slots.map((s) => [s.slot, { name: s.file.name, size: s.file.size }])
+          ),
+        }),
+      });
+      if (!signRes.ok) {
+        setError(await readJsonError(signRes));
         setLoading(false);
         setProgress(0);
         return;
       }
+      const signed = (await signRes.json()) as SignedUrlResponse;
+
+      // ─── Step 2: PUT every file to its signed URL ───────────────────
+      // Track total progress across all slots so the bar reflects the
+      // entire bundle, not just the current PUT. Uploads run
+      // sequentially: simpler progress maths, and most browsers cap to
+      // 6 concurrent connections per host anyway.
+      const totalBytes = slots.reduce((sum, s) => sum + s.file.size, 0);
+      const perSlotLoaded = new Map<string, number>();
+
+      for (const s of slots) {
+        const signedSlot = signed.slots[s.slot];
+        if (!signedSlot) {
+          setError(`Server didn't issue a URL for ${s.slot}.`);
+          setLoading(false);
+          setProgress(0);
+          return;
+        }
+        await putToSignedUrl(
+          signedSlot.url,
+          signedSlot.contentType,
+          s.file,
+          (loaded) => {
+            perSlotLoaded.set(s.slot, loaded);
+            let cumulative = 0;
+            for (const v of perSlotLoaded.values()) cumulative += v;
+            setProgress(
+              totalBytes > 0
+                ? Math.min(99, Math.round((cumulative / totalBytes) * 100))
+                : 0
+            );
+          }
+        );
+        perSlotLoaded.set(s.slot, s.file.size);
+      }
+      setProgress(99); // last 1% reserved for the commit POST below
+
+      // ─── Step 3: Commit metadata + R2 keys to the DB ────────────────
+      const commitRes = await fetch("/api/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          subcategory,
+          fileType,
+          priceCents,
+          tags: tags.trim(),
+          fileName: file.name,
+          keys: Object.fromEntries(
+            Object.entries(signed.slots).map(([slot, info]) => [slot, info.key])
+          ),
+        }),
+      });
+      if (!commitRes.ok) {
+        setError(await readJsonError(commitRes));
+        setLoading(false);
+        setProgress(0);
+        return;
+      }
+      setProgress(100);
 
       // Keep the form locked while we navigate away — success.
       router.push("/dashboard/uploads");
       router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      // Network / abort / signed-URL PUT error — surface the message so
+      // the creator can decide whether to retry or pick a smaller file.
+      const message =
+        err instanceof Error ? err.message : "Something went wrong.";
+      setError(message);
       setLoading(false);
       setProgress(0);
     }

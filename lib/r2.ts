@@ -15,7 +15,10 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
+  CopyObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let _client: S3Client | null = null;
 
@@ -90,4 +93,99 @@ export function r2KeyFromUrl(url: string): string | null {
     return url.slice(base.length + 1);
   }
   return null;
+}
+
+/**
+ * Issue a pre-signed PUT URL the browser can use to upload directly to R2,
+ * bypassing the serverless function's body-size limit (Vercel: 4.5 MB on
+ * Hobby / Pro). The signature locks in the bucket, key, and HTTP method,
+ * and the URL expires after `expiresInSeconds` so a leaked URL has a tight
+ * blast radius.
+ *
+ * Optional headers (contentType, contentLengthRange) become required at
+ * upload time — R2 rejects the PUT if the browser's request headers don't
+ * match. We use contentType to lock the MIME type so a user can't upload
+ * a .glb under a key we issued for a .png.
+ */
+export async function r2SignedPutUrl(
+  key: string,
+  opts: { contentType?: string; expiresInSeconds?: number } = {}
+): Promise<string> {
+  const cmd = new PutObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+    ContentType: opts.contentType,
+  });
+  return getSignedUrl(client(), cmd, {
+    expiresIn: opts.expiresInSeconds ?? 300, // 5 min default
+  });
+}
+
+/**
+ * HEAD an object. Returns size + contentType when it exists, null otherwise.
+ * Used after a signed-URL upload to confirm the browser actually completed
+ * the PUT before we commit metadata to the DB.
+ */
+export async function r2Head(
+  key: string
+): Promise<{ contentLength: number; contentType?: string } | null> {
+  try {
+    const res = await client().send(
+      new HeadObjectCommand({ Bucket: bucket(), Key: key })
+    );
+    return {
+      contentLength: res.ContentLength ?? 0,
+      contentType: res.ContentType,
+    };
+  } catch (err) {
+    // 404 / NotFound surfaces as a thrown error in the AWS SDK — treat all
+    // errors as "not present" for the caller's purpose.
+    if (
+      err &&
+      typeof err === "object" &&
+      "name" in err &&
+      (err.name === "NotFound" || err.name === "NoSuchKey")
+    ) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Read a byte range from an object as a Buffer. Used for content validation
+ * — the server pulls only the first 64 KB or so to run magic-byte checks
+ * without paying full-file egress on every upload.
+ */
+export async function r2GetRange(
+  key: string,
+  start: number,
+  endInclusive: number
+): Promise<Buffer> {
+  const res = await client().send(
+    new GetObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      Range: `bytes=${start}-${endInclusive}`,
+    })
+  );
+  if (!res.Body) throw new Error(`R2 object has no body: ${key}`);
+  const bytes = await res.Body.transformToByteArray();
+  return Buffer.from(bytes);
+}
+
+/**
+ * Server-side copy from one R2 key to another. Used to publish a browser-
+ * renderable asset (.glb / .json / .svg) into the public path so the
+ * detail-page viewer can fetch it, without re-uploading from the browser.
+ * R2 performs the copy internally — no transfer, no extra egress.
+ */
+export async function r2Copy(srcKey: string, dstKey: string): Promise<void> {
+  await client().send(
+    new CopyObjectCommand({
+      Bucket: bucket(),
+      Key: dstKey,
+      CopySource: `/${bucket()}/${encodeURIComponent(srcKey).replace(/%2F/g, "/")}`,
+    })
+  );
 }
