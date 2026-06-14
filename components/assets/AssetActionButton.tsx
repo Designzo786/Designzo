@@ -130,8 +130,10 @@ export function AssetActionButton({
   if (mode === "owned") {
     // Multi-format assets get a chooser. Lottie ships a bundle by default
     // + per-format singles. 3D ships the .glb by default + per-format
-    // companions (.fbx / .obj / .usdz). Everything else stays a plain
-    // single-file download.
+    // companions (.fbx / .obj / .usdz) — chooser shows up for every 3D
+    // asset so buyers can see the full format catalogue, with missing
+    // companions rendered as disabled rows ("Not included by the
+    // creator"). Everything else stays a plain single-file download.
     if (fileType === "LOTTIE") {
       return (
         <div className="space-y-2">
@@ -148,10 +150,7 @@ export function AssetActionButton({
       );
     }
 
-    if (
-      fileType === "MODEL_3D" &&
-      (hasModelFbx || hasModelObj || hasModelUsdz)
-    ) {
+    if (fileType === "MODEL_3D") {
       return (
         <div className="space-y-2">
           <Model3dDownloadButton
@@ -199,10 +198,7 @@ export function AssetActionButton({
       );
     }
 
-    if (
-      fileType === "MODEL_3D" &&
-      (hasModelFbx || hasModelObj || hasModelUsdz)
-    ) {
+    if (fileType === "MODEL_3D") {
       return (
         <Model3dDownloadButton
           busy={busy}
