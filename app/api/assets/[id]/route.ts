@@ -131,11 +131,16 @@ export async function PATCH(
     );
   }
 
-  // REJECTED → PENDING resubmission. PENDING and APPROVED keep their
-  // current status. rejectionNote clears on any successful edit so the
-  // moderation list always reflects the latest state.
+  // REJECTED or NEEDS_IMPROVEMENT → PENDING resubmission, since saving
+  // an edit is the creator's signal that they've acted on the admin's
+  // note. PENDING and APPROVED keep their current status. rejectionNote
+  // clears on any successful edit so the moderation list always
+  // reflects the latest state.
   const nextStatus =
-    existing.status === "REJECTED" ? "PENDING" : existing.status;
+    existing.status === "REJECTED" ||
+    existing.status === "NEEDS_IMPROVEMENT"
+      ? "PENDING"
+      : existing.status;
 
   const updated = await prisma.asset.update({
     where: { id },

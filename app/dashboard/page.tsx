@@ -31,6 +31,7 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
   PENDING: "text-gold bg-gold-muted border-gold/20",
   APPROVED: "text-accent-light bg-accent-muted border-accent/20",
   REJECTED: "text-danger bg-danger-muted border-danger/20",
+  NEEDS_IMPROVEMENT: "text-gold bg-gold-muted border-gold/20",
 };
 
 // Minimum payout — kept in sync with /api/payouts/request and the

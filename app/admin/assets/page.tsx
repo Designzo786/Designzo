@@ -8,6 +8,9 @@ import type { AssetStatus } from "@prisma/client";
 const TABS: { value: AssetStatus | "ALL"; label: string }[] = [
   { value: "PENDING", label: "Pending" },
   { value: "APPROVED", label: "Approved" },
+  // Sits between Approved + Rejected — admin sent the asset back to the
+  // creator for revisions, not a hard no.
+  { value: "NEEDS_IMPROVEMENT", label: "Needs improvement" },
   { value: "REJECTED", label: "Rejected" },
   { value: "ALL", label: "All" },
 ];
@@ -16,6 +19,9 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
   PENDING: "text-gold bg-gold-muted border-gold/20",
   APPROVED: "text-accent-light bg-accent-muted border-accent/20",
   REJECTED: "text-danger bg-danger-muted border-danger/20",
+  // Amber/gold, similar to PENDING — it's also a "waiting on creator
+  // action" state, not a terminal one.
+  NEEDS_IMPROVEMENT: "text-gold bg-gold-muted border-gold/20",
 };
 
 export default async function AdminAssetsPage({
@@ -25,7 +31,10 @@ export default async function AdminAssetsPage({
 }) {
   const { status } = await searchParams;
   const filter = (
-    status && ["PENDING", "APPROVED", "REJECTED"].includes(status)
+    status &&
+    ["PENDING", "APPROVED", "REJECTED", "NEEDS_IMPROVEMENT", "ALL"].includes(
+      status
+    )
       ? status
       : "PENDING"
   ) as AssetStatus | "ALL";
@@ -120,6 +129,12 @@ export default async function AdminAssetsPage({
                             {a.rejectionNote}
                           </div>
                         )}
+                        {a.status === "NEEDS_IMPROVEMENT" &&
+                          a.rejectionNote && (
+                            <div className="text-xs text-gold truncate max-w-65 mt-0.5">
+                              {a.rejectionNote}
+                            </div>
+                          )}
                       </div>
                     </div>
                   </td>

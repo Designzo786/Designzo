@@ -32,6 +32,18 @@ const STATUS_BADGE: Record<AssetStatus, string> = {
   PENDING: "text-gold bg-gold-muted border-gold/20",
   APPROVED: "text-accent-light bg-accent-muted border-accent/20",
   REJECTED: "text-danger bg-danger-muted border-danger/20",
+  // Same gold as PENDING — both states are "waiting on creator/admin"
+  // and amber reads as "action required" without the harshness of red.
+  NEEDS_IMPROVEMENT: "text-gold bg-gold-muted border-gold/20",
+};
+
+// Status label shown on the badge — "NEEDS_IMPROVEMENT" is a mouthful
+// and "Needs Work" reads better at small caps.
+const STATUS_LABEL: Record<AssetStatus, string> = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+  NEEDS_IMPROVEMENT: "NEEDS WORK",
 };
 
 // Per-file-type icon + tone for the "Type" column. Same hue mapping the
@@ -59,6 +71,7 @@ const FILTERS = [
   { value: "ALL", label: "All" },
   { value: "APPROVED", label: "Approved" },
   { value: "PENDING", label: "Pending" },
+  { value: "NEEDS_IMPROVEMENT", label: "Needs work" },
   { value: "REJECTED", label: "Rejected" },
 ] as const;
 
@@ -259,6 +272,12 @@ export default async function UploadsPage({
                                 {a.rejectionNote}
                               </div>
                             )}
+                            {a.status === "NEEDS_IMPROVEMENT" &&
+                              a.rejectionNote && (
+                                <div className="text-xs text-gold truncate max-w-65 mt-0.5">
+                                  {a.rejectionNote}
+                                </div>
+                              )}
                           </div>
                         </Link>
                       </td>
@@ -280,7 +299,7 @@ export default async function UploadsPage({
                         <span
                           className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border whitespace-nowrap ${STATUS_BADGE[a.status]}`}
                         >
-                          {a.status}
+                          {STATUS_LABEL[a.status]}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">

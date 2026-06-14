@@ -184,23 +184,37 @@ export function EditAssetForm({ asset }: EditAssetFormProps) {
     <form onSubmit={onSubmit} className="space-y-6">
       <FormError message={error} />
 
-      {/* If the asset is currently REJECTED, surface why so the creator
-          knows what to change before re-submitting. The status auto-flips
-          to PENDING when they save. */}
-      {asset.status === "REJECTED" && asset.rejectionNote && (
-        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-gold-muted border border-gold/20 text-gold">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <div className="text-xs leading-relaxed">
-            <div className="font-semibold mb-0.5">
-              Your edits will resubmit this asset for review.
-            </div>
-            <div>
-              <span className="opacity-80">Rejection note:</span>{" "}
-              {asset.rejectionNote}
+      {/* If the asset is currently REJECTED or NEEDS_IMPROVEMENT,
+          surface the admin's note so the creator knows what to change
+          before re-submitting. The status auto-flips to PENDING when
+          they save in either case. */}
+      {(asset.status === "REJECTED" ||
+        asset.status === "NEEDS_IMPROVEMENT") &&
+        asset.rejectionNote && (
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-gold-muted border border-gold/20 text-gold">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="text-xs leading-relaxed">
+              <div className="font-semibold mb-0.5">
+                {asset.status === "NEEDS_IMPROVEMENT"
+                  ? "An admin asked for some changes."
+                  : "Your edits will resubmit this asset for review."}
+              </div>
+              <div>
+                <span className="opacity-80">
+                  {asset.status === "NEEDS_IMPROVEMENT"
+                    ? "Admin note:"
+                    : "Rejection note:"}
+                </span>{" "}
+                {asset.rejectionNote}
+              </div>
+              {asset.status === "NEEDS_IMPROVEMENT" && (
+                <div className="mt-1 opacity-80">
+                  Saving will move the asset back into the review queue.
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       <section className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <div>

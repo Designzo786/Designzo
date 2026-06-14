@@ -7,7 +7,16 @@ import type { AssetStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
-const VALID: AssetStatus[] = ["PENDING", "APPROVED", "REJECTED"];
+const VALID: AssetStatus[] = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  // NEEDS_IMPROVEMENT is a softer alternative to REJECTED — the asset
+  // stays hidden from the public marketplace but the creator gets an
+  // explicit note about what to revise and can re-submit by saving
+  // an edit (the edit flow flips status back to PENDING).
+  "NEEDS_IMPROVEMENT",
+];
 
 export async function PATCH(
   req: Request,
@@ -39,11 +48,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid note." }, { status: 400 });
   }
 
+  // `rejectionNote` is reused for the NEEDS_IMPROVEMENT message — it's
+  // the same "admin tells creator what to change" surface, just with
+  // softer copy. Schema-wise we don't need a separate column.
   const asset = await prisma.asset.update({
     where: { id },
     data: {
       status,
-      rejectionNote: status === "REJECTED" ? (note ?? null) : null,
+      rejectionNote:
+        status === "REJECTED" || status === "NEEDS_IMPROVEMENT"
+          ? (note ?? null)
+          : null,
     },
     select: { id: true, status: true, title: true, uploaderId: true },
   });
@@ -74,6 +89,19 @@ export async function PATCH(
         ? `"${asset.title}" was not approved: ${note}`
         : `"${asset.title}" was not approved. Review and resubmit.`,
       link: "/dashboard/uploads",
+    });
+  } else if (status === "NEEDS_IMPROVEMENT") {
+    // Softer than REJECTED — the asset is still a candidate, just needs
+    // a revision pass. The link points straight at the edit form so the
+    // creator can act on the admin's note immediately.
+    await createNotification({
+      userId: asset.uploaderId,
+      type: "ASSET_NEEDS_IMPROVEMENT",
+      title: "Asset needs improvement",
+      body: note
+        ? `"${asset.title}" needs some changes before it can go live: ${note}`
+        : `"${asset.title}" needs some changes before it can go live.`,
+      link: `/dashboard/uploads/${asset.id}/edit`,
     });
   }
 

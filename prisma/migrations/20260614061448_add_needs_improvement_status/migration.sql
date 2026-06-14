@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "AssetStatus" ADD VALUE 'NEEDS_IMPROVEMENT';
+
+-- AlterEnum
+ALTER TYPE "NotificationType" ADD VALUE 'ASSET_NEEDS_IMPROVEMENT';

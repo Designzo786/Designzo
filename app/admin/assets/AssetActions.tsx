@@ -2,7 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  X,
+  RotateCcw,
+  Trash2,
+  ExternalLink,
+  Wrench,
+} from "lucide-react";
 import { useDialog } from "@/components/ui/ConfirmDialog";
 import type { AssetStatus } from "@prisma/client";
 
@@ -57,6 +64,20 @@ export function AssetActions({
     await update("REJECTED", note || undefined);
   }
 
+  async function onNeedsImprovement() {
+    const note = await prompt({
+      variant: "warning",
+      title: "Request improvements",
+      body: "Tell the creator what to revise. The note shows up on their My-Assets row and again on the edit form. Saving an edit moves the asset back to PENDING for re-review.",
+      placeholder: "e.g. tighten the topology around the head and re-export",
+      multiline: true,
+      required: false,
+      confirmLabel: "Request changes",
+    });
+    if (note === null) return;
+    await update("NEEDS_IMPROVEMENT", note || undefined);
+  }
+
   async function onReset() {
     const ok = await confirm({
       variant: "warning",
@@ -99,6 +120,21 @@ export function AssetActions({
           </span>
         )}
 
+        {/* View — opens the public asset page in a new tab so the admin
+            can review the full 3D / Lottie / SVG preview before
+            deciding. Available on every row regardless of status; the
+            uploader and admins are always allowed to view PENDING /
+            REJECTED / NEEDS_IMPROVEMENT assets. */}
+        <a
+          href={`/explore/${assetId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open asset to review in a new tab"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-secondary hover:text-primary border border-border hover:border-border-hover transition-colors"
+        >
+          <ExternalLink className="w-3 h-3" /> View
+        </a>
+
         {status === "PENDING" && (
           <>
             <button
@@ -108,6 +144,15 @@ export function AssetActions({
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-accent-light bg-accent-muted hover:bg-accent/20 border border-accent/20 transition-colors disabled:opacity-50"
             >
               <Check className="w-3 h-3" /> Approve
+            </button>
+            <button
+              type="button"
+              onClick={onNeedsImprovement}
+              disabled={pending}
+              title="Send back to the creator with revision notes"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-gold bg-gold-muted hover:bg-gold/20 border border-gold/20 transition-colors disabled:opacity-50"
+            >
+              <Wrench className="w-3 h-3" /> Needs improvement
             </button>
             <button
               type="button"

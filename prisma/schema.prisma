@@ -39,6 +39,12 @@ enum AssetStatus {
   PENDING
   APPROVED
   REJECTED
+  // Admin can ask a creator to revise without outright rejecting. The
+  // asset is hidden from the public marketplace (same as REJECTED) but
+  // the creator's My-Assets view surfaces the admin's note prominently
+  // so they know what to change. On the creator's next save the edit
+  // flow flips status back to PENDING for re-review.
+  NEEDS_IMPROVEMENT
 }
 
 enum FileType {
@@ -73,6 +79,7 @@ enum PayoutStatus {
 enum NotificationType {
   ASSET_APPROVED
   ASSET_REJECTED
+  ASSET_NEEDS_IMPROVEMENT
   SALE
   PURCHASE
   PAYOUT_PROCESSING
