@@ -87,8 +87,17 @@ export function AssetActions({
 
   return (
     <>
-      <div className="inline-flex items-center gap-1.5">
-        {error && <span className="text-xs text-danger mr-2">{error}</span>}
+      {/* `flex-wrap justify-end` lets the row break into a second line
+          when the viewport is narrow instead of pushing the buttons
+          outside the cell. `whitespace-nowrap` on every button keeps
+          the label + icon as a single unit no matter how narrow the
+          column gets. */}
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {error && (
+          <span className="text-xs text-danger mr-2 w-full text-right">
+            {error}
+          </span>
+        )}
 
         {status === "PENDING" && (
           <>
@@ -96,7 +105,7 @@ export function AssetActions({
               type="button"
               onClick={onApprove}
               disabled={pending}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-accent-light bg-accent-muted hover:bg-accent/20 border border-accent/20 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-accent-light bg-accent-muted hover:bg-accent/20 border border-accent/20 transition-colors disabled:opacity-50"
             >
               <Check className="w-3 h-3" /> Approve
             </button>
@@ -104,7 +113,7 @@ export function AssetActions({
               type="button"
               onClick={onReject}
               disabled={pending}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-danger bg-danger-muted hover:bg-danger/20 border border-danger/20 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-danger bg-danger-muted hover:bg-danger/20 border border-danger/20 transition-colors disabled:opacity-50"
             >
               <X className="w-3 h-3" /> Reject
             </button>
@@ -116,7 +125,7 @@ export function AssetActions({
             type="button"
             onClick={onReset}
             disabled={pending}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-muted hover:text-primary border border-border hover:border-border-hover transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-muted hover:text-primary border border-border hover:border-border-hover transition-colors disabled:opacity-50"
           >
             <RotateCcw className="w-3 h-3" /> Re-queue
           </button>
@@ -130,7 +139,7 @@ export function AssetActions({
           onClick={onDelete}
           disabled={pending}
           title="Permanently delete asset"
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-danger border border-danger/30 hover:bg-danger/10 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap text-danger border border-danger/30 hover:bg-danger/10 transition-colors disabled:opacity-50"
         >
           <Trash2 className="w-3 h-3" /> Delete
         </button>

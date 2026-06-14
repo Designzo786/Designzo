@@ -75,14 +75,14 @@ export default async function AdminAssetsPage({
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <div className="overflow-x-auto"><table className="w-full min-w-160 text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-225 text-sm">
             <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
               <tr>
-                <th className="text-left font-medium px-4 py-3">Asset</th>
-                <th className="text-left font-medium px-4 py-3">Uploader</th>
-                <th className="text-left font-medium px-4 py-3">Price</th>
-                <th className="text-left font-medium px-4 py-3">Status</th>
-                <th className="text-right font-medium px-4 py-3">Actions</th>
+                <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Asset</th>
+                <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Uploader</th>
+                <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Price</th>
+                <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Status</th>
+                <th className="text-right font-medium px-4 py-3 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -127,10 +127,12 @@ export default async function AdminAssetsPage({
                     <div className="truncate max-w-45">{a.uploader.name ?? "—"}</div>
                     <div className="text-xs text-muted truncate max-w-45">{a.uploader.email}</div>
                   </td>
-                  <td className="px-4 py-3 text-secondary">{formatPrice(a.price)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-secondary whitespace-nowrap">
+                    {formatPrice(a.price)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${STATUS_BADGE[a.status]}`}
+                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border whitespace-nowrap ${STATUS_BADGE[a.status]}`}
                     >
                       {a.status}
                     </span>
