@@ -21,6 +21,15 @@ const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
 const MAX_MODEL_FBX_BYTES = 30 * 1024 * 1024;
 const MAX_MODEL_OBJ_BYTES = 20 * 1024 * 1024;
 const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024;
+// .blend files often carry packed textures + simulation caches — keep
+// the ceiling generous so legit Blender saves go through, but cap at
+// the same 50 MB ceiling Vercel's hobby request payload caps imply
+// elsewhere so a stray multi-GB save isn't accepted.
+const MAX_MODEL_BLEND_BYTES = 50 * 1024 * 1024;
+// PNG renders (the buyer-facing icon thumb or a hero shot) should be
+// modest — anything bigger than 8 MB is overkill for a 2D companion
+// and would dwarf the preview image itself.
+const MAX_MODEL_PNG_BYTES = 8 * 1024 * 1024;
 
 const PREVIEW_EXTENSIONS = ["png", "jpg", "jpeg", "webp"];
 
@@ -94,6 +103,20 @@ const SLOTS: Record<string, SlotSpec> = {
     visibility: "private",
     extensions: ["usdz"],
     maxBytes: MAX_MODEL_USDZ_BYTES,
+    validFor: ["MODEL_3D" as FileType],
+    prefix: "private/files",
+  },
+  modelBlend: {
+    visibility: "private",
+    extensions: ["blend"],
+    maxBytes: MAX_MODEL_BLEND_BYTES,
+    validFor: ["MODEL_3D" as FileType],
+    prefix: "private/files",
+  },
+  modelPng: {
+    visibility: "private",
+    extensions: ["png"],
+    maxBytes: MAX_MODEL_PNG_BYTES,
     validFor: ["MODEL_3D" as FileType],
     prefix: "private/files",
   },

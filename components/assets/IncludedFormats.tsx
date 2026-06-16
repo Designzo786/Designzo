@@ -15,6 +15,8 @@ interface Props {
   hasModelFbx?: boolean;
   hasModelObj?: boolean;
   hasModelUsdz?: boolean;
+  hasModelBlend?: boolean;
+  hasModelPng?: boolean;
 }
 
 interface Format {
@@ -49,6 +51,8 @@ export function IncludedFormats({
   hasModelFbx = false,
   hasModelObj = false,
   hasModelUsdz = false,
+  hasModelBlend = false,
+  hasModelPng = false,
 }: Props) {
   const formats = buildList({
     fileType,
@@ -57,6 +61,8 @@ export function IncludedFormats({
     hasModelFbx,
     hasModelObj,
     hasModelUsdz,
+    hasModelBlend,
+    hasModelPng,
   });
 
   if (formats.length === 0) return null;
@@ -180,6 +186,22 @@ function buildList(props: Props): Format[] {
         ? "Apple AR Quick Look, Vision Pro, iOS / iPadOS"
         : "The creator didn't ship a USDZ export with this asset",
       available: !!props.hasModelUsdz,
+    });
+    out.push({
+      icon: Box,
+      title: "Blender source (.blend)",
+      subtitle: props.hasModelBlend
+        ? "Edit, re-light, and re-export from Blender"
+        : "The creator didn't ship a Blender source file with this asset",
+      available: !!props.hasModelBlend,
+    });
+    out.push({
+      icon: Box,
+      title: "PNG render (.png)",
+      subtitle: props.hasModelPng
+        ? "Flat 2D fallback for slides, docs, and email"
+        : "The creator didn't ship a PNG render with this asset",
+      available: !!props.hasModelPng,
     });
   }
 

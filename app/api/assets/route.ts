@@ -18,6 +18,8 @@ import {
   validateModelFbx,
   validateModelObj,
   validateModelUsdz,
+  validateModelBlend,
+  validateModelPng,
   getExtension,
 } from "@/lib/upload-validation";
 import { isValidSubcategory } from "@/lib/mock/assets";
@@ -32,6 +34,11 @@ const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
 const MAX_MODEL_FBX_BYTES = 30 * 1024 * 1024;
 const MAX_MODEL_OBJ_BYTES = 20 * 1024 * 1024;
 const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024;
+// Kept in sync with the same ceilings in upload-url/route.ts so a
+// signed URL the browser can write to never lands an object that
+// trips the commit-time HEAD size check.
+const MAX_MODEL_BLEND_BYTES = 50 * 1024 * 1024;
+const MAX_MODEL_PNG_BYTES = 8 * 1024 * 1024;
 
 // Cap the byte range we pull from R2 for content validation. 256 KB is
 // generous for every magic-byte check + the looksLikeLottieJson structural
@@ -70,6 +77,8 @@ interface CreateAssetBody {
     modelFbx?: string;
     modelObj?: string;
     modelUsdz?: string;
+    modelBlend?: string;
+    modelPng?: string;
   };
 }
 
@@ -228,6 +237,8 @@ export async function POST(req: Request) {
     keys.modelFbx,
     keys.modelObj,
     keys.modelUsdz,
+    keys.modelBlend,
+    keys.modelPng,
   ].filter((k): k is string => typeof k === "string" && k.length > 0);
 
   for (const k of allKeys) {
@@ -255,7 +266,13 @@ export async function POST(req: Request) {
     }
   }
   if (fileType !== ("MODEL_3D" as FileType)) {
-    if (keys.modelFbx || keys.modelObj || keys.modelUsdz) {
+    if (
+      keys.modelFbx ||
+      keys.modelObj ||
+      keys.modelUsdz ||
+      keys.modelBlend ||
+      keys.modelPng
+    ) {
       return NextResponse.json(
         { error: "3D companion formats can only be attached to a 3D Model upload." },
         { status: 400 }
@@ -462,6 +479,18 @@ export async function POST(req: Request) {
         max: MAX_MODEL_USDZ_BYTES,
         validate: validateModelUsdz,
       },
+      {
+        key: keys.modelBlend,
+        label: "Blender",
+        max: MAX_MODEL_BLEND_BYTES,
+        validate: validateModelBlend,
+      },
+      {
+        key: keys.modelPng,
+        label: "PNG render",
+        max: MAX_MODEL_PNG_BYTES,
+        validate: validateModelPng,
+      },
     ];
     for (const c of modelCompanions) {
       if (!c.key) continue;
@@ -555,6 +584,8 @@ export async function POST(req: Request) {
         modelFbxKey: keys.modelFbx ?? null,
         modelObjKey: keys.modelObj ?? null,
         modelUsdzKey: keys.modelUsdz ?? null,
+        modelBlendKey: keys.modelBlend ?? null,
+        modelPngKey: keys.modelPng ?? null,
         fileSizeBytes: totalBundleBytes,
         uploaderId: userId,
       },

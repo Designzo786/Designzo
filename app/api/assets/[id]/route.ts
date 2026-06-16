@@ -220,6 +220,8 @@ export async function DELETE(
       modelFbxKey: true,
       modelObjKey: true,
       modelUsdzKey: true,
+      modelBlendKey: true,
+      modelPngKey: true,
       _count: {
         select: {
           purchases: { where: { status: "COMPLETED" } },
@@ -262,6 +264,8 @@ export async function DELETE(
   if (asset.modelFbxKey) await deletePrivate(asset.modelFbxKey);
   if (asset.modelObjKey) await deletePrivate(asset.modelObjKey);
   if (asset.modelUsdzKey) await deletePrivate(asset.modelUsdzKey);
+  if (asset.modelBlendKey) await deletePrivate(asset.modelBlendKey);
+  if (asset.modelPngKey) await deletePrivate(asset.modelPngKey);
 
   try {
     await prisma.asset.delete({ where: { id } });

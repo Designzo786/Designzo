@@ -43,7 +43,9 @@ type DownloadFormat =
   | "gltf"
   | "fbx"
   | "obj"
-  | "usdz";
+  | "usdz"
+  | "blend"
+  | "png";
 const VALID_FORMATS: ReadonlyArray<DownloadFormat> = [
   "zip",
   "json",
@@ -55,6 +57,8 @@ const VALID_FORMATS: ReadonlyArray<DownloadFormat> = [
   "fbx",
   "obj",
   "usdz",
+  "blend",
+  "png",
 ];
 
 export async function GET(
@@ -85,6 +89,8 @@ export async function GET(
       modelFbxKey: true,
       modelObjKey: true,
       modelUsdzKey: true,
+      modelBlendKey: true,
+      modelPngKey: true,
       price: true,
       status: true,
       fileType: true,
@@ -179,6 +185,14 @@ export async function GET(
       case "usdz":
         singleKey = asset.modelUsdzKey;
         ext = "usdz";
+        break;
+      case "blend":
+        singleKey = asset.modelBlendKey;
+        ext = "blend";
+        break;
+      case "png":
+        singleKey = asset.modelPngKey;
+        ext = "png";
         break;
       case "gltf":
         singleKey = asset.fileKey;
@@ -486,6 +500,10 @@ function contentTypeForFormat(format: DownloadFormat): string {
       return "model/obj";
     case "usdz":
       return "model/vnd.usdz+zip";
+    case "blend":
+      return "application/octet-stream";
+    case "png":
+      return "image/png";
     case "zip":
     default:
       return "application/zip";

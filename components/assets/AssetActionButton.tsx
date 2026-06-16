@@ -40,6 +40,8 @@ interface Props {
   hasModelFbx?: boolean;
   hasModelObj?: boolean;
   hasModelUsdz?: boolean;
+  hasModelBlend?: boolean;
+  hasModelPng?: boolean;
 }
 
 export function AssetActionButton({
@@ -51,6 +53,8 @@ export function AssetActionButton({
   hasModelFbx = false,
   hasModelObj = false,
   hasModelUsdz = false,
+  hasModelBlend = false,
+  hasModelPng = false,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -159,6 +163,8 @@ export function AssetActionButton({
             hasFbx={hasModelFbx}
             hasObj={hasModelObj}
             hasUsdz={hasModelUsdz}
+            hasBlend={hasModelBlend}
+            hasPng={hasModelPng}
           />
           <p className="inline-flex items-center gap-1.5 text-xs text-info justify-center w-full">
             <Check className="w-3.5 h-3.5" /> You own this asset
@@ -206,6 +212,8 @@ export function AssetActionButton({
           hasFbx={hasModelFbx}
           hasObj={hasModelObj}
           hasUsdz={hasModelUsdz}
+          hasBlend={hasModelBlend}
+          hasPng={hasModelPng}
           tone="info"
         />
       );
@@ -384,6 +392,8 @@ function Model3dDownloadButton({
   hasFbx,
   hasObj,
   hasUsdz,
+  hasBlend,
+  hasPng,
   tone = "accent",
 }: {
   busy: boolean;
@@ -391,6 +401,8 @@ function Model3dDownloadButton({
   hasFbx: boolean;
   hasObj: boolean;
   hasUsdz: boolean;
+  hasBlend: boolean;
+  hasPng: boolean;
   tone?: "accent" | "info";
 }) {
   const { open, setOpen, ref } = useDropdown<HTMLDivElement>();
@@ -493,6 +505,34 @@ function Model3dDownloadButton({
             onClick={() => {
               setOpen(false);
               onDownload("usdz");
+            }}
+          />
+          <FormatRow
+            icon={Box}
+            title="Blender source (.blend)"
+            subtitle={
+              hasBlend
+                ? "Edit, re-light, and re-export from Blender"
+                : "Not included by the creator"
+            }
+            disabled={!hasBlend}
+            onClick={() => {
+              setOpen(false);
+              onDownload("blend");
+            }}
+          />
+          <FormatRow
+            icon={Box}
+            title="PNG render (.png)"
+            subtitle={
+              hasPng
+                ? "Flat 2D fallback for slides, docs, and email"
+                : "Not included by the creator"
+            }
+            disabled={!hasPng}
+            onClick={() => {
+              setOpen(false);
+              onDownload("png");
             }}
           />
         </div>

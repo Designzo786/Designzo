@@ -248,10 +248,19 @@ model Asset {
   // 3D model bundle companion files. When fileType = MODEL_3D and the
   // creator ships alternate formats (engine-specific exports), these
   // hold the private R2 keys for each. The download endpoint serves
-  // them when ?format=fbx|obj|usdz is requested. Null otherwise.
-  modelFbxKey  String?
-  modelObjKey  String?
-  modelUsdzKey String?
+  // them when ?format=fbx|obj|usdz|blend|png is requested. Null
+  // otherwise.
+  //
+  //   modelBlendKey — the Blender source (.blend) for editors that
+  //     want to remix the asset rather than just consume the export.
+  //   modelPngKey   — a rendered PNG (typically the buyer-facing 2D
+  //     thumbnail for icon-style 3D assets, or a hero render for full
+  //     models).
+  modelFbxKey   String?
+  modelObjKey   String?
+  modelUsdzKey  String?
+  modelBlendKey String?
+  modelPngKey   String?
 
   price  Int @default(0) // INR paise; 0 = free
 

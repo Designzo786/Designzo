@@ -447,6 +447,8 @@ export function validateLottieMp4(
 const MODEL_FBX_EXTENSIONS = ["fbx"];
 const MODEL_OBJ_EXTENSIONS = ["obj"];
 const MODEL_USDZ_EXTENSIONS = ["usdz"];
+const MODEL_BLEND_EXTENSIONS = ["blend"];
+const MODEL_PNG_EXTENSIONS = ["png"];
 
 export function validateModelFbx(
   filename: string,
@@ -525,6 +527,61 @@ export function validateModelUsdz(
     return {
       ok: false,
       error: "The USDZ file is corrupt or not a valid ZIP container.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Blender source companion. The signatureMatches helper already accepts
+ * both uncompressed (`BLENDER` ASCII preamble) and gzip-compressed
+ * .blend files, so this is a thin wrapper around the existing magic-byte
+ * check.
+ */
+export function validateModelBlend(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!MODEL_BLEND_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "Blender companion must be a .blend file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "Blender companion was rejected." };
+  }
+  const sig = signatureMatches("blend", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error:
+        "The .blend file is corrupt or not a Blender file (no BLENDER preamble).",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * PNG render companion. Reuses the same 4-byte signature check the
+ * preview-image path uses — the .png companion lives in private storage
+ * (it's part of the bundle a buyer pays for), but the magic-byte rules
+ * are identical.
+ */
+export function validateModelPng(
+  filename: string,
+  header: Buffer
+): ValidationResult {
+  const ext = getExtension(filename);
+  if (!MODEL_PNG_EXTENSIONS.includes(ext)) {
+    return { ok: false, error: "PNG companion must be a .png file." };
+  }
+  if (looksLikeExecutable(header)) {
+    return { ok: false, error: "PNG companion was rejected." };
+  }
+  const sig = signatureMatches("png", header);
+  if (sig === false) {
+    return {
+      ok: false,
+      error: "The PNG file is corrupt or not a real PNG.",
     };
   }
   return { ok: true };

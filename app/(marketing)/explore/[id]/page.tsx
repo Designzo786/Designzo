@@ -69,6 +69,8 @@ interface UnifiedAsset {
   hasModelFbx: boolean;
   hasModelObj: boolean;
   hasModelUsdz: boolean;
+  hasModelBlend: boolean;
+  hasModelPng: boolean;
   // Preview sources, in priority order: modelUrl > shape/shapeColor > previewImage
   modelUrl?: string;
   shape?: MockAssetShape;
@@ -125,6 +127,8 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     hasModelFbx: !!dbAsset.modelFbxKey,
     hasModelObj: !!dbAsset.modelObjKey,
     hasModelUsdz: !!dbAsset.modelUsdzKey,
+    hasModelBlend: !!dbAsset.modelBlendKey,
+    hasModelPng: !!dbAsset.modelPngKey,
   };
 }
 
@@ -392,6 +396,8 @@ export default async function AssetDetailPage({
               hasModelFbx={asset.hasModelFbx}
               hasModelObj={asset.hasModelObj}
               hasModelUsdz={asset.hasModelUsdz}
+              hasModelBlend={asset.hasModelBlend}
+              hasModelPng={asset.hasModelPng}
             />
 
             <div className="mt-3">
@@ -420,6 +426,8 @@ export default async function AssetDetailPage({
             hasModelFbx={asset.hasModelFbx}
             hasModelObj={asset.hasModelObj}
             hasModelUsdz={asset.hasModelUsdz}
+            hasModelBlend={asset.hasModelBlend}
+            hasModelPng={asset.hasModelPng}
           />
 
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 space-y-3">

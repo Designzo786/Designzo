@@ -31,6 +31,8 @@ const MAX_LOTTIE_MP4_BYTES = 25 * 1024 * 1024;
 const MAX_MODEL_FBX_BYTES = 30 * 1024 * 1024;
 const MAX_MODEL_OBJ_BYTES = 20 * 1024 * 1024;
 const MAX_MODEL_USDZ_BYTES = 20 * 1024 * 1024;
+const MAX_MODEL_BLEND_BYTES = 50 * 1024 * 1024;
+const MAX_MODEL_PNG_BYTES = 8 * 1024 * 1024;
 
 // MIME types paired with each accepted extension. Mobile file pickers
 // (especially iOS) gate "selectable" files by MIME type, so the accept
@@ -240,6 +242,10 @@ export function UploadForm() {
   const [modelFbx, setModelFbx] = useState<File | null>(null);
   const [modelObj, setModelObj] = useState<File | null>(null);
   const [modelUsdz, setModelUsdz] = useState<File | null>(null);
+  // Newer additions: Blender source for remixers + a rendered PNG (used
+  // by the 3D-icons preset so creators can ship a flat-image fallback).
+  const [modelBlend, setModelBlend] = useState<File | null>(null);
+  const [modelPng, setModelPng] = useState<File | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -252,6 +258,8 @@ export function UploadForm() {
   const modelFbxRef = useRef<HTMLInputElement>(null);
   const modelObjRef = useRef<HTMLInputElement>(null);
   const modelUsdzRef = useRef<HTMLInputElement>(null);
+  const modelBlendRef = useRef<HTMLInputElement>(null);
+  const modelPngRef = useRef<HTMLInputElement>(null);
 
   // Extensions valid for the currently-selected file type. Drives both the
   // file picker's `accept` filter and the instant validation below.
@@ -352,6 +360,8 @@ export function UploadForm() {
       clearModelFbx();
       clearModelObj();
       clearModelUsdz();
+      clearModelBlend();
+      clearModelPng();
     }
   }
 
@@ -456,6 +466,20 @@ export function UploadForm() {
     setModelUsdz,
     modelUsdzRef
   );
+  const onModelBlendChange = makeCompanionHandler(
+    "blend",
+    MAX_MODEL_BLEND_BYTES,
+    "Blender companion",
+    setModelBlend,
+    modelBlendRef
+  );
+  const onModelPngChange = makeCompanionHandler(
+    "png",
+    MAX_MODEL_PNG_BYTES,
+    "PNG render",
+    setModelPng,
+    modelPngRef
+  );
 
   function clearModelFbx() {
     setModelFbx(null);
@@ -468,6 +492,14 @@ export function UploadForm() {
   function clearModelUsdz() {
     setModelUsdz(null);
     if (modelUsdzRef.current) modelUsdzRef.current.value = "";
+  }
+  function clearModelBlend() {
+    setModelBlend(null);
+    if (modelBlendRef.current) modelBlendRef.current.value = "";
+  }
+  function clearModelPng() {
+    setModelPng(null);
+    if (modelPngRef.current) modelPngRef.current.value = "";
   }
 
   // Picking a category auto-flips the file-type selector to whatever
@@ -570,6 +602,8 @@ export function UploadForm() {
       if (modelFbx) slots.push({ slot: "modelFbx", file: modelFbx });
       if (modelObj) slots.push({ slot: "modelObj", file: modelObj });
       if (modelUsdz) slots.push({ slot: "modelUsdz", file: modelUsdz });
+      if (modelBlend) slots.push({ slot: "modelBlend", file: modelBlend });
+      if (modelPng) slots.push({ slot: "modelPng", file: modelPng });
     }
 
     try {
@@ -803,6 +837,36 @@ export function UploadForm() {
               inputRef={modelUsdzRef}
               onChange={onModelUsdzChange}
               onClear={clearModelUsdz}
+            />
+
+            <FilePicker
+              label="Blender source (optional)"
+              sublabel="Single .blend — max 50 MB. The remixer's format — buyers can re-light, re-texture, and re-export from Blender."
+              icon={Box}
+              file={modelBlend}
+              accept=".blend,application/octet-stream"
+              inputRef={modelBlendRef}
+              onChange={onModelBlendChange}
+              onClear={clearModelBlend}
+            />
+
+            {/* Encouraged for 3D Icons — most buyers using icons want a
+                flat PNG fallback alongside the .glb so they can drop it
+                straight into a slide deck / docs without setting up
+                Three.js. Available for any 3D upload though. */}
+            <FilePicker
+              label={
+                category === "3d-icons"
+                  ? "PNG render (recommended)"
+                  : "PNG render (optional)"
+              }
+              sublabel="Single .png — max 8 MB. Flat 2D fallback for slides, docs, and email."
+              icon={ImageIcon}
+              file={modelPng}
+              accept=".png,image/png"
+              inputRef={modelPngRef}
+              onChange={onModelPngChange}
+              onClear={clearModelPng}
             />
           </div>
         )}
