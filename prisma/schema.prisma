@@ -262,6 +262,13 @@ model Asset {
   modelBlendKey String?
   modelPngKey   String?
 
+  // Icon-pack support: a 3D-icons listing can ship as a bundle of many
+  // .glb files (one per icon), each individually previewable on the
+  // detail page's slider. When packItems exists the listing is a pack
+  // and the download endpoint returns a ZIP of every item; when empty
+  // the Asset behaves as a normal single-file 3D upload.
+  packItems     AssetPackItem[]
+
   price  Int @default(0) // INR paise; 0 = free
 
   status        AssetStatus @default(PENDING)
@@ -300,6 +307,27 @@ model Asset {
   @@index([status, fileType, createdAt(sort: Desc)])
   @@index([uploaderId])
   @@index([tags], type: Gin) // Postgres GIN for `tags has` lookups
+}
+
+/// Sub-asset row inside an icon-pack listing. Each row is one .glb
+/// file (one icon) the buyer can preview individually in the detail
+/// page's slider and receive in the downloaded ZIP. Cascades on the
+/// parent Asset's deletion so cleaning up the listing also wipes its
+/// pack manifest.
+model AssetPackItem {
+  id      String @id @default(cuid())
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  name         String // shown under the slider thumb; auto-derived from filename at upload time
+  fileKey      String // private R2 key for the .glb (the file the buyer downloads)
+  modelKey     String // public R2 URL for the in-browser viewer
+  displayOrder Int    @default(0)
+
+  fileSizeBytes Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([assetId, displayOrder])
 }
 
 model AssetLike {

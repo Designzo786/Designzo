@@ -28,6 +28,7 @@ import { AssetCard, type AssetCardData } from "@/components/assets/AssetCard";
 import { AssetActionButton } from "@/components/assets/AssetActionButton";
 import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
 import { IncludedFormats } from "@/components/assets/IncludedFormats";
+import { PackViewer } from "@/components/assets/PackViewer";
 import { AssetReviews } from "./AssetReviews";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -76,6 +77,15 @@ interface UnifiedAsset {
   shape?: MockAssetShape;
   shapeColor?: string;
   previewImage?: string;
+  // Icon-pack items — when non-empty the listing is a bulk pack and the
+  // detail page renders a slider/grid below the viewer so a buyer can
+  // preview each icon individually. Empty array on every non-pack
+  // asset, so the rest of the page can render unchanged.
+  packItems: Array<{
+    id: string;
+    name: string;
+    modelUrl: string;
+  }>;
 }
 
 async function loadAsset(id: string): Promise<UnifiedAsset | null> {
@@ -85,6 +95,10 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
       include: {
         uploader: {
           select: { id: true, name: true, role: true, email: true },
+        },
+        packItems: {
+          orderBy: { displayOrder: "asc" },
+          select: { id: true, name: true, modelKey: true },
         },
       },
     })
@@ -129,6 +143,11 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
     hasModelUsdz: !!dbAsset.modelUsdzKey,
     hasModelBlend: !!dbAsset.modelBlendKey,
     hasModelPng: !!dbAsset.modelPngKey,
+    packItems: dbAsset.packItems.map((p) => ({
+      id: p.id,
+      name: p.name,
+      modelUrl: p.modelKey,
+    })),
   };
 }
 
@@ -264,6 +283,18 @@ export default async function AssetDetailPage({
 
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6 lg:gap-8 items-start">
         <div className="space-y-4">
+          {/* Pack-aware viewer: when the listing carries packItems we
+              replace the single-model AssetViewer with PackViewer, a
+              client wrapper that swaps the model URL based on the
+              slider selection. Falls through to the regular viewer for
+              every non-pack asset. */}
+          {asset.packItems.length > 0 ? (
+            <PackViewer
+              title={asset.title}
+              fileType={asset.fileType}
+              items={asset.packItems}
+            />
+          ) : (
           <div className="relative aspect-square lg:aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-elevated to-canvas">
             {asset.modelUrl ? (
               <>
@@ -305,6 +336,7 @@ export default async function AssetDetailPage({
               </div>
             )}
           </div>
+          )}
 
           <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
             <h2 className="text-base sm:text-lg font-semibold mb-3 text-primary">

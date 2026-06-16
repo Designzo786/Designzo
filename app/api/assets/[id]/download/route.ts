@@ -91,6 +91,10 @@ export async function GET(
       modelUsdzKey: true,
       modelBlendKey: true,
       modelPngKey: true,
+      packItems: {
+        orderBy: { displayOrder: "asc" },
+        select: { name: true, fileKey: true },
+      },
       price: true,
       status: true,
       fileType: true,
@@ -165,6 +169,88 @@ export async function GET(
       { error: "You don't have access to this file." },
       { status: 403 }
     );
+  }
+
+  // ── MODEL_3D icon-pack download ───────────────────────────────────────
+  // Listings with packItems are icon packs — the buyer expects to
+  // receive every .glb in one ZIP. Single-format ?format=blend /
+  // ?format=png / etc. still apply when the buyer wants the asset-
+  // level companion (a single shared Blender file, a hero PNG).
+  if (
+    asset.fileType === "MODEL_3D" &&
+    asset.packItems.length > 0 &&
+    (format === "" || format === "zip" || format === "glb")
+  ) {
+    const zip = new JSZip();
+    for (const item of asset.packItems) {
+      try {
+        const buf = await readPrivate(item.fileKey);
+        const itemName = `${slugify(item.name) || "icon"}.glb`;
+        // Drop into a `models/` folder inside the ZIP so buyers can
+        // tell pack contents apart from the LICENSE + README at a
+        // glance after extracting.
+        zip.file(`models/${itemName}`, buf);
+      } catch (err) {
+        console.error("[asset download] pack item read failed:", err);
+      }
+    }
+    const licenseText = renderLicenseText({
+      assetId: asset.id,
+      assetTitle: asset.title,
+      creatorName: creatorDisplayName(
+        asset.uploader.name,
+        asset.uploader.role,
+        asset.uploader.email
+      ),
+      buyerName: session.user.name ?? "—",
+      buyerEmail: session.user.email ?? "—",
+      purchaseLicenseKey:
+        purchase?.licenseKey ?? (isOwner ? "OWNER-COPY" : "ADMIN-COPY"),
+      purchasedAt: purchase?.createdAt ?? new Date(),
+      amountPaise: purchase?.amount ?? asset.price,
+      licenseType: asset.license,
+    });
+    zip.file("LICENSE.txt", licenseText);
+    zip.file(
+      "README.txt",
+      [
+        `${asset.title}`,
+        "================================================================",
+        "",
+        `This pack contains ${asset.packItems.length} icons in glTF Binary`,
+        "(.glb) format. Each file is in the `models/` folder.",
+        "",
+        "  • Drag-drop any .glb into Blender, Three.js, Babylon, Unity,",
+        "    Unreal, or any other glTF-compatible runtime.",
+        "  • LICENSE.txt — your perpetual, royalty-free license.",
+        "",
+      ].join("\r\n")
+    );
+
+    const zipBytes = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    if (!isOwner && !isAdmin) {
+      await prisma.asset
+        .update({
+          where: { id: asset.id },
+          data: { downloads: { increment: 1 } },
+        })
+        .catch(() => {});
+    }
+
+    return new NextResponse(Buffer.from(zipBytes), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Length": String(zipBytes.length),
+        "Content-Disposition": `attachment; filename="${slugify(asset.title)}-pack.zip"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   // ── MODEL_3D single-format download ───────────────────────────────────

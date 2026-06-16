@@ -246,6 +246,13 @@ export function UploadForm() {
   // by the 3D-icons preset so creators can ship a flat-image fallback).
   const [modelBlend, setModelBlend] = useState<File | null>(null);
   const [modelPng, setModelPng] = useState<File | null>(null);
+  // Icon-pack bulk upload: opt-in mode for the 3d-icons category so a
+  // creator can ship N icons under one listing. Each item is one .glb
+  // (the matching .png/.blend are still asset-level for now).
+  const [packMode, setPackMode] = useState(false);
+  const [packItems, setPackItems] = useState<File[]>([]);
+  const packInputRef = useRef<HTMLInputElement>(null);
+  const MAX_PACK_ITEMS_CLIENT = 60;
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -502,6 +509,50 @@ export function UploadForm() {
     if (modelPngRef.current) modelPngRef.current.value = "";
   }
 
+  // ── Pack-item handlers ────────────────────────────────────────────
+  // Multi-file picker for the 3D-icons bulk-upload mode. Each .glb /
+  // .gltf the creator adds becomes one item in the pack — name is
+  // auto-derived from the filename, and items can be removed before
+  // submit. Limited to the same MAX_PACK_ITEMS_CLIENT the server
+  // enforces so a runaway add doesn't queue up unsigned uploads the
+  // commit step will reject anyway.
+  function onPackItemsChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const incoming = Array.from(e.target.files ?? []);
+    if (incoming.length === 0) return;
+    const allowedExts = ["glb", "gltf"];
+    const accepted: File[] = [];
+    let rejectedReason: string | null = null;
+    for (const f of incoming) {
+      const ext = getExtension(f.name);
+      if (!allowedExts.includes(ext)) {
+        rejectedReason = `"${f.name}" isn't a .glb or .gltf — skipped.`;
+        continue;
+      }
+      if (f.size > MAX_FILE_BYTES) {
+        rejectedReason = `"${f.name}" exceeds the 100 MB per-item limit.`;
+        continue;
+      }
+      accepted.push(f);
+    }
+    setPackItems((prev) => {
+      const merged = [...prev, ...accepted];
+      // Trim to ceiling — the input has multiple={true} so a creator
+      // could drop 100 files at once.
+      return merged.slice(0, MAX_PACK_ITEMS_CLIENT);
+    });
+    if (rejectedReason) setError(rejectedReason);
+    if (packInputRef.current) packInputRef.current.value = "";
+  }
+
+  function removePackItem(index: number) {
+    setPackItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function clearPackItems() {
+    setPackItems([]);
+    if (packInputRef.current) packInputRef.current.value = "";
+  }
+
   // Picking a category auto-flips the file-type selector to whatever
   // natural type it expects (lottie -> LOTTIE, svg-icons -> SVG_ICON, etc.)
   // The user can still override the file-type manually afterwards if they
@@ -515,6 +566,13 @@ export function UploadForm() {
     const suggested = CATEGORY_TO_FILE_TYPE[next];
     if (suggested && suggested !== fileType) {
       onFileTypeChange(suggested);
+    }
+    // Pack mode is only meaningful for 3D Icons. Switch away → drop
+    // any staged pack items so they don't silently ride along on the
+    // next upload.
+    if (next !== "3d-icons") {
+      setPackMode(false);
+      clearPackItems();
     }
   }
 
@@ -557,17 +615,39 @@ export function UploadForm() {
     e.preventDefault();
     setError(null);
 
-    if (!file) return setError("Please select an asset file.");
+    // Pack mode flips the validation rules — the cover picker is hidden
+    // and the FIRST pack item becomes the cover, so we require >=1
+    // pack item instead of a separate `file` upload.
+    const packModeActive =
+      fileType === "MODEL_3D" &&
+      category === "3d-icons" &&
+      packMode;
+
+    if (packModeActive) {
+      if (packItems.length === 0) {
+        return setError(
+          "Add at least one .glb / .gltf icon to your pack before uploading."
+        );
+      }
+    } else {
+      if (!file) return setError("Please select an asset file.");
+    }
     if (previewRequired && !preview) {
       return setError("Please select a preview image.");
     }
 
     // Final guard — the file extension must match the selected file type.
-    const ext = getExtension(file.name);
-    if (!allowedExtensions.includes(ext)) {
-      return setError(
-        `Your ".${ext}" file doesn't match the selected file type. Accepted: ${allowedLabel}.`
-      );
+    // In pack mode the first pack item plays the cover role, so we
+    // run the check against its filename instead of the (hidden) cover
+    // file picker. Every pack item is itself validated for the .glb /
+    // .gltf allowlist in onPackItemsChange + the server route.
+    if (!packModeActive) {
+      const ext = getExtension(file!.name);
+      if (!allowedExtensions.includes(ext)) {
+        return setError(
+          `Your ".${ext}" file doesn't match the selected file type. Accepted: ${allowedLabel}.`
+        );
+      }
     }
 
     const priceInrNum = Number(priceInr);
@@ -592,7 +672,13 @@ export function UploadForm() {
     // For Lottie uploads the preview slot is intentionally omitted —
     // the server reuses the public Lottie URL as previewKey so the
     // animation itself is the card thumbnail.
-    const slots: SlotSpec[] = [{ slot: "file", file }];
+    //
+    // In pack mode the cover `file` slot is intentionally OMITTED —
+    // the first packItem<0> upload doubles as the showcase file, so we
+    // only PUT it to R2 once. The commit body below reuses the same
+    // key for both `keys.file` and `packItems[0].fileKey`.
+    const slots: SlotSpec[] = [];
+    if (!packModeActive && file) slots.push({ slot: "file", file });
     if (preview) slots.push({ slot: "preview", file: preview });
     if (fileType === "LOTTIE") {
       if (lottieGif) slots.push({ slot: "lottieGif", file: lottieGif });
@@ -604,6 +690,15 @@ export function UploadForm() {
       if (modelUsdz) slots.push({ slot: "modelUsdz", file: modelUsdz });
       if (modelBlend) slots.push({ slot: "modelBlend", file: modelBlend });
       if (modelPng) slots.push({ slot: "modelPng", file: modelPng });
+    }
+    // Icon-pack bulk upload — each item gets its own packItem<N> slot.
+    // The slot index matches the order shown in the form, so the
+    // server's persistence order mirrors what the creator dragged-and-
+    // dropped.
+    if (packModeActive) {
+      packItems.forEach((f, i) => {
+        slots.push({ slot: `packItem${i}`, file: f });
+      });
     }
 
     try {
@@ -665,6 +760,39 @@ export function UploadForm() {
       setProgress(99); // last 1% reserved for the commit POST below
 
       // ─── Step 3: Commit metadata + R2 keys to the DB ────────────────
+      // Split the signed slots into the asset-level `keys` map and a
+      // per-pack-item array. In pack mode the cover `file` slot was
+      // never uploaded — packItem0's key is reused as `keys.file` so
+      // the server's normal validation + private→public copy still
+      // runs on the cover icon.
+      const allEntries = Object.entries(signed.slots);
+      const keyEntries: [string, string][] = [];
+      const packItemEntries: Array<{ name: string; fileKey: string }> = [];
+      for (const [slot, info] of allEntries) {
+        if (slot.startsWith("packItem")) {
+          const idx = Number(slot.slice("packItem".length));
+          const source = packItems[idx];
+          const name = source
+            ? source.name.replace(/\.[^.]+$/, "").slice(0, 100)
+            : `Item ${idx + 1}`;
+          packItemEntries[idx] = { name, fileKey: info.key };
+        } else {
+          keyEntries.push([slot, info.key]);
+        }
+      }
+      const keysMap = Object.fromEntries(keyEntries);
+      // Cover-file fallback: pack-mode listings reuse packItem0 as the
+      // showcase / preview-card model.
+      if (packModeActive && packItemEntries[0]?.fileKey) {
+        keysMap.file = packItemEntries[0].fileKey;
+      }
+      // Pick a sensible fileName for the server's extension check —
+      // either the cover File the creator picked, or the first pack
+      // item's original filename.
+      const submittedFileName = packModeActive
+        ? (packItems[0]?.name ?? "icon.glb")
+        : file!.name;
+
       const commitRes = await fetch("/api/assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -676,10 +804,11 @@ export function UploadForm() {
           fileType,
           priceCents,
           tags: tags.trim(),
-          fileName: file.name,
-          keys: Object.fromEntries(
-            Object.entries(signed.slots).map(([slot, info]) => [slot, info.key])
-          ),
+          fileName: submittedFileName,
+          keys: keysMap,
+          packItems: packModeActive
+            ? packItemEntries.filter(Boolean)
+            : undefined,
         }),
       });
       if (!commitRes.ok) {
@@ -745,22 +874,161 @@ export function UploadForm() {
           </span>
         </header>
 
+        {/* Icon-pack bulk-upload toggle — only meaningful for the
+            3D Icons category. When ON, the single-file picker is
+            replaced by a multi-file dropzone that builds a pack of N
+            icons under one listing. */}
+        {fileType === "MODEL_3D" && category === "3d-icons" && (
+          <div className="rounded-lg border border-border bg-elevated/40 p-3 flex items-start gap-3">
+            <input
+              id="pack-mode-toggle"
+              type="checkbox"
+              checked={packMode}
+              onChange={(e) => {
+                setPackMode(e.target.checked);
+                if (!e.target.checked) clearPackItems();
+              }}
+              className="mt-0.5 w-4 h-4 accent-accent shrink-0"
+            />
+            <label
+              htmlFor="pack-mode-toggle"
+              className="text-xs leading-relaxed cursor-pointer"
+            >
+              <span className="block font-semibold text-primary">
+                Upload as an icon pack
+              </span>
+              <span className="block text-muted mt-0.5">
+                Ship multiple .glb icons under one listing. Buyers see all
+                icons in a slider on the detail page and download every
+                file in one ZIP.
+              </span>
+            </label>
+          </div>
+        )}
+
         {/* Asset file picker — drives auto-detection of category and
-            file type, and prefills the title from the filename. */}
-        <FilePicker
-          label={
-            fileType === "LOTTIE"
-              ? "Lottie source (.json or .lottie)"
-              : "Asset file"
-          }
-          sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
-          icon={FileBox}
-          file={file}
-          accept={fileAccept}
-          inputRef={fileInputRef}
-          onChange={onFileChange}
-          onClear={clearFile}
-        />
+            file type, and prefills the title from the filename. Hidden
+            in pack mode: the first pack item doubles as the cover. */}
+        {!(
+          fileType === "MODEL_3D" &&
+          category === "3d-icons" &&
+          packMode
+        ) && (
+          <FilePicker
+            label={
+              fileType === "LOTTIE"
+                ? "Lottie source (.json or .lottie)"
+                : "Asset file"
+            }
+            sublabel={`Accepted: ${allowedLabel} · max 100 MB`}
+            icon={FileBox}
+            file={file}
+            accept={fileAccept}
+            inputRef={fileInputRef}
+            onChange={onFileChange}
+            onClear={clearFile}
+          />
+        )}
+
+        {/* Multi-file pack picker — surfaces only when the toggle is
+            ON. Accepts as many .glb / .gltf files as the creator drops
+            in, capped at MAX_PACK_ITEMS_CLIENT. Each entry shows its
+            filename + size with a × to drop it. The first item shown
+            here is the cover icon used on listing thumbnails. */}
+        {fileType === "MODEL_3D" &&
+          category === "3d-icons" &&
+          packMode && (
+          <div className="rounded-2xl border border-accent/20 bg-accent-muted/30 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-2.5">
+                <Boxes className="w-4 h-4 text-accent-light mt-0.5 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-semibold text-primary">
+                    Pack icons ({packItems.length}/{MAX_PACK_ITEMS_CLIENT})
+                  </h3>
+                  <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                    Drop every .glb you want in this pack. The first one
+                    is your cover — it&apos;s the thumbnail buyers see on
+                    listing cards. Max 100 MB per file.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => packInputRef.current?.click()}
+                disabled={packItems.length >= MAX_PACK_ITEMS_CLIENT}
+                className="text-xs font-semibold px-3 py-1.5 rounded-md border border-accent/30 bg-accent-muted text-accent-light hover:bg-accent/20 transition-colors disabled:opacity-50"
+              >
+                Add files
+              </button>
+              <input
+                ref={packInputRef}
+                type="file"
+                aria-label="Add pack items"
+                accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+                multiple
+                onChange={onPackItemsChange}
+                className="hidden"
+              />
+            </div>
+
+            {packItems.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => packInputRef.current?.click()}
+                className="w-full rounded-xl border-2 border-dashed border-border bg-canvas/40 hover:bg-canvas hover:border-accent/40 transition-colors px-4 py-8 text-center"
+              >
+                <Boxes className="w-8 h-8 mx-auto text-muted/60 mb-1.5" />
+                <div className="text-sm font-medium text-secondary">
+                  Drop your .glb / .gltf icons here
+                </div>
+                <div className="text-xs text-muted mt-0.5">
+                  or click to browse — pick as many as you want
+                </div>
+              </button>
+            ) : (
+              <ul className="space-y-1.5">
+                {packItems.map((f, i) => (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2"
+                  >
+                    <span
+                      className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold tabular-nums shrink-0 ${
+                        i === 0
+                          ? "bg-accent text-white"
+                          : "bg-elevated text-muted border border-border"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-primary truncate">
+                        {f.name}
+                      </div>
+                      <div className="text-[11px] text-muted">
+                        {formatFileSize(f.size)}
+                        {i === 0 && (
+                          <span className="ml-2 text-accent-light font-semibold">
+                            · Cover
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePackItem(i)}
+                      aria-label={`Remove ${f.name}`}
+                      className="w-7 h-7 rounded-md text-muted hover:text-danger hover:bg-danger/10 border border-border hover:border-danger/30 flex items-center justify-center transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Preview image picker — hidden for Lottie. The Lottie animation
             renders itself on every card and detail page (the public copy

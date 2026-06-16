@@ -222,6 +222,9 @@ export async function DELETE(
       modelUsdzKey: true,
       modelBlendKey: true,
       modelPngKey: true,
+      packItems: {
+        select: { fileKey: true, modelKey: true },
+      },
       _count: {
         select: {
           purchases: { where: { status: "COMPLETED" } },
@@ -266,6 +269,13 @@ export async function DELETE(
   if (asset.modelUsdzKey) await deletePrivate(asset.modelUsdzKey);
   if (asset.modelBlendKey) await deletePrivate(asset.modelBlendKey);
   if (asset.modelPngKey) await deletePrivate(asset.modelPngKey);
+  // Pack items: each carries a private .glb + a public viewer copy.
+  // The AssetPackItem rows themselves cascade via the schema FK; only
+  // the R2 blobs need explicit cleanup.
+  for (const item of asset.packItems) {
+    await deletePrivate(item.fileKey);
+    await deletePublic(item.modelKey);
+  }
 
   try {
     await prisma.asset.delete({ where: { id } });

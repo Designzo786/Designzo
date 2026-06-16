@@ -80,7 +80,17 @@ interface CreateAssetBody {
     modelBlend?: string;
     modelPng?: string;
   };
+  /** When set, the listing becomes a pack — each item is one icon the
+   *  buyer sees in the detail-page slider and receives in the
+   *  downloaded ZIP. The first item is reused as the main `keys.file`
+   *  so the standard single-asset viewer + thumbnail still works. */
+  packItems?: Array<{
+    name?: string;
+    fileKey?: string;
+  }>;
 }
+
+const MAX_PACK_ITEMS = 60;
 
 /**
  * Create an asset row after the browser has uploaded its files directly
@@ -540,6 +550,134 @@ export async function POST(req: Request) {
       savedModelUrl = r2PublicUrl(publicKey);
     }
 
+    // ── Pack items (icon-pack listings) ───────────────────────────────────
+    // For every uploaded pack item, validate the file landed, copy a
+    // public render-only copy for the in-browser slider, and stash
+    // the per-item metadata so we can create the rows in one go after
+    // the parent Asset row exists.
+    const packItemRows: Array<{
+      name: string;
+      fileKey: string;
+      modelKey: string;
+      displayOrder: number;
+      fileSizeBytes: number;
+    }> = [];
+
+    if (Array.isArray(body.packItems) && body.packItems.length > 0) {
+      if (fileType !== ("MODEL_3D" as FileType)) {
+        await rollback();
+        return NextResponse.json(
+          { error: "Pack items are only valid for 3D model uploads." },
+          { status: 400 }
+        );
+      }
+      if (body.packItems.length > MAX_PACK_ITEMS) {
+        await rollback();
+        return NextResponse.json(
+          { error: `A pack can have at most ${MAX_PACK_ITEMS} items.` },
+          { status: 400 }
+        );
+      }
+
+      // 1. Pre-validate every item's R2 key matches the user prefix
+      //    (defence in depth — already checked in the global `allKeys`
+      //    loop above as long as the client sent the item keys via
+      //    body.packItems before reaching here).
+      for (const item of body.packItems) {
+        if (!item.fileKey || typeof item.fileKey !== "string") {
+          await rollback();
+          return NextResponse.json(
+            { error: "Pack item missing its uploaded fileKey." },
+            { status: 400 }
+          );
+        }
+        if (!item.fileKey.includes(userPathToken)) {
+          await rollback();
+          return NextResponse.json(
+            { error: "One of the pack item keys doesn't belong to this account." },
+            { status: 403 }
+          );
+        }
+      }
+
+      // 2. HEAD + GetRange-validate every item and copy to public.
+      for (let i = 0; i < body.packItems.length; i++) {
+        const item = body.packItems[i];
+        const itemFileKey = item.fileKey!;
+        const h = await r2Head(itemFileKey);
+        if (!h) {
+          await rollback();
+          return NextResponse.json(
+            { error: `Pack item ${i + 1} upload didn't land in storage.` },
+            { status: 400 }
+          );
+        }
+        if (h.contentLength > MAX_FILE_BYTES) {
+          touched.push(itemFileKey);
+          await rollback();
+          return NextResponse.json(
+            { error: `Pack item ${i + 1} exceeds 100 MB limit.` },
+            { status: 400 }
+          );
+        }
+        touched.push(itemFileKey);
+
+        // Trust the .glb extension on the user-controlled name string
+        // here — the signed URL was issued with a .glb/.gltf
+        // allowlist enforced server-side, so the bytes in R2 must
+        // already match. Pull just the first 256 KB for the magic-byte
+        // check to confirm.
+        const bytes = await r2GetRange(
+          itemFileKey,
+          0,
+          Math.min(VALIDATION_BYTE_RANGE, h.contentLength - 1)
+        );
+        // Pack items always carry .glb / .gltf — extension is derived
+        // from the key (which the signed URL helper sanitised).
+        const ext = getExtension(itemFileKey);
+        const v = validateAssetFile(
+          `pack-item-${i + 1}.${ext}`,
+          fileType,
+          bytes
+        );
+        if (!v.ok) {
+          await rollback();
+          return NextResponse.json(
+            { error: `Pack item ${i + 1}: ${v.error}` },
+            { status: 400 }
+          );
+        }
+
+        const itemPublicKey = itemFileKey.replace(
+          /^private\/files\//,
+          "public/models/"
+        );
+        await r2Copy(itemFileKey, itemPublicKey);
+        touched.push(itemPublicKey);
+
+        // Auto-derive the visible name from the client-supplied label,
+        // fall back to a stripped version of the storage key tail.
+        const fallbackName = itemFileKey
+          .split("/")
+          .pop()!
+          .replace(/^[a-f0-9]{16}-/, "")
+          .replace(/\.[^.]+$/, "");
+        const itemName =
+          (typeof item.name === "string" ? item.name.trim() : "") ||
+          fallbackName ||
+          `Item ${i + 1}`;
+
+        packItemRows.push({
+          name: itemName.slice(0, 100),
+          fileKey: itemFileKey,
+          modelKey: r2PublicUrl(itemPublicKey),
+          displayOrder: i,
+          fileSizeBytes: h.contentLength,
+        });
+        totalBundleBytes += h.contentLength;
+      }
+    }
+
     // ── Commit DB row ─────────────────────────────────────────────────────
     // previewKey is the URL marketplace cards render as the thumbnail.
     //   - LOTTIE: reuse the public Lottie URL so the animation plays
@@ -586,6 +724,10 @@ export async function POST(req: Request) {
         modelUsdzKey: keys.modelUsdz ?? null,
         modelBlendKey: keys.modelBlend ?? null,
         modelPngKey: keys.modelPng ?? null,
+        packItems:
+          packItemRows.length > 0
+            ? { createMany: { data: packItemRows } }
+            : undefined,
         fileSizeBytes: totalBundleBytes,
         uploaderId: userId,
       },

@@ -55,6 +55,29 @@ interface SlotSpec {
   prefix: string;
 }
 
+// Pack-item slot names follow the convention `packItem<N>` where N is
+// a zero-padded ordinal. The shared SlotSpec describes the per-item
+// rules (private storage, .glb only, gated to MODEL_3D parent). Up to
+// MAX_PACK_ITEMS items per listing — the limit keeps the slot manifest
+// reasonable and stops a runaway client from issuing 1000 URLs in one
+// request.
+const MAX_PACK_ITEMS = 60;
+const PACK_ITEM_SLOT_PREFIX = "packItem";
+const PACK_ITEM_SPEC: SlotSpec = {
+  visibility: "private",
+  extensions: ["glb", "gltf"],
+  maxBytes: MAX_FILE_BYTES, // same 100 MB cap as the main `file` slot
+  validFor: ["MODEL_3D" as FileType],
+  prefix: "private/files",
+};
+
+function isPackItemSlot(slotName: string): boolean {
+  // packItem0, packItem1, … packItem<MAX_PACK_ITEMS - 1>.
+  if (!slotName.startsWith(PACK_ITEM_SLOT_PREFIX)) return false;
+  const idx = Number(slotName.slice(PACK_ITEM_SLOT_PREFIX.length));
+  return Number.isInteger(idx) && idx >= 0 && idx < MAX_PACK_ITEMS;
+}
+
 const SLOTS: Record<string, SlotSpec> = {
   file: {
     visibility: "private",
@@ -281,7 +304,11 @@ export async function POST(req: Request) {
   const userId = session.user.id;
 
   for (const [slotName, req] of Object.entries(requested)) {
-    const spec = SLOTS[slotName];
+    // packItem<N> slots all share the same per-item spec — handled
+    // dynamically so the form can request any number of items up to
+    // MAX_PACK_ITEMS without each one needing a hard-coded entry in
+    // the SLOTS map.
+    const spec = SLOTS[slotName] ?? (isPackItemSlot(slotName) ? PACK_ITEM_SPEC : null);
     if (!spec) {
       return NextResponse.json(
         { error: `Unknown upload slot: ${slotName}.` },
@@ -326,10 +353,14 @@ export async function POST(req: Request) {
     }
 
     const ext = getExtension(req.name);
-    // For the main `file` slot, the allowlist is per-fileType. Every
-    // other slot's allowlist is fixed (preview = images, modelFbx = fbx
-    // only, etc.).
-    const allowed = slotName === "file" ? fileAllowList : spec.extensions;
+    // For the main `file` slot AND each pack-item slot, the allowlist
+    // is per-fileType (must be a .glb / .gltf for MODEL_3D). Every
+    // other slot's allowlist is fixed (preview = images, modelFbx =
+    // fbx only, etc.).
+    const allowed =
+      slotName === "file" || isPackItemSlot(slotName)
+        ? fileAllowList
+        : spec.extensions;
     if (!allowed.includes(ext)) {
       return NextResponse.json(
         {
