@@ -23,10 +23,14 @@ export function ThemeToggle() {
 
   // On mount, read the actual current theme from the document so the
   // icon matches reality.
+  // Read the current theme from the document on mount. The setState
+  // mirrors the (already-applied) data-theme attribute back into React
+  // — intended external-sync, not a cascading-render bug.
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme") as
       | Theme
       | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(current ?? "dark");
   }, []);
 

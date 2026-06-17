@@ -70,7 +70,6 @@ export function MobileFilterButton() {
         onClick={() => setOpen(true)}
         className="lg:hidden inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium border bg-surface border-border text-secondary hover:text-primary hover:border-border-hover transition-colors"
         aria-haspopup="dialog"
-        // eslint-disable-next-line jsx-a11y/aria-proptypes
         aria-expanded={open}
       >
         <SlidersHorizontal className="w-3.5 h-3.5" />

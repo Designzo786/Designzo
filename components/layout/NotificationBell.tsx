@@ -43,7 +43,11 @@ export function NotificationBell() {
     }
   }, []);
 
+  // Mount + poll: kick off an initial fetch then refresh every POLL_MS.
+  // fetchNotifications eventually setState's via setItems/setUnread —
+  // that's the intended external-sync, not a cascading render.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
     const timer = setInterval(fetchNotifications, POLL_MS);
     return () => clearInterval(timer);
@@ -51,6 +55,7 @@ export function NotificationBell() {
 
   // Refresh when opened so the user always sees the latest 10.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) fetchNotifications();
   }, [open, fetchNotifications]);
 

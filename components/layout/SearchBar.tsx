@@ -66,9 +66,13 @@ export function SearchBar({
   const [activeIndex, setActiveIndex] = useState(-1);
 
   // ─── Debounced fetch ────────────────────────────────────────────────────────
+  // Driven by the user's typed query — the setState calls are the
+  // intended synchronisation of the search-results state with the
+  // external query, not a cascading-render bug.
   useEffect(() => {
     const query = q.trim();
     if (query.length < MIN_CHARS) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       setLoading(false);
       return;

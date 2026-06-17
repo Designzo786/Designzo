@@ -26,6 +26,10 @@ export function LazyMount({
     if (!node) return;
 
     if (typeof IntersectionObserver === "undefined") {
+      // IO unavailable (very old browser / SSR snapshot before hydration) —
+      // render children immediately. The cascading render is intentional
+      // and one-time.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShown(true);
       return;
     }

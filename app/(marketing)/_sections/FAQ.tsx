@@ -96,7 +96,6 @@ export function FAQ() {
                   <button
                     type="button"
                     onClick={() => setOpenIndex(open ? -1 : i)}
-                    // eslint-disable-next-line jsx-a11y/aria-proptypes -- React serializes boolean to "true"/"false" for aria-expanded
                     aria-expanded={open}
                     aria-controls={`faq-panel-${i}`}
                     className="group w-full flex items-start gap-5 text-left px-6 sm:px-7 py-5 hover:bg-elevated/40 transition-colors"

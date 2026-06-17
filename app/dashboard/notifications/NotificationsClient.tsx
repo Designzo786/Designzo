@@ -55,8 +55,11 @@ export function NotificationsClient() {
     [filter]
   );
 
-  // Reload whenever the filter changes (or on first mount).
+  // Reload whenever the filter changes (or on first mount). The
+  // setLoading is the intended sync of the spinner to the upcoming
+  // fetch; `load` itself does the eventual setItems via the network.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     load({ reset: true });
   }, [load]);

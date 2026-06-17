@@ -37,7 +37,11 @@ export function ProfileCompletionPrompt({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Mount + open coordination. mounted gates the portal; the setOpen
+  // call runs from inside a delayed timeout (post-fade) which is the
+  // intended async side-effect of the dashboard route landing.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     if (!isIncomplete || !isFresh) return;
     // Don't re-prompt if the user already chose "Maybe later" once.
@@ -62,7 +66,6 @@ export function ProfileCompletionPrompt({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function dismiss() {

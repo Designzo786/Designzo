@@ -51,7 +51,10 @@ export function AiGenerateClient() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { confirm, dialog } = useConfirm();
 
+  // Hydrate from localStorage on mount. setHistory is the intended
+  // one-time sync from disk → React state.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistory(loadHistory());
   }, []);
 

@@ -209,13 +209,19 @@ function Dialog({
   const [text, setText] = useState("");
 
   // Mount flag — only render the portal once we're on the client.
+  // The cascading render is one-time and intentional (gates createPortal
+  // until document.body exists).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
   // Reset/seed input value whenever the dialog opens. Without this, repeated
   // prompts inside the same component would keep the prior typed value.
+  // Effect is driven by the `open` external signal — setText IS the intended
+  // synchronisation, not a cascading render bug.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setText(defaultValue ?? "");
   }, [open, defaultValue]);
 

@@ -315,7 +315,6 @@ function LightingButton({
     <button
       type="button"
       role="radio"
-      // eslint-disable-next-line jsx-a11y/aria-proptypes -- React serializes boolean to "true"/"false" string for aria-checked
       aria-checked={active}
       onClick={onClick}
       title={`${label} lighting`}
@@ -346,11 +345,14 @@ export default function AssetViewer({
   // (rules-of-hooks). Cheap — just a string slot in state.
   const [lighting, setLighting] = useState<LightingMode>("studio");
 
+  // Hydrate the saved lighting preference from localStorage. Intended
+  // one-time sync from disk → React state.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = window.localStorage.getItem(
       LIGHTING_STORAGE_KEY
     ) as LightingMode | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved === "studio" || saved === "ambience") setLighting(saved);
   }, []);
 

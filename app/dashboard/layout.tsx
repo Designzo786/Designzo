@@ -40,8 +40,9 @@ export default async function DashboardLayout({
   // at request boundary; React's purity rule about render re-execution
   // doesn't apply here.
   // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
   const isFresh =
-    !!me && Date.now() - me.createdAt.getTime() < FRESH_ACCOUNT_MS;
+    !!me && nowMs - me.createdAt.getTime() < FRESH_ACCOUNT_MS;
   const missingAvatar = !me?.image;
   const missingBio = !me?.bio || me.bio.trim().length === 0;
   const missingWebsite = !me?.website || me.website.trim().length === 0;
