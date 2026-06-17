@@ -36,6 +36,10 @@ export default async function DashboardLayout({
     })
     .catch(() => null);
 
+  // Server component — Date.now is the intended source of "right now"
+  // at request boundary; React's purity rule about render re-execution
+  // doesn't apply here.
+  // eslint-disable-next-line react-hooks/purity
   const isFresh =
     !!me && Date.now() - me.createdAt.getTime() < FRESH_ACCOUNT_MS;
   const missingAvatar = !me?.image;

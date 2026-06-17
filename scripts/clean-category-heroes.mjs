@@ -27,7 +27,6 @@
 // Run:
 //   node --env-file=.env scripts/clean-category-heroes.mjs
 
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import {

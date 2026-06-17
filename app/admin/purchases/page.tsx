@@ -56,10 +56,13 @@ export default async function AdminPurchasesPage({
     PERIODS.find((p) => p.value === rawPeriod)?.value ?? "30d";
   const periodDays = PERIODS.find((p) => p.value === period)?.days ?? null;
 
+  // This is a server component — Date.now is the intended source of
+  // "right now" at request boundary; React's purity rule about render
+  // re-execution doesn't apply.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const periodCutoff =
-    periodDays === null
-      ? null
-      : new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+    periodDays === null ? null : new Date(now - periodDays * 24 * 60 * 60 * 1000);
 
   // Summary cards always reflect COMPLETED (the "real money" rows) —
   // PENDING / REFUNDED would muddy the totals. The aggregate query is

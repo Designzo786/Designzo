@@ -1052,7 +1052,7 @@ export function UploadForm() {
           <div className="rounded-lg border border-info/20 bg-info-muted/40 px-3 py-2.5 text-xs text-info leading-relaxed">
             <span className="font-semibold">No preview image needed.</span>{" "}
             Your Lottie animation plays directly on the listing card and
-            detail page — buyers see exactly what they're getting.
+            detail page — buyers see exactly what they&apos;re getting.
           </div>
         )}
 
