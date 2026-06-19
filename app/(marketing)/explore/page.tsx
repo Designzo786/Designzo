@@ -108,6 +108,9 @@ const CARD_SELECT = {
   category: true,
   fileType: true,
   previewKey: true,
+  // Single-aggregate query on the join table — cheap, indexed by
+  // (assetId, displayOrder). Drives the "Pack · N icons" badge.
+  _count: { select: { packItems: true } },
   uploader: { select: { name: true, role: true, email: true } },
 } satisfies Prisma.AssetSelect;
 
@@ -174,6 +177,7 @@ export default async function ExplorePage({
     downloads: a.downloads,
     preview: { shape: FALLBACK_SHAPE, color: FALLBACK_COLOR },
     previewImage: a.previewKey || undefined,
+    packItemCount: a._count.packItems,
   }));
 
   const categoryName = sp.category

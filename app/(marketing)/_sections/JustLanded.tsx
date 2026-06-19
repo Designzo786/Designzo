@@ -31,6 +31,8 @@ const fetchJustLanded = unstable_cache(
           avgRating: true,
           reviewCount: true,
           previewKey: true,
+          // Drives the "Pack · N icons" badge on the card.
+          _count: { select: { packItems: true } },
           uploader: { select: { name: true, role: true, email: true } },
         },
       });
@@ -61,6 +63,7 @@ export async function JustLanded() {
     downloads: a.downloads,
     preview: { shape: FALLBACK_SHAPE, color: FALLBACK_COLOR },
     previewImage: a.previewKey || undefined,
+    packItemCount: a._count.packItems,
   }));
 
   return (

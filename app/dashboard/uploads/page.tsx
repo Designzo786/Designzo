@@ -116,6 +116,10 @@ export default async function UploadsPage({
         category: true,
         subcategory: true,
         fileType: true,
+        // Pack-of-N indicator so creators can scan their library at a
+        // glance for bundled listings (icon packs ship a different
+        // ZIP, edit + delete behave the same way).
+        _count: { select: { packItems: true } },
       },
     }),
     prisma.asset.groupBy({
@@ -266,6 +270,11 @@ export default async function UploadsPage({
                             <div className="text-xs text-muted truncate max-w-65 mt-0.5">
                               {categoryName}
                               {subName ? ` · ${subName}` : ""}
+                              {a._count.packItems > 1 && (
+                                <span className="ml-1 text-accent-light font-semibold">
+                                  · Pack of {a._count.packItems}
+                                </span>
+                              )}
                             </div>
                             {a.status === "REJECTED" && a.rejectionNote && (
                               <div className="text-xs text-danger truncate max-w-65 mt-0.5">

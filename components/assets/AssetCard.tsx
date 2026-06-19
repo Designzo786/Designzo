@@ -1,6 +1,6 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Star, Download } from "lucide-react";
+import { Star, Download, Boxes } from "lucide-react";
 import { formatPrice, formatNumber } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
 
@@ -41,6 +41,9 @@ export interface AssetCardData {
   downloads: number;
   preview: { shape: MockAssetShape; color: string };
   previewImage?: string;
+  /** Item count when the listing is an icon pack. Undefined / 0 for
+   *  single-asset listings — the AssetCard hides the pack badge then. */
+  packItemCount?: number;
 }
 
 /**
@@ -58,6 +61,8 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
   const isLottie = isLottieUrl(asset.previewImage);
   const hasImage = !!asset.previewImage && !isLottie;
   const hasRating = !!(asset.reviewCount && asset.reviewCount > 0);
+  const packCount = asset.packItemCount ?? 0;
+  const isPack = packCount > 1;
   // One stat at the bottom — rating if there is one, otherwise downloads
   // if there are any. If neither, the row is omitted entirely so the
   // footer doesn't render with empty "New · 0" filler text.
@@ -79,7 +84,7 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
             1. Lottie URL    → animated preview via dotlottie-react.
             2. Still image   → standard <img>.
             3. No preview    → fallback Three.js shape from the seed. */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-elevated">
+      <div className="relative aspect-4/3 overflow-hidden bg-elevated">
         {isLottie ? (
           <LottieCardPreview src={asset.previewImage!} />
         ) : hasImage ? (
@@ -100,6 +105,16 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
         {isFree && (
           <div className="absolute top-3 left-3 badge badge-free pointer-events-none">
             Free
+          </div>
+        )}
+        {/* Pack badge — top-right so it doesn't fight with the Free
+            chip. Buyers see "PACK · 24" at a glance and know the
+            listing is a bundle, not a single icon. */}
+        {isPack && (
+          <div className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white bg-black/55 backdrop-blur border border-white/15 pointer-events-none">
+            <Boxes className="w-3 h-3" />
+            <span className="tabular-nums">{packCount}</span>
+            <span className="opacity-80">icons</span>
           </div>
         )}
       </div>

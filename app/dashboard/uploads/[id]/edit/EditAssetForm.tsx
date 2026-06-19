@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/FormError";
@@ -20,6 +20,10 @@ interface EditAssetFormProps {
     tags: string[];
     status: AssetStatus;
     rejectionNote: string | null;
+    /** > 1 when the listing is an icon pack. Drives the pack-specific
+     *  info banner so the creator knows individual items can't be
+     *  edited here. */
+    packItemCount: number;
   };
 }
 
@@ -183,6 +187,29 @@ export function EditAssetForm({ asset }: EditAssetFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <FormError message={error} />
+
+      {/* Pack notice — informational only. Individual pack items
+          (the per-icon .glb files) can't be added/removed/reordered
+          from this form; the only way to change the pack manifest
+          is to delete + re-upload the listing. Title, description,
+          category, price, and tags still apply to the whole pack
+          and ARE editable here. */}
+      {asset.packItemCount > 1 && (
+        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-info-muted border border-info/20 text-info">
+          <Boxes className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-xs leading-relaxed">
+            <div className="font-semibold mb-0.5">
+              This listing is an icon pack of {asset.packItemCount}{" "}
+              items.
+            </div>
+            <div className="opacity-90">
+              You can edit the title, description, category, price, and
+              tags — they apply to the whole pack. To change which icons
+              are inside, delete this listing and re-upload.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* If the asset is currently REJECTED or NEEDS_IMPROVEMENT,
           surface the admin's note so the creator knows what to change
