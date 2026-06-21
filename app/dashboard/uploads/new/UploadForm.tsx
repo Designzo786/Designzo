@@ -247,10 +247,20 @@ export function UploadForm() {
   const [modelBlend, setModelBlend] = useState<File | null>(null);
   const [modelPng, setModelPng] = useState<File | null>(null);
   // Icon-pack bulk upload: opt-in mode for the 3d-icons category so a
-  // creator can ship N icons under one listing. Each item is one .glb
-  // (the matching .png/.blend are still asset-level for now).
+  // creator can ship N icons under one listing. Each item carries a
+  // required .glb plus optional .png + .blend companions auto-paired
+  // by basename (drop `arrow.glb` + `arrow.png` + `arrow.blend` and
+  // they collapse onto the same row).
   const [packMode, setPackMode] = useState(false);
-  const [packItems, setPackItems] = useState<File[]>([]);
+  interface PackEntry {
+    /** Required .glb / .gltf file — drives the row identity. */
+    file: File;
+    /** Optional flat 2D render — shown as the slider thumbnail. */
+    png?: File;
+    /** Optional Blender source for remixers. */
+    blend?: File;
+  }
+  const [packItems, setPackItems] = useState<PackEntry[]>([]);
   const packInputRef = useRef<HTMLInputElement>(null);
   const MAX_PACK_ITEMS_CLIENT = 60;
 
@@ -516,36 +526,131 @@ export function UploadForm() {
   // submit. Limited to the same MAX_PACK_ITEMS_CLIENT the server
   // enforces so a runaway add doesn't queue up unsigned uploads the
   // commit step will reject anyway.
+  function basenameNoExt(name: string): string {
+    return name
+      .replace(/^.*[/\\]/, "")
+      .replace(/\.[^.]+$/, "")
+      .toLowerCase();
+  }
+
+  /**
+   * Multi-format ingest for pack mode. Accepts .glb / .gltf (the icon
+   * itself, required), plus .png (slider thumbnail) and .blend
+   * (Blender source) — both optional. Files are auto-paired by their
+   * basename, so dropping `arrow.glb` + `arrow.png` + `arrow.blend`
+   * lands as one pack item with all three attached, not three orphan
+   * rows.
+   *
+   * Stand-alone PNGs / Blenders (no matching .glb) are surfaced as an
+   * error rather than silently dropped — the creator probably
+   * forgot to grab the .glb and would otherwise wonder why their
+   * thumbnail "wasn't included".
+   */
   function onPackItemsChange(e: React.ChangeEvent<HTMLInputElement>) {
     const incoming = Array.from(e.target.files ?? []);
     if (incoming.length === 0) return;
-    const allowedExts = ["glb", "gltf"];
-    const accepted: File[] = [];
-    let rejectedReason: string | null = null;
+
+    // Bucket incoming files by extension category.
+    const newGlbs: File[] = [];
+    const pngByBase = new Map<string, File>();
+    const blendByBase = new Map<string, File>();
+    const orphans: string[] = [];
+    let rejected: string | null = null;
+
     for (const f of incoming) {
       const ext = getExtension(f.name);
-      if (!allowedExts.includes(ext)) {
-        rejectedReason = `"${f.name}" isn't a .glb or .gltf — skipped.`;
-        continue;
+      const base = basenameNoExt(f.name);
+      if (ext === "glb" || ext === "gltf") {
+        if (f.size > MAX_FILE_BYTES) {
+          rejected = `"${f.name}" exceeds the 100 MB per-item limit.`;
+          continue;
+        }
+        newGlbs.push(f);
+      } else if (ext === "png") {
+        if (f.size > MAX_MODEL_PNG_BYTES) {
+          rejected = `"${f.name}" exceeds the 8 MB PNG limit.`;
+          continue;
+        }
+        pngByBase.set(base, f);
+      } else if (ext === "blend") {
+        if (f.size > MAX_MODEL_BLEND_BYTES) {
+          rejected = `"${f.name}" exceeds the 50 MB Blender limit.`;
+          continue;
+        }
+        blendByBase.set(base, f);
+      } else {
+        rejected = `"${f.name}" isn't a .glb / .gltf / .png / .blend — skipped.`;
       }
-      if (f.size > MAX_FILE_BYTES) {
-        rejectedReason = `"${f.name}" exceeds the 100 MB per-item limit.`;
-        continue;
-      }
-      accepted.push(f);
     }
+
     setPackItems((prev) => {
-      const merged = [...prev, ...accepted];
-      // Trim to ceiling — the input has multiple={true} so a creator
-      // could drop 100 files at once.
-      return merged.slice(0, MAX_PACK_ITEMS_CLIENT);
+      const next = [...prev];
+
+      // 1. Build new entries for every fresh .glb the creator added.
+      for (const g of newGlbs) {
+        if (next.length >= MAX_PACK_ITEMS_CLIENT) break;
+        const base = basenameNoExt(g.name);
+        next.push({
+          file: g,
+          png: pngByBase.get(base),
+          blend: blendByBase.get(base),
+        });
+        pngByBase.delete(base);
+        blendByBase.delete(base);
+      }
+
+      // 2. Any remaining .png / .blend that didn't match a NEW .glb
+      //    might still match an existing entry — pair them in-place
+      //    so the creator can do two-step drops (glbs first, pngs
+      //    second).
+      for (let i = 0; i < next.length; i++) {
+        const base = basenameNoExt(next[i].file.name);
+        const matchPng = pngByBase.get(base);
+        const matchBlend = blendByBase.get(base);
+        if (matchPng && !next[i].png) {
+          next[i] = { ...next[i], png: matchPng };
+          pngByBase.delete(base);
+        }
+        if (matchBlend && !next[i].blend) {
+          next[i] = { ...next[i], blend: matchBlend };
+          blendByBase.delete(base);
+        }
+      }
+
+      // 3. Whatever's left in pngByBase / blendByBase had no .glb
+      //    partner. Tell the creator instead of silently dropping it.
+      for (const name of pngByBase.keys()) orphans.push(`${name}.png`);
+      for (const name of blendByBase.keys()) orphans.push(`${name}.blend`);
+
+      return next;
     });
-    if (rejectedReason) setError(rejectedReason);
+
+    if (orphans.length > 0) {
+      setError(
+        `Couldn't match these to any .glb in the pack (basenames must match): ${orphans.join(", ")}`
+      );
+    } else if (rejected) {
+      setError(rejected);
+    }
     if (packInputRef.current) packInputRef.current.value = "";
   }
 
   function removePackItem(index: number) {
     setPackItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  /** Drop just the .png companion on a row, keep the .glb + .blend. */
+  function removePackItemPng(index: number) {
+    setPackItems((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, png: undefined } : p))
+    );
+  }
+
+  /** Drop just the .blend companion on a row, keep the .glb + .png. */
+  function removePackItemBlend(index: number) {
+    setPackItems((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, blend: undefined } : p))
+    );
   }
 
   function clearPackItems() {
@@ -696,8 +801,14 @@ export function UploadForm() {
     // server's persistence order mirrors what the creator dragged-and-
     // dropped.
     if (packModeActive) {
-      packItems.forEach((f, i) => {
-        slots.push({ slot: `packItem${i}`, file: f });
+      packItems.forEach((p, i) => {
+        slots.push({ slot: `packItem${i}`, file: p.file });
+        // Per-item companions — slot names follow the convention the
+        // upload-url route's packItemSpec() helper recognises:
+        //   packItem<N>Png   → public/pack-thumbs/...
+        //   packItem<N>Blend → private/files/...
+        if (p.png) slots.push({ slot: `packItem${i}Png`, file: p.png });
+        if (p.blend) slots.push({ slot: `packItem${i}Blend`, file: p.blend });
       });
     }
 
@@ -767,17 +878,39 @@ export function UploadForm() {
       // runs on the cover icon.
       const allEntries = Object.entries(signed.slots);
       const keyEntries: [string, string][] = [];
-      const packItemEntries: Array<{ name: string; fileKey: string }> = [];
+      const packItemEntries: Array<{
+        name: string;
+        fileKey: string;
+        pngKey?: string;
+        blendKey?: string;
+      }> = [];
       for (const [slot, info] of allEntries) {
-        if (slot.startsWith("packItem")) {
-          const idx = Number(slot.slice("packItem".length));
+        if (!slot.startsWith("packItem")) {
+          keyEntries.push([slot, info.key]);
+          continue;
+        }
+        // Identify which of the three pack-item slot shapes this is:
+        //   packItem<N>       → primary .glb / .gltf
+        //   packItem<N>Png    → optional PNG thumbnail
+        //   packItem<N>Blend  → optional Blender source
+        const tail = slot.slice("packItem".length);
+        const pngMatch = tail.match(/^(\d+)Png$/);
+        const blendMatch = tail.match(/^(\d+)Blend$/);
+        const idx = Number(pngMatch?.[1] ?? blendMatch?.[1] ?? tail);
+        if (!Number.isInteger(idx)) continue;
+        if (!packItemEntries[idx]) {
           const source = packItems[idx];
           const name = source
-            ? source.name.replace(/\.[^.]+$/, "").slice(0, 100)
+            ? source.file.name.replace(/\.[^.]+$/, "").slice(0, 100)
             : `Item ${idx + 1}`;
-          packItemEntries[idx] = { name, fileKey: info.key };
+          packItemEntries[idx] = { name, fileKey: "" };
+        }
+        if (pngMatch) {
+          packItemEntries[idx].pngKey = info.key;
+        } else if (blendMatch) {
+          packItemEntries[idx].blendKey = info.key;
         } else {
-          keyEntries.push([slot, info.key]);
+          packItemEntries[idx].fileKey = info.key;
         }
       }
       const keysMap = Object.fromEntries(keyEntries);
@@ -790,7 +923,7 @@ export function UploadForm() {
       // either the cover File the creator picked, or the first pack
       // item's original filename.
       const submittedFileName = packModeActive
-        ? (packItems[0]?.name ?? "icon.glb")
+        ? (packItems[0]?.file.name ?? "icon.glb")
         : file!.name;
 
       const commitRes = await fetch("/api/assets", {
@@ -949,7 +1082,12 @@ export function UploadForm() {
                   <p className="text-xs text-muted mt-0.5 leading-relaxed">
                     Drop every .glb you want in this pack. The first one
                     is your cover — it&apos;s the thumbnail buyers see on
-                    listing cards. Max 100 MB per file.
+                    listing cards. Optional: drop matching{" "}
+                    <code className="text-secondary">.png</code> renders
+                    and{" "}
+                    <code className="text-secondary">.blend</code> sources
+                    too — files with the same basename auto-pair onto
+                    one row.
                   </p>
                 </div>
               </div>
@@ -965,7 +1103,7 @@ export function UploadForm() {
                 ref={packInputRef}
                 type="file"
                 aria-label="Add pack items"
-                accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+                accept=".glb,.gltf,.png,.blend,model/gltf-binary,model/gltf+json,image/png,application/octet-stream"
                 multiple
                 onChange={onPackItemsChange}
                 className="hidden"
@@ -983,14 +1121,15 @@ export function UploadForm() {
                   Drop your .glb / .gltf icons here
                 </div>
                 <div className="text-xs text-muted mt-0.5">
-                  or click to browse — pick as many as you want
+                  add matching .png + .blend with the same basename to
+                  auto-pair on each row
                 </div>
               </button>
             ) : (
               <ul className="space-y-1.5">
-                {packItems.map((f, i) => (
+                {packItems.map((p, i) => (
                   <li
-                    key={`${f.name}-${i}`}
+                    key={`${p.file.name}-${i}`}
                     className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2"
                   >
                     <span
@@ -1004,21 +1143,43 @@ export function UploadForm() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-primary truncate">
-                        {f.name}
+                        {p.file.name}
                       </div>
-                      <div className="text-[11px] text-muted">
-                        {formatFileSize(f.size)}
+                      <div className="text-[11px] text-muted flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>{formatFileSize(p.file.size)}</span>
                         {i === 0 && (
-                          <span className="ml-2 text-accent-light font-semibold">
+                          <span className="text-accent-light font-semibold">
                             · Cover
                           </span>
+                        )}
+                        {p.png && (
+                          <button
+                            type="button"
+                            onClick={() => removePackItemPng(i)}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-info bg-info-muted border border-info/20 hover:bg-info/20"
+                            title={`Drop .png companion (${formatFileSize(p.png.size)})`}
+                          >
+                            .png
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                        {p.blend && (
+                          <button
+                            type="button"
+                            onClick={() => removePackItemBlend(i)}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-gold bg-gold-muted border border-gold/20 hover:bg-gold/20"
+                            title={`Drop .blend companion (${formatFileSize(p.blend.size)})`}
+                          >
+                            .blend
+                            <X className="w-2.5 h-2.5" />
+                          </button>
                         )}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => removePackItem(i)}
-                      aria-label={`Remove ${f.name}`}
+                      aria-label={`Remove ${p.file.name}`}
                       className="w-7 h-7 rounded-md text-muted hover:text-danger hover:bg-danger/10 border border-border hover:border-danger/30 flex items-center justify-center transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />

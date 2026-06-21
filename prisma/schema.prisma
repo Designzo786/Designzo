@@ -324,6 +324,20 @@ model AssetPackItem {
   modelKey     String // public R2 URL for the in-browser viewer
   displayOrder Int    @default(0)
 
+  // Per-item companion uploads. Auto-paired by basename at upload time —
+  // dropping `arrow.glb` + `arrow.png` + `arrow.blend` in the bulk
+  // picker groups them onto the same AssetPackItem row.
+  //   pngKey   — flat 2D render. Powers the slider thumbnail on the
+  //              detail page so buyers see real artwork instead of a
+  //              glyph placeholder. Private (the buyer's download).
+  //   pngUrl   — public R2 URL for the same PNG, used directly by the
+  //              slider thumbnail (CopyObject'd from pngKey at upload
+  //              time, same private→public pattern as modelKey).
+  //   blendKey — optional Blender source for remixers.
+  pngKey   String?
+  pngUrl   String?
+  blendKey String?
+
   fileSizeBytes Int      @default(0)
   createdAt     DateTime @default(now())
 

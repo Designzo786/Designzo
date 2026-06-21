@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { AssetThumb } from "@/components/assets/AssetThumb";
 import { formatPrice } from "@/lib/utils";
 import { AssetActions } from "./AssetActions";
+import { BulkSelectionShell } from "./BulkSelectionShell";
+import { RowCheckbox, SelectAllCheckbox } from "./RowCheckbox";
 import type { AssetStatus } from "@prisma/client";
 
 const TABS: { value: AssetStatus | "ALL"; label: string }[] = [
@@ -83,10 +85,12 @@ export default async function AdminAssetsPage({
           No assets in this queue.
         </div>
       ) : (
+        <BulkSelectionShell visibleIds={assets.map((a) => a.id)}>
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <div className="overflow-x-auto"><table className="w-full min-w-225 text-sm">
             <thead className="bg-elevated text-xs uppercase tracking-wider text-muted">
               <tr>
+                <th className="w-12 px-2 py-3"><SelectAllCheckbox /></th>
                 <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Asset</th>
                 <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Uploader</th>
                 <th className="text-left font-medium px-4 py-3 whitespace-nowrap">Price</th>
@@ -97,6 +101,9 @@ export default async function AdminAssetsPage({
             <tbody className="divide-y divide-border">
               {assets.map((a) => (
                 <tr key={a.id} className="hover:bg-elevated/50">
+                  <td className="w-12 px-2 py-3 text-center">
+                    <RowCheckbox id={a.id} />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Preview thumbnail — links through to the public
@@ -160,6 +167,7 @@ export default async function AdminAssetsPage({
             </tbody>
           </table></div>
         </div>
+        </BulkSelectionShell>
       )}
     </div>
   );

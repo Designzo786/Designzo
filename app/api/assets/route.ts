@@ -83,10 +83,17 @@ interface CreateAssetBody {
   /** When set, the listing becomes a pack — each item is one icon the
    *  buyer sees in the detail-page slider and receives in the
    *  downloaded ZIP. The first item is reused as the main `keys.file`
-   *  so the standard single-asset viewer + thumbnail still works. */
+   *  so the standard single-asset viewer + thumbnail still works.
+   *
+   *  Optional per-item companions:
+   *    pngKey   — public PNG render for the slider thumb + buyer's
+   *               flat 2D fallback. Auto-paired by basename in the form.
+   *    blendKey — private Blender source for remixers. */
   packItems?: Array<{
     name?: string;
     fileKey?: string;
+    pngKey?: string;
+    blendKey?: string;
   }>;
 }
 
@@ -559,6 +566,9 @@ export async function POST(req: Request) {
       name: string;
       fileKey: string;
       modelKey: string;
+      pngKey: string | null;
+      pngUrl: string | null;
+      blendKey: string | null;
       displayOrder: number;
       fileSizeBytes: number;
     }> = [];
@@ -582,7 +592,8 @@ export async function POST(req: Request) {
       // 1. Pre-validate every item's R2 key matches the user prefix
       //    (defence in depth — already checked in the global `allKeys`
       //    loop above as long as the client sent the item keys via
-      //    body.packItems before reaching here).
+      //    body.packItems before reaching here). Optional companions
+      //    (png / blend) get the same ownership check.
       for (const item of body.packItems) {
         if (!item.fileKey || typeof item.fileKey !== "string") {
           await rollback();
@@ -591,12 +602,14 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        if (!item.fileKey.includes(userPathToken)) {
-          await rollback();
-          return NextResponse.json(
-            { error: "One of the pack item keys doesn't belong to this account." },
-            { status: 403 }
-          );
+        for (const k of [item.fileKey, item.pngKey, item.blendKey]) {
+          if (k && !k.includes(userPathToken)) {
+            await rollback();
+            return NextResponse.json(
+              { error: "One of the pack item keys doesn't belong to this account." },
+              { status: 403 }
+            );
+          }
         }
       }
 
@@ -622,18 +635,11 @@ export async function POST(req: Request) {
         }
         touched.push(itemFileKey);
 
-        // Trust the .glb extension on the user-controlled name string
-        // here — the signed URL was issued with a .glb/.gltf
-        // allowlist enforced server-side, so the bytes in R2 must
-        // already match. Pull just the first 256 KB for the magic-byte
-        // check to confirm.
         const bytes = await r2GetRange(
           itemFileKey,
           0,
           Math.min(VALIDATION_BYTE_RANGE, h.contentLength - 1)
         );
-        // Pack items always carry .glb / .gltf — extension is derived
-        // from the key (which the signed URL helper sanitised).
         const ext = getExtension(itemFileKey);
         const v = validateAssetFile(
           `pack-item-${i + 1}.${ext}`,
@@ -655,6 +661,87 @@ export async function POST(req: Request) {
         await r2Copy(itemFileKey, itemPublicKey);
         touched.push(itemPublicKey);
 
+        // ── Per-item PNG companion (optional, public-readable) ───────
+        // Already uploaded to public/pack-thumbs/... via its signed URL
+        // — we just HEAD + magic-byte-validate it here. No CopyObject
+        // needed since the key is already in the public path family.
+        let resolvedPngKey: string | null = null;
+        let resolvedPngUrl: string | null = null;
+        if (typeof item.pngKey === "string" && item.pngKey.length > 0) {
+          const pngHead = await r2Head(item.pngKey);
+          if (!pngHead) {
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1}'s PNG upload didn't land in storage.` },
+              { status: 400 }
+            );
+          }
+          if (pngHead.contentLength > MAX_MODEL_PNG_BYTES) {
+            touched.push(item.pngKey);
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1}'s PNG exceeds 8 MB limit.` },
+              { status: 400 }
+            );
+          }
+          touched.push(item.pngKey);
+
+          const pngBytes = await r2GetRange(
+            item.pngKey,
+            0,
+            Math.min(VALIDATION_BYTE_RANGE, pngHead.contentLength - 1)
+          );
+          const pngCheck = validateModelPng(item.pngKey, pngBytes);
+          if (!pngCheck.ok) {
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1} PNG: ${pngCheck.error}` },
+              { status: 400 }
+            );
+          }
+          resolvedPngKey = item.pngKey;
+          resolvedPngUrl = r2PublicUrl(item.pngKey);
+          totalBundleBytes += pngHead.contentLength;
+        }
+
+        // ── Per-item Blender companion (optional, private) ──────────
+        let resolvedBlendKey: string | null = null;
+        if (typeof item.blendKey === "string" && item.blendKey.length > 0) {
+          const blendHead = await r2Head(item.blendKey);
+          if (!blendHead) {
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1}'s .blend upload didn't land in storage.` },
+              { status: 400 }
+            );
+          }
+          if (blendHead.contentLength > MAX_MODEL_BLEND_BYTES) {
+            touched.push(item.blendKey);
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1}'s .blend exceeds 50 MB limit.` },
+              { status: 400 }
+            );
+          }
+          touched.push(item.blendKey);
+
+          const blendBytes = await r2GetRange(
+            item.blendKey,
+            0,
+            Math.min(VALIDATION_BYTE_RANGE, blendHead.contentLength - 1)
+          );
+          const blendCheck = validateModelBlend(item.blendKey, blendBytes);
+          if (!blendCheck.ok) {
+            await rollback();
+            return NextResponse.json(
+              { error: `Pack item ${i + 1} .blend: ${blendCheck.error}` },
+              { status: 400 }
+            );
+          }
+          resolvedBlendKey = item.blendKey;
+          totalBundleBytes += blendHead.contentLength;
+        }
+
         // Auto-derive the visible name from the client-supplied label,
         // fall back to a stripped version of the storage key tail.
         const fallbackName = itemFileKey
@@ -671,6 +758,9 @@ export async function POST(req: Request) {
           name: itemName.slice(0, 100),
           fileKey: itemFileKey,
           modelKey: r2PublicUrl(itemPublicKey),
+          pngKey: resolvedPngKey,
+          pngUrl: resolvedPngUrl,
+          blendKey: resolvedBlendKey,
           displayOrder: i,
           fileSizeBytes: h.contentLength,
         });

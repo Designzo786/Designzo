@@ -30,10 +30,19 @@ export default async function EditAssetPage({
       status: true,
       rejectionNote: true,
       uploaderId: true,
-      // Pack info — the form shows a notice when the listing ships as
-      // a pack so the creator knows individual items can't be edited
-      // here (delete + re-upload is the only way to change the manifest).
-      _count: { select: { packItems: true } },
+      fileType: true,
+      // Pull every pack item so the form can render the list + remove
+      // buttons. Ordered by displayOrder so the UI matches the
+      // detail-page slider.
+      packItems: {
+        orderBy: { displayOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          pngUrl: true,
+          fileSizeBytes: true,
+        },
+      },
     },
   });
 
@@ -76,7 +85,8 @@ export default async function EditAssetPage({
           tags: asset.tags,
           status: asset.status,
           rejectionNote: asset.rejectionNote,
-          packItemCount: asset._count.packItems,
+          fileType: asset.fileType,
+          packItems: asset.packItems,
         }}
       />
     </div>

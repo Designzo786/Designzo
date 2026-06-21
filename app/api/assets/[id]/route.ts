@@ -5,11 +5,33 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAdminLog } from "@/lib/admin";
 import { deletePublic, deletePrivate } from "@/lib/storage";
+import {
+  r2Head,
+  r2GetRange,
+  r2Copy,
+  r2Delete,
+  r2PublicUrl,
+} from "@/lib/r2";
+import {
+  validateAssetFile,
+  validateModelPng,
+  validateModelBlend,
+  getExtension,
+} from "@/lib/upload-validation";
 import { isValidSubcategory } from "@/lib/mock/assets";
+import type { FileType } from "@prisma/client";
 
 export const runtime = "nodejs";
 
 const VALID_CATEGORIES = ["3d-models", "3d-icons", "lottie", "svg-icons"];
+
+// Mirror the ceilings the commit + upload-url routes use so pack-edit
+// can re-validate the same way.
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
+const MAX_MODEL_PNG_BYTES = 8 * 1024 * 1024;
+const MAX_MODEL_BLEND_BYTES = 50 * 1024 * 1024;
+const VALIDATION_BYTE_RANGE = 256 * 1024 - 1;
+const MAX_PACK_ITEMS_TOTAL = 60;
 
 /**
  * Patch an asset's editable metadata.
@@ -45,6 +67,17 @@ export async function PATCH(
       uploaderId: true,
       status: true,
       category: true,
+      fileType: true,
+      packItems: {
+        select: {
+          id: true,
+          fileKey: true,
+          modelKey: true,
+          pngKey: true,
+          pngUrl: true,
+          blendKey: true,
+        },
+      },
     },
   });
 
@@ -131,6 +164,259 @@ export async function PATCH(
     );
   }
 
+  // ── Pack-edit support (icon-pack listings only) ──────────────────────
+  // The form sends two arrays:
+  //   packRemove      — AssetPackItem ids to drop from the pack.
+  //   packAdd         — newly-uploaded items to append. Each carries the
+  //                     R2 keys the browser already PUT via signed URL,
+  //                     same shape as POST /api/assets accepts.
+  // Both are validated + applied below. If the listing isn't already a
+  // pack, the requests are rejected (creator can promote a single
+  // listing to a pack by delete + re-upload, not by patch).
+  const packRemoveRaw = body.packRemove;
+  const packAddRaw = body.packAdd;
+  const isPackEdit =
+    Array.isArray(packRemoveRaw) || Array.isArray(packAddRaw);
+
+  const packRemove = Array.isArray(packRemoveRaw)
+    ? packRemoveRaw.filter((x): x is string => typeof x === "string")
+    : [];
+  type PackAddInput = {
+    name?: string;
+    fileKey?: string;
+    pngKey?: string;
+    blendKey?: string;
+  };
+  const packAdd: PackAddInput[] = Array.isArray(packAddRaw)
+    ? (packAddRaw as PackAddInput[]).filter(
+        (x) => x && typeof x === "object"
+      )
+    : [];
+
+  if (isPackEdit && existing.packItems.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "This listing isn't a pack — add/remove items doesn't apply. To convert a single listing into a pack, delete and re-upload.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Resulting pack size has to stay in bounds + non-empty (a pack with
+  // zero items would orphan the listing's cover key).
+  const remainingAfter =
+    existing.packItems.length - packRemove.length + packAdd.length;
+  if (isPackEdit && remainingAfter < 1) {
+    return NextResponse.json(
+      { error: "A pack must keep at least one item." },
+      { status: 400 }
+    );
+  }
+  if (isPackEdit && remainingAfter > MAX_PACK_ITEMS_TOTAL) {
+    return NextResponse.json(
+      {
+        error: `Pack would exceed the ${MAX_PACK_ITEMS_TOTAL}-item ceiling.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Every packRemove id MUST actually belong to this listing — protects
+  // against a tampered client deleting somebody else's pack items.
+  const existingItemMap = new Map(
+    existing.packItems.map((it) => [it.id, it])
+  );
+  for (const rmId of packRemove) {
+    if (!existingItemMap.has(rmId)) {
+      return NextResponse.json(
+        { error: "One of the packRemove ids isn't part of this listing." },
+        { status: 400 }
+      );
+    }
+  }
+
+  // packAdd keys must all live under the user's R2 prefix.
+  const userPathToken = `/${session.user.id}/`;
+  for (const item of packAdd) {
+    for (const k of [item.fileKey, item.pngKey, item.blendKey]) {
+      if (k && !k.includes(userPathToken)) {
+        return NextResponse.json(
+          {
+            error:
+              "One of the new pack item keys doesn't belong to this account.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
+  // Compute the displayOrder offset so new items sit after the
+  // surviving ones in render order.
+  const nextDisplayOrder = existing.packItems.length;
+  const newRowData: Array<{
+    name: string;
+    fileKey: string;
+    modelKey: string;
+    pngKey: string | null;
+    pngUrl: string | null;
+    blendKey: string | null;
+    displayOrder: number;
+    fileSizeBytes: number;
+  }> = [];
+
+  // Track every R2 object we copy/touch so a mid-batch validation
+  // failure can roll the bucket back without leaving orphans.
+  const newR2Keys: string[] = [];
+
+  if (packAdd.length > 0) {
+    if (existing.fileType !== ("MODEL_3D" as FileType)) {
+      return NextResponse.json(
+        { error: "Pack items are only valid for 3D model listings." },
+        { status: 400 }
+      );
+    }
+
+    for (let i = 0; i < packAdd.length; i++) {
+      const item = packAdd[i];
+      if (!item.fileKey) {
+        return NextResponse.json(
+          { error: `New pack item ${i + 1} is missing its uploaded fileKey.` },
+          { status: 400 }
+        );
+      }
+
+      const head = await r2Head(item.fileKey);
+      if (!head) {
+        return NextResponse.json(
+          { error: `New pack item ${i + 1} upload didn't land in storage.` },
+          { status: 400 }
+        );
+      }
+      if (head.contentLength > MAX_FILE_BYTES) {
+        newR2Keys.push(item.fileKey);
+        for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+        return NextResponse.json(
+          { error: `New pack item ${i + 1} exceeds 100 MB limit.` },
+          { status: 400 }
+        );
+      }
+      newR2Keys.push(item.fileKey);
+
+      const bytes = await r2GetRange(
+        item.fileKey,
+        0,
+        Math.min(VALIDATION_BYTE_RANGE, head.contentLength - 1)
+      );
+      const ext = getExtension(item.fileKey);
+      const v = validateAssetFile(
+        `pack-item-${i + 1}.${ext}`,
+        existing.fileType,
+        bytes
+      );
+      if (!v.ok) {
+        for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+        return NextResponse.json(
+          { error: `New pack item ${i + 1}: ${v.error}` },
+          { status: 400 }
+        );
+      }
+
+      const publicKey = item.fileKey.replace(
+        /^private\/files\//,
+        "public/models/"
+      );
+      await r2Copy(item.fileKey, publicKey);
+      newR2Keys.push(publicKey);
+
+      // Optional PNG companion.
+      let resolvedPngKey: string | null = null;
+      let resolvedPngUrl: string | null = null;
+      if (item.pngKey) {
+        const pngHead = await r2Head(item.pngKey);
+        if (
+          !pngHead ||
+          pngHead.contentLength > MAX_MODEL_PNG_BYTES
+        ) {
+          for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+          return NextResponse.json(
+            { error: `New pack item ${i + 1}'s PNG was invalid.` },
+            { status: 400 }
+          );
+        }
+        newR2Keys.push(item.pngKey);
+        const pngBytes = await r2GetRange(
+          item.pngKey,
+          0,
+          Math.min(VALIDATION_BYTE_RANGE, pngHead.contentLength - 1)
+        );
+        const pngCheck = validateModelPng(item.pngKey, pngBytes);
+        if (!pngCheck.ok) {
+          for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+          return NextResponse.json(
+            { error: `New pack item ${i + 1} PNG: ${pngCheck.error}` },
+            { status: 400 }
+          );
+        }
+        resolvedPngKey = item.pngKey;
+        resolvedPngUrl = r2PublicUrl(item.pngKey);
+      }
+
+      // Optional Blender companion.
+      let resolvedBlendKey: string | null = null;
+      if (item.blendKey) {
+        const blendHead = await r2Head(item.blendKey);
+        if (
+          !blendHead ||
+          blendHead.contentLength > MAX_MODEL_BLEND_BYTES
+        ) {
+          for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+          return NextResponse.json(
+            { error: `New pack item ${i + 1}'s .blend was invalid.` },
+            { status: 400 }
+          );
+        }
+        newR2Keys.push(item.blendKey);
+        const blendBytes = await r2GetRange(
+          item.blendKey,
+          0,
+          Math.min(VALIDATION_BYTE_RANGE, blendHead.contentLength - 1)
+        );
+        const blendCheck = validateModelBlend(item.blendKey, blendBytes);
+        if (!blendCheck.ok) {
+          for (const k of newR2Keys) await r2Delete(k).catch(() => {});
+          return NextResponse.json(
+            { error: `New pack item ${i + 1} .blend: ${blendCheck.error}` },
+            { status: 400 }
+          );
+        }
+        resolvedBlendKey = item.blendKey;
+      }
+
+      const fallbackName = item.fileKey
+        .split("/")
+        .pop()!
+        .replace(/^[a-f0-9]{16}-/, "")
+        .replace(/\.[^.]+$/, "");
+      const itemName =
+        (typeof item.name === "string" ? item.name.trim() : "") ||
+        fallbackName ||
+        `Item ${nextDisplayOrder + i + 1}`;
+
+      newRowData.push({
+        name: itemName.slice(0, 100),
+        fileKey: item.fileKey,
+        modelKey: r2PublicUrl(publicKey),
+        pngKey: resolvedPngKey,
+        pngUrl: resolvedPngUrl,
+        blendKey: resolvedBlendKey,
+        displayOrder: nextDisplayOrder + i,
+        fileSizeBytes: head.contentLength,
+      });
+    }
+  }
+
   // REJECTED or NEEDS_IMPROVEMENT → PENDING resubmission, since saving
   // an edit is the creator's signal that they've acted on the admin's
   // note. PENDING and APPROVED keep their current status. rejectionNote
@@ -142,20 +428,50 @@ export async function PATCH(
       ? "PENDING"
       : existing.status;
 
-  const updated = await prisma.asset.update({
-    where: { id },
-    data: {
-      title,
-      description,
-      category,
-      subcategory,
-      tags,
-      price,
-      status: nextStatus,
-      rejectionNote: null,
-    },
-    select: { id: true, status: true },
+  // Run the metadata update + pack mutations in one transaction so
+  // either everything commits or nothing does.
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedRow = await tx.asset.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        category,
+        subcategory,
+        tags,
+        price,
+        status: nextStatus,
+        rejectionNote: null,
+      },
+      select: { id: true, status: true },
+    });
+
+    if (packRemove.length > 0) {
+      await tx.assetPackItem.deleteMany({
+        where: { id: { in: packRemove }, assetId: id },
+      });
+    }
+
+    if (newRowData.length > 0) {
+      await tx.assetPackItem.createMany({
+        data: newRowData.map((r) => ({ ...r, assetId: id })),
+      });
+    }
+
+    return updatedRow;
   });
+
+  // Now that the DB write succeeded, GC the R2 blobs that backed the
+  // removed pack items. Failures are non-fatal — they leave orphan
+  // bytes in the bucket but never corrupt the DB.
+  for (const rmId of packRemove) {
+    const it = existingItemMap.get(rmId);
+    if (!it) continue;
+    await deletePrivate(it.fileKey).catch(() => {});
+    await deletePublic(it.modelKey).catch(() => {});
+    if (it.pngUrl) await deletePublic(it.pngUrl).catch(() => {});
+    if (it.blendKey) await deletePrivate(it.blendKey).catch(() => {});
+  }
 
   if (isAdmin && !isOwner) {
     await writeAdminLog({
@@ -223,7 +539,13 @@ export async function DELETE(
       modelBlendKey: true,
       modelPngKey: true,
       packItems: {
-        select: { fileKey: true, modelKey: true },
+        select: {
+          fileKey: true,
+          modelKey: true,
+          pngKey: true,
+          pngUrl: true,
+          blendKey: true,
+        },
       },
       _count: {
         select: {
@@ -269,12 +591,15 @@ export async function DELETE(
   if (asset.modelUsdzKey) await deletePrivate(asset.modelUsdzKey);
   if (asset.modelBlendKey) await deletePrivate(asset.modelBlendKey);
   if (asset.modelPngKey) await deletePrivate(asset.modelPngKey);
-  // Pack items: each carries a private .glb + a public viewer copy.
-  // The AssetPackItem rows themselves cascade via the schema FK; only
-  // the R2 blobs need explicit cleanup.
+  // Pack items: each carries a private .glb + a public viewer copy,
+  // plus optional .png (public thumb) + .blend (private source). The
+  // AssetPackItem rows themselves cascade via the schema FK; only the
+  // R2 blobs need explicit cleanup.
   for (const item of asset.packItems) {
     await deletePrivate(item.fileKey);
     await deletePublic(item.modelKey);
+    if (item.pngUrl) await deletePublic(item.pngUrl);
+    if (item.blendKey) await deletePrivate(item.blendKey);
   }
 
   try {

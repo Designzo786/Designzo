@@ -93,7 +93,12 @@ export async function GET(
       modelPngKey: true,
       packItems: {
         orderBy: { displayOrder: "asc" },
-        select: { name: true, fileKey: true },
+        select: {
+          name: true,
+          fileKey: true,
+          pngKey: true,
+          blendKey: true,
+        },
       },
       price: true,
       status: true,
@@ -182,16 +187,42 @@ export async function GET(
     (format === "" || format === "zip" || format === "glb")
   ) {
     const zip = new JSZip();
+    // Per-item layout: when an item ships only the .glb it goes to
+    // models/<name>.glb (flat — easier for icon-set buyers who want
+    // a folder full of glbs). When an item ships a PNG and/or Blender
+    // companion we promote it to a per-item subfolder so the three
+    // related files stay grouped:
+    //   models/<name>/<name>.glb
+    //   models/<name>/<name>.png
+    //   models/<name>/<name>.blend
     for (const item of asset.packItems) {
+      const slug = slugify(item.name) || "icon";
+      const hasCompanions = !!item.pngKey || !!item.blendKey;
+      const folder = hasCompanions ? `models/${slug}/` : "models/";
       try {
         const buf = await readPrivate(item.fileKey);
-        const itemName = `${slugify(item.name) || "icon"}.glb`;
-        // Drop into a `models/` folder inside the ZIP so buyers can
-        // tell pack contents apart from the LICENSE + README at a
-        // glance after extracting.
-        zip.file(`models/${itemName}`, buf);
+        zip.file(`${folder}${slug}.glb`, buf);
       } catch (err) {
-        console.error("[asset download] pack item read failed:", err);
+        console.error("[asset download] pack item glb read failed:", err);
+      }
+      if (item.pngKey) {
+        try {
+          // PNG companions live in the public path family, but readPrivate
+          // is what works with the storage helper for arbitrary keys —
+          // R2 doesn't care about the public/private prefix at read time.
+          const buf = await readPrivate(item.pngKey);
+          zip.file(`${folder}${slug}.png`, buf);
+        } catch (err) {
+          console.error("[asset download] pack item png read failed:", err);
+        }
+      }
+      if (item.blendKey) {
+        try {
+          const buf = await readPrivate(item.blendKey);
+          zip.file(`${folder}${slug}.blend`, buf);
+        } catch (err) {
+          console.error("[asset download] pack item blend read failed:", err);
+        }
       }
     }
     const licenseText = renderLicenseText({

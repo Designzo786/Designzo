@@ -11,6 +11,9 @@ interface PackItem {
   id: string;
   name: string;
   modelUrl: string;
+  /** Optional flat PNG render — shown as the slider thumbnail when
+   *  the creator shipped one. Falls back to a diamond glyph otherwise. */
+  pngUrl: string | null;
 }
 
 interface Props {
@@ -84,7 +87,7 @@ export function PackViewer({ title, fileType, items }: Props) {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveIndex(i)}
-                aria-pressed={isActive}
+                aria-pressed={isActive ? "true" : "false"}
                 aria-label={`Preview ${item.name}`}
                 title={item.name}
                 className={`group relative shrink-0 snap-start w-20 sm:w-22 rounded-lg border transition-all ${
@@ -102,14 +105,26 @@ export function PackViewer({ title, fileType, items }: Props) {
                 >
                   {i + 1}
                 </span>
-                {/* glTF in an <img>-like preview tile would be a heavy
-                    render at thumb size — show the number + name and
-                    rely on the main viewer above for the live preview.
-                    Cheaper, scales to 60-item packs without bogging
-                    down the page. */}
-                <span className="block aspect-square rounded-lg flex items-center justify-center text-3xl text-muted/40">
-                  ⋄
-                </span>
+                {/* Per-item PNG render when the creator shipped one
+                    — gives the buyer a real thumbnail before they
+                    click. Falls back to a glyph placeholder otherwise
+                    so even .glb-only packs still look intentional.
+                    glTF in an <img>-like preview tile would be too
+                    heavy at thumb size, so we don't try to render the
+                    .glb directly here. */}
+                {item.pngUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.pngUrl}
+                    alt={item.name}
+                    loading="lazy"
+                    className="block aspect-square rounded-lg object-cover bg-canvas/40"
+                  />
+                ) : (
+                  <span className="block aspect-square rounded-lg flex items-center justify-center text-3xl text-muted/40">
+                    ⋄
+                  </span>
+                )}
                 <span
                   className={`block text-[10px] font-medium truncate px-1.5 py-1 ${
                     isActive ? "text-primary" : "text-secondary"

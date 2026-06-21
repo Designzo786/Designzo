@@ -85,6 +85,9 @@ interface UnifiedAsset {
     id: string;
     name: string;
     modelUrl: string;
+    /** Public PNG companion URL — used by the slider as the thumb
+     *  when the creator shipped a flat 2D render. */
+    pngUrl: string | null;
   }>;
 }
 
@@ -98,7 +101,7 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
         },
         packItems: {
           orderBy: { displayOrder: "asc" },
-          select: { id: true, name: true, modelKey: true },
+          select: { id: true, name: true, modelKey: true, pngUrl: true },
         },
       },
     })
@@ -147,6 +150,7 @@ async function loadAsset(id: string): Promise<UnifiedAsset | null> {
       id: p.id,
       name: p.name,
       modelUrl: p.modelKey,
+      pngUrl: p.pngUrl,
     })),
   };
 }

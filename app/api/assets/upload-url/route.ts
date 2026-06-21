@@ -55,12 +55,12 @@ interface SlotSpec {
   prefix: string;
 }
 
-// Pack-item slot names follow the convention `packItem<N>` where N is
-// a zero-padded ordinal. The shared SlotSpec describes the per-item
-// rules (private storage, .glb only, gated to MODEL_3D parent). Up to
-// MAX_PACK_ITEMS items per listing — the limit keeps the slot manifest
-// reasonable and stops a runaway client from issuing 1000 URLs in one
-// request.
+// Pack-item slot names follow the convention `packItem<N>` for the
+// required .glb / .gltf, plus `packItem<N>Png` and `packItem<N>Blend`
+// for the optional per-item companions. Auto-paired by basename at the
+// upload form. Up to MAX_PACK_ITEMS items per listing — the limit
+// keeps the slot manifest reasonable and stops a runaway client from
+// issuing thousands of URLs in one request.
 const MAX_PACK_ITEMS = 60;
 const PACK_ITEM_SLOT_PREFIX = "packItem";
 const PACK_ITEM_SPEC: SlotSpec = {
@@ -70,11 +70,66 @@ const PACK_ITEM_SPEC: SlotSpec = {
   validFor: ["MODEL_3D" as FileType],
   prefix: "private/files",
 };
+const PACK_ITEM_PNG_SPEC: SlotSpec = {
+  // Public so the detail-page slider can render the thumbnail without
+  // proxying through the server. Same path family as `modelKey` for
+  // 3D assets.
+  visibility: "public",
+  extensions: ["png"],
+  maxBytes: MAX_MODEL_PNG_BYTES,
+  validFor: ["MODEL_3D" as FileType],
+  prefix: "public/pack-thumbs",
+};
+const PACK_ITEM_BLEND_SPEC: SlotSpec = {
+  visibility: "private",
+  extensions: ["blend"],
+  maxBytes: MAX_MODEL_BLEND_BYTES,
+  validFor: ["MODEL_3D" as FileType],
+  prefix: "private/files",
+};
 
-function isPackItemSlot(slotName: string): boolean {
-  // packItem0, packItem1, … packItem<MAX_PACK_ITEMS - 1>.
+/**
+ * Recognise the three pack-item slot families and return the matching
+ * spec, or null if the slot name doesn't follow the convention.
+ *
+ *   packItem<N>       → glb/gltf (the icon itself)
+ *   packItem<N>Png    → png companion (slider thumbnail)
+ *   packItem<N>Blend  → blender source companion
+ */
+function packItemSpec(slotName: string): SlotSpec | null {
+  if (!slotName.startsWith(PACK_ITEM_SLOT_PREFIX)) return null;
+  // Strip the prefix to inspect the tail.
+  const tail = slotName.slice(PACK_ITEM_SLOT_PREFIX.length);
+
+  // Companion-suffix variants first since they're more specific.
+  const matchPng = tail.match(/^(\d+)Png$/);
+  if (matchPng) {
+    const idx = Number(matchPng[1]);
+    if (idx >= 0 && idx < MAX_PACK_ITEMS) return PACK_ITEM_PNG_SPEC;
+    return null;
+  }
+  const matchBlend = tail.match(/^(\d+)Blend$/);
+  if (matchBlend) {
+    const idx = Number(matchBlend[1]);
+    if (idx >= 0 && idx < MAX_PACK_ITEMS) return PACK_ITEM_BLEND_SPEC;
+    return null;
+  }
+
+  // Bare packItem<N> → required .glb / .gltf
+  const idx = Number(tail);
+  if (Number.isInteger(idx) && idx >= 0 && idx < MAX_PACK_ITEMS) {
+    return PACK_ITEM_SPEC;
+  }
+  return null;
+}
+
+/** True only for the bare packItem<N> slot — used to know whether
+ *  the per-fileType extension allowlist should apply (it does for the
+ *  primary .glb, not for the .png / .blend companions). */
+function isPackItemPrimarySlot(slotName: string): boolean {
   if (!slotName.startsWith(PACK_ITEM_SLOT_PREFIX)) return false;
-  const idx = Number(slotName.slice(PACK_ITEM_SLOT_PREFIX.length));
+  const tail = slotName.slice(PACK_ITEM_SLOT_PREFIX.length);
+  const idx = Number(tail);
   return Number.isInteger(idx) && idx >= 0 && idx < MAX_PACK_ITEMS;
 }
 
@@ -304,11 +359,11 @@ export async function POST(req: Request) {
   const userId = session.user.id;
 
   for (const [slotName, req] of Object.entries(requested)) {
-    // packItem<N> slots all share the same per-item spec — handled
-    // dynamically so the form can request any number of items up to
-    // MAX_PACK_ITEMS without each one needing a hard-coded entry in
-    // the SLOTS map.
-    const spec = SLOTS[slotName] ?? (isPackItemSlot(slotName) ? PACK_ITEM_SPEC : null);
+    // packItem<N>, packItem<N>Png, and packItem<N>Blend slots all share
+    // the dynamic pack-item spec lookup — handled outside the SLOTS map
+    // so the form can request any number of items up to MAX_PACK_ITEMS
+    // without each one needing a hard-coded entry.
+    const spec = SLOTS[slotName] ?? packItemSpec(slotName);
     if (!spec) {
       return NextResponse.json(
         { error: `Unknown upload slot: ${slotName}.` },
@@ -353,12 +408,13 @@ export async function POST(req: Request) {
     }
 
     const ext = getExtension(req.name);
-    // For the main `file` slot AND each pack-item slot, the allowlist
-    // is per-fileType (must be a .glb / .gltf for MODEL_3D). Every
-    // other slot's allowlist is fixed (preview = images, modelFbx =
-    // fbx only, etc.).
+    // For the main `file` slot AND each primary pack-item slot
+    // (packItem<N>, NOT the Png/Blend companions), the allowlist is
+    // per-fileType (.glb / .gltf for MODEL_3D). Every other slot's
+    // allowlist is fixed (preview = images, modelFbx = fbx only,
+    // packItem<N>Png = png only, packItem<N>Blend = blend only).
     const allowed =
-      slotName === "file" || isPackItemSlot(slotName)
+      slotName === "file" || isPackItemPrimarySlot(slotName)
         ? fileAllowList
         : spec.extensions;
     if (!allowed.includes(ext)) {
