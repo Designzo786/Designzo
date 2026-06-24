@@ -51,7 +51,7 @@ export default async function EarningsPage() {
   // Pull everything in parallel — balance, KYC status, payout history,
   // a lifetime-earned aggregate, and the 20 most recent sales so the
   // creator can see *which* assets are selling, not just a total count.
-  const [user, payouts, salesAgg, recentSales] = await Promise.all([
+  const [user, payouts, salesAgg, recentSales, topAssets] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { balance: true, kycStatus: true },
@@ -104,12 +104,38 @@ export default async function EarningsPage() {
         licenseKey: true,
       },
     }),
+    // Lifetime top-5 assets by earning — answers "which of my pieces
+    // is actually paying me?". groupBy is one indexed scan.
+    prisma.purchase.groupBy({
+      by: ["assetId"],
+      where: {
+        status: "COMPLETED",
+        asset: { uploaderId: session.user.id },
+      },
+      _sum: { creatorEarning: true },
+      _count: { _all: true },
+      orderBy: { _sum: { creatorEarning: "desc" } },
+      take: 5,
+    }),
   ]);
 
   if (!user) redirect("/login");
 
   const lifetimeEarned = salesAgg._sum.creatorEarning ?? 0;
   const salesCount = salesAgg._count._all;
+
+  // Resolve the top-asset ids to their titles + previews in one
+  // additional query so the panel can render the asset name +
+  // thumbnail.
+  const topAssetIds = topAssets.map((t) => t.assetId);
+  const topAssetDetails =
+    topAssetIds.length > 0
+      ? await prisma.asset.findMany({
+          where: { id: { in: topAssetIds } },
+          select: { id: true, title: true, previewKey: true },
+        })
+      : [];
+  const topAssetById = new Map(topAssetDetails.map((a) => [a.id, a]));
   const canRequest =
     user.kycStatus === "VERIFIED" &&
     user.balance >= MIN_PAYOUT_PAISE &&
@@ -158,6 +184,54 @@ export default async function EarningsPage() {
           (p) => p.status === "PENDING" || p.status === "PROCESSING"
         )}
       />
+
+      {/* Top earners — lifetime ranking of the creator's own assets
+          by total earning. Surfaces the "which piece is paying me?"
+          insight that drives most creators' next-iteration decision.
+          Hidden when zero sales so a brand-new creator doesn't see an
+          empty leaderboard. */}
+      {topAssets.length > 0 && (
+        <section className="rounded-xl border border-border bg-surface p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Top earning assets
+          </h2>
+          <ol className="space-y-2.5">
+            {topAssets.map((row, i) => {
+              const a = topAssetById.get(row.assetId);
+              return (
+                <li
+                  key={row.assetId}
+                  className="flex items-center gap-3"
+                >
+                  <span className="w-5 text-xs font-bold text-muted tabular-nums">
+                    #{i + 1}
+                  </span>
+                  <AssetThumb
+                    src={a?.previewKey ?? null}
+                    alt={a?.title ?? "Asset"}
+                    className="w-10 h-10 rounded-md shrink-0"
+                  />
+                  <Link
+                    href={`/explore/${row.assetId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:text-accent-light transition-colors truncate flex-1 min-w-0"
+                  >
+                    {a?.title ?? "Untitled asset"}
+                  </Link>
+                  <span className="text-xs text-muted shrink-0">
+                    {row._count._all} sale
+                    {row._count._all === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-accent-light shrink-0">
+                    +{formatMoney(row._sum.creatorEarning ?? 0)}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
 
       {/* Recent sales — sits above payouts because it's the "where is
           this money coming from?" answer the creator usually wants

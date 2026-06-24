@@ -4,10 +4,20 @@ import {
   Receipt,
   Wallet,
   ShoppingCart,
+  Download as DownloadIcon,
+  Search,
+  Trophy,
+  Users,
   type LucideIcon,
 } from "lucide-react";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, formatRelativeTime, formatMoney } from "@/lib/utils";
+import {
+  formatPrice,
+  formatRelativeTime,
+  formatMoney,
+  creatorDisplayName,
+} from "@/lib/utils";
 import { PurchaseActions } from "./PurchaseActions";
 import type { PurchaseStatus } from "@prisma/client";
 
@@ -43,14 +53,23 @@ const STATUS_LABEL: Record<PurchaseStatus, string> = {
 export default async function AdminPurchasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; period?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    period?: string;
+    q?: string;
+  }>;
 }) {
-  const { status, period: rawPeriod } = await searchParams;
+  const { status, period: rawPeriod, q: rawQ } = await searchParams;
   const filter = (
     status && ["COMPLETED", "PENDING", "REFUNDED"].includes(status)
       ? status
       : "COMPLETED"
   ) as PurchaseStatus | "ALL";
+
+  // Free-text search across buyer email/name + asset title. Used in
+  // the table query only — the summary cards stay untouched so the
+  // operator sees the absolute totals while drilling in.
+  const q = (rawQ ?? "").trim().slice(0, 80);
 
   const period: PeriodValue =
     PERIODS.find((p) => p.value === rawPeriod)?.value ?? "30d";
@@ -64,16 +83,30 @@ export default async function AdminPurchasesPage({
   const periodCutoff =
     periodDays === null ? null : new Date(now - periodDays * 24 * 60 * 60 * 1000);
 
+  // Common WHERE for table queries — adds the optional q search.
+  const tableWhere = {
+    ...(filter === "ALL" ? {} : { status: filter as PurchaseStatus }),
+    ...(q
+      ? {
+          OR: [
+            { buyer: { email: { contains: q, mode: "insensitive" as const } } },
+            { buyer: { name: { contains: q, mode: "insensitive" as const } } },
+            { asset: { title: { contains: q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
   // Summary cards always reflect COMPLETED (the "real money" rows) —
   // PENDING / REFUNDED would muddy the totals. The aggregate query is
   // separate from the table fetch so the table tabs can show a different
   // status without changing what the cards mean.
-  const [purchases, salesAgg] = await Promise.all([
+  const [purchases, salesAgg, topAssets, topCreators] = await Promise.all([
     prisma.purchase.findMany({
-      where: filter === "ALL" ? {} : { status: filter as PurchaseStatus },
+      where: tableWhere,
       include: {
         buyer: { select: { name: true, email: true } },
-        asset: { select: { title: true } },
+        asset: { select: { id: true, title: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 150,
@@ -90,12 +123,82 @@ export default async function AdminPurchasesPage({
       },
       _count: { _all: true },
     }),
+    // Top 5 best-selling assets (by gross) in the same period as the
+    // summary cards. groupBy on assetId is one indexed scan — cheap.
+    prisma.purchase.groupBy({
+      by: ["assetId"],
+      where: {
+        status: "COMPLETED",
+        ...(periodCutoff ? { createdAt: { gte: periodCutoff } } : {}),
+      },
+      _sum: { amount: true },
+      _count: { _all: true },
+      orderBy: { _sum: { amount: "desc" } },
+      take: 5,
+    }),
+    // Top 5 creators by earning in the same period. groupBy can't
+    // join across the relation in one query, so we drop to raw SQL —
+    // a single indexed scan + small in-memory sort.
+    prisma.$queryRaw<
+      Array<{
+        uploaderId: string;
+        name: string | null;
+        email: string;
+        role: "USER" | "CREATOR" | "ADMIN";
+        creator_earned: bigint;
+        sale_count: bigint;
+      }>
+    >`
+      SELECT
+        a."uploaderId" AS "uploaderId",
+        u."name" AS name,
+        u."email" AS email,
+        u."role" AS role,
+        SUM(p."creatorEarning")::bigint AS creator_earned,
+        COUNT(*)::bigint AS sale_count
+      FROM "Purchase" p
+      JOIN "Asset" a ON a."id" = p."assetId"
+      JOIN "User" u ON u."id" = a."uploaderId"
+      WHERE p."status" = 'COMPLETED'
+        ${
+          periodCutoff
+            ? Prisma.sql`AND p."createdAt" >= ${periodCutoff}`
+            : Prisma.empty
+        }
+      GROUP BY a."uploaderId", u."name", u."email", u."role"
+      ORDER BY creator_earned DESC
+      LIMIT 5
+    `,
   ]);
 
   const gross = salesAgg._sum.amount ?? 0;
   const platformEarned = salesAgg._sum.platformFee ?? 0;
   const creatorPaid = salesAgg._sum.creatorEarning ?? 0;
   const salesCount = salesAgg._count._all;
+
+  // Resolve the top-asset ids to their titles + cover so the panel
+  // can render rich rows. Single query — cheaper than N follow-ups.
+  const topAssetIds = topAssets.map((a) => a.assetId);
+  const topAssetDetails =
+    topAssetIds.length > 0
+      ? await prisma.asset.findMany({
+          where: { id: { in: topAssetIds } },
+          select: {
+            id: true,
+            title: true,
+            previewKey: true,
+            category: true,
+          },
+        })
+      : [];
+  const topAssetById = new Map(topAssetDetails.map((a) => [a.id, a]));
+
+  // Build the CSV export URL with the current period + filter
+  // selections so the operator can download exactly what they're
+  // looking at.
+  const csvUrl =
+    `/api/admin/purchases/export?status=${filter === "ALL" ? "COMPLETED" : filter}` +
+    `&period=${period}`;
 
   return (
     <div className="space-y-6">
@@ -175,6 +278,132 @@ export default async function AdminPurchasesPage({
             accent="text-primary"
           />
         </div>
+      </section>
+
+      {/* Top performers — two side-by-side leaderboards scoped to the
+          same period as the summary cards. Empty (with a friendly
+          fallback) when no sales landed in the window. */}
+      {(topAssets.length > 0 || topCreators.length > 0) && (
+        <section className="grid lg:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-sm font-semibold text-primary mb-3 inline-flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-gold" />
+              Top-selling assets
+            </h3>
+            {topAssets.length === 0 ? (
+              <div className="text-xs text-muted py-4">
+                No sales in this period.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {topAssets.map((row, i) => {
+                  const a = topAssetById.get(row.assetId);
+                  return (
+                    <li
+                      key={row.assetId}
+                      className="flex items-center gap-3"
+                    >
+                      <span className="w-5 text-xs font-bold text-muted tabular-nums">
+                        #{i + 1}
+                      </span>
+                      <Link
+                        href={`/explore/${row.assetId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:text-accent-light transition-colors truncate flex-1 min-w-0"
+                      >
+                        {a?.title ?? "Untitled asset"}
+                      </Link>
+                      <span className="text-xs text-muted shrink-0">
+                        {row._count._all} sale
+                        {row._count._all === 1 ? "" : "s"}
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums text-accent-light shrink-0">
+                        {formatMoney(row._sum.amount ?? 0)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-sm font-semibold text-primary mb-3 inline-flex items-center gap-2">
+              <Users className="w-4 h-4 text-info" />
+              Top earning creators
+            </h3>
+            {topCreators.length === 0 ? (
+              <div className="text-xs text-muted py-4">
+                No creator earnings in this period.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {topCreators.map((row, i) => (
+                  <li
+                    key={row.uploaderId}
+                    className="flex items-center gap-3"
+                  >
+                    <span className="w-5 text-xs font-bold text-muted tabular-nums">
+                      #{i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-primary truncate">
+                        {creatorDisplayName(row.name, row.role, row.email)}
+                      </div>
+                      <div className="text-[11px] text-muted truncate">
+                        {row.email}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted shrink-0">
+                      {Number(row.sale_count)} sale
+                      {Number(row.sale_count) === 1 ? "" : "s"}
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums text-info shrink-0">
+                      {formatMoney(Number(row.creator_earned))}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Search + Export row — search hits the table only (not the
+          summary cards above), export downloads the current
+          status+period combination as a UTF-8 CSV. */}
+      <section className="flex items-center gap-2 flex-wrap">
+        <form
+          method="get"
+          action="/admin/purchases"
+          className="flex-1 min-w-50 relative"
+        >
+          {/* Preserve the current tab + period in hidden inputs so
+              hitting "Search" doesn't reset them. */}
+          {filter !== "COMPLETED" && (
+            <input type="hidden" name="status" value={filter} />
+          )}
+          {period !== "30d" && (
+            <input type="hidden" name="period" value={period} />
+          )}
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search buyer email, name, or asset title…"
+            className="w-full h-9 pl-9 pr-3 bg-surface border border-border rounded-lg text-sm text-primary placeholder:text-muted/70 focus:outline-none focus:border-border-focus transition-colors"
+          />
+        </form>
+        <a
+          href={csvUrl}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium text-primary bg-surface border border-border hover:border-border-hover transition-colors"
+          title="Download all rows matching the current status + period as CSV"
+        >
+          <DownloadIcon className="w-3.5 h-3.5" />
+          Export CSV
+        </a>
       </section>
 
       <div className="flex gap-1 border-b border-border">
