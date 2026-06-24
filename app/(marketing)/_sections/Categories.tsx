@@ -180,7 +180,7 @@ export async function Categories() {
                     sits in the same box and overlaps the platform below
                     by the same amount via the platform's negative
                     margin-top. */}
-                <div className="relative aspect-square w-32 sm:w-36 mx-auto z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
+                <div className="relative aspect-square w-40 sm:w-44 mx-auto z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1">
                   {card.image ? (
                     <Image
                       src={card.image}
@@ -204,7 +204,7 @@ export async function Categories() {
                     so the silhouette looks like it's standing on the
                     pedestal. */}
                 <div
-                  className={`relative -mt-12 sm:-mt-14 rounded-2xl border bg-gradient-to-br ${card.platformTint} px-3 pt-14 sm:pt-16 pb-5 text-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)] group-hover:shadow-[0_16px_36px_-16px_rgba(124,58,237,0.5)] transition-shadow duration-300`}
+                  className={`relative -mt-16 sm:-mt-18 rounded-2xl border bg-gradient-to-br ${card.platformTint} px-3 pt-18 sm:pt-20 pb-5 text-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)] group-hover:shadow-[0_16px_36px_-16px_rgba(124,58,237,0.5)] transition-shadow duration-300`}
                 >
                   {card.badge && (
                     <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-white bg-black/40 backdrop-blur border border-white/15">
