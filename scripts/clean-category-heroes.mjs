@@ -34,30 +34,30 @@ import {
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 
-const DOWNLOADS = "C:/Users/TALHA/Downloads";
+const DOWNLOADS = "C:/Users/TALHA/Downloads/Data_1/Data_1/Homepage images";
 const FINAL_CANVAS = 1024; // px — final hero canvas size after normalisation
 const SUBJECT_PADDING_PCT = 6; // empty margin around the subject
 
 const UPLOADS = [
   {
     slug: "3d-models",
-    source: "Gemini_Generated_Image_ln6yo2ln6yo2ln6.png",
+    source: "Yellow_Green_Red#11.png",
   },
   {
     slug: "3d-icons",
-    source: "Gemini_Generated_Image_f8oicrf8oicrf8oi.png",
+    source: "Untitled-1.png",
   },
   {
     slug: "lottie",
-    source: "Gemini_Generated_Image_dea7fcdea7fcdea7.png",
+    source: "Robot_Tranparentb.png",
   },
   {
     slug: "svg-icons",
-    source: "Gemini_Generated_Image_fvuskofvuskofvus (1).png",
+    source: "Layer 50 copy.png",
   },
   {
     slug: "ai-suite",
-    source: "Gemini_Generated_Image_ash53mash53mash5.png",
+    source: "AI_Writing_1.png",
   },
 ];
 

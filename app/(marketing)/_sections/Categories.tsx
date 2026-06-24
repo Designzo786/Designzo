@@ -54,7 +54,7 @@ const CARDS: readonly Card[] = [
     icon: Box,
     platformTint:
       "from-violet-500/25 via-violet-600/20 to-violet-900/40 border-violet-400/30",
-    image: null,
+    image: `${R2_HERO_BASE}/3d-models.png`,
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -65,7 +65,7 @@ const CARDS: readonly Card[] = [
     icon: Hexagon,
     platformTint:
       "from-sky-500/25 via-sky-600/20 to-sky-900/40 border-sky-400/30",
-    image: null,
+    image: `${R2_HERO_BASE}/3d-icons.png`,
     href: "/explore?category=3d-icons",
     countable: true,
     badge: null,
@@ -76,7 +76,7 @@ const CARDS: readonly Card[] = [
     icon: Sparkles,
     platformTint:
       "from-pink-500/25 via-pink-600/20 to-pink-900/40 border-pink-400/30",
-    image: null,
+    image: `${R2_HERO_BASE}/lottie.png`,
     href: "/explore?category=lottie",
     countable: true,
     badge: null,
@@ -87,7 +87,7 @@ const CARDS: readonly Card[] = [
     icon: Layers,
     platformTint:
       "from-emerald-500/25 via-emerald-600/20 to-emerald-900/40 border-emerald-400/30",
-    image: null,
+    image: `${R2_HERO_BASE}/svg-icons.png`,
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,
@@ -98,7 +98,7 @@ const CARDS: readonly Card[] = [
     icon: Wand2,
     platformTint:
       "from-accent/30 via-accent/20 to-accent/50 border-accent/40",
-    image: null,
+    image: `${R2_HERO_BASE}/ai-suite.png`,
     href: "/ai-generate",
     countable: false,
     badge: "NEW",
