@@ -67,10 +67,10 @@ export function FAQ() {
           <p className="mt-4 text-base text-secondary leading-relaxed">
             Can&apos;t find the answer? Email{" "}
             <a
-              href="mailto:designzostore.786@gmail.com"
+              href="mailto:dezignxostore.786@gmail.com"
               className="text-accent-light hover:text-accent underline underline-offset-2"
             >
-              designzostore.786@gmail.com
+              dezignxostore.786@gmail.com
             </a>
             .
           </p>
@@ -180,7 +180,7 @@ export function FAQ() {
               </div>
 
               <a
-                href="mailto:designzostore.786@gmail.com"
+                href="mailto:dezignxostore.786@gmail.com"
                 className="group mt-5 inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white gradient-accent shadow-[0_0_24px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] transition-all"
               >
                 <Mail className="w-4 h-4" />

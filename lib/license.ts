@@ -4,7 +4,7 @@ import type { LicenseType } from "@prisma/client";
  * Renders the LICENSE.txt that ships inside every Lottie bundle ZIP
  * (and is available as a separate file for non-Lottie assets too).
  *
- * Designzo issues a **perpetual, royalty-free, non-exclusive** license
+ * Dezignxo issues a **perpetual, royalty-free, non-exclusive** license
  * scoped per asset and per buyer. The exact text below is the legal
  * proof a buyer can attach to a usage audit — keep it verbatim unless
  * the marketplace's terms are updated, and bump the version footer at
@@ -64,10 +64,10 @@ export function renderLicenseText(input: LicenseInput): string {
 
   // ── Header ────────────────────────────────────────────────────────────────
   lines.push("================================================================");
-  lines.push("                      DESIGNZO ASSET LICENSE");
+  lines.push("                      DEZIGNXO ASSET LICENSE");
   lines.push("================================================================");
   lines.push("");
-  lines.push(`This file certifies the license granted by Designzo to`);
+  lines.push(`This file certifies the license granted by Dezignxo to`);
   lines.push(`the named buyer for the asset described below.`);
   lines.push("");
 
@@ -114,16 +114,16 @@ export function renderLicenseText(input: LicenseInput): string {
 
   // ── Verification ──────────────────────────────────────────────────────────
   lines.push("--- VERIFICATION -----------------------------------------------");
-  lines.push("  This license can be verified by the creator or Designzo");
+  lines.push("  This license can be verified by the creator or Dezignxo");
   lines.push("  support using the license key above. Keep this file with");
   lines.push("  your project records.");
   lines.push("");
-  lines.push("  Support : https://designzo.com/contact");
+  lines.push("  Support : https://dezignxo.com/contact");
   lines.push("");
 
   // ── Footer ────────────────────────────────────────────────────────────────
   lines.push("================================================================");
-  lines.push(`Generated ${isoDate(new Date())} · Designzo license v1.0`);
+  lines.push(`Generated ${isoDate(new Date())} · Dezignxo license v1.0`);
   lines.push("================================================================");
   lines.push("");
 

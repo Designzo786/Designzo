@@ -591,7 +591,7 @@ function renderReadmeText(title: string): string {
     "  • LICENSE.txt — your perpetual, royalty-free license for this asset.",
     "    Keep this file with your project records.",
     "",
-    "Need help? Reach out via https://designzo.com/contact",
+    "Need help? Reach out via https://dezignxo.com/contact",
     "",
   ].join("\r\n");
 }

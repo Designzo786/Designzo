@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]): string {
 
 /**
  * Public-facing creator name for an asset. Assets uploaded by the platform
- * owner are shown as official "Designzo" listings rather than under the
+ * owner are shown as official "Dezignxo" listings rather than under the
  * personal name on the account.
  *
  * Two ways an account is treated as the platform:
@@ -25,13 +25,13 @@ export function creatorDisplayName(
   role: Role,
   email?: string | null
 ): string {
-  if (role === "ADMIN") return "Designzo";
+  if (role === "ADMIN") return "Dezignxo";
   if (
     email &&
     process.env.ADMIN_EMAIL &&
     email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase()
   ) {
-    return "Designzo";
+    return "Dezignxo";
   }
   return name ?? "Unknown";
 }

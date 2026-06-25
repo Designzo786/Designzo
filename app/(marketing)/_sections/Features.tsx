@@ -47,7 +47,7 @@ export function Features() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <div className="flex justify-center mb-2">
-            <SectionEyebrow icon={Star} label="Why Designzo" />
+            <SectionEyebrow icon={Star} label="Why Dezignxo" />
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
             <span className="text-primary">Built for the way</span>{" "}

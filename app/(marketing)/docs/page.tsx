@@ -3,7 +3,7 @@ import { BookOpen, FileText, ArrowRight, LifeBuoy } from "lucide-react";
 
 export const metadata = {
   title: "Documentation",
-  description: "Guides and reference for buying and selling on Designzo.",
+  description: "Guides and reference for buying and selling on Dezignxo.",
 };
 
 const DOCS = [
@@ -38,7 +38,7 @@ export default function DocsPage() {
           Documentation
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          Everything you need to know to buy and sell on Designzo.
+          Everything you need to know to buy and sell on Dezignxo.
         </p>
       </header>
 

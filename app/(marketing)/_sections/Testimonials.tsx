@@ -52,7 +52,7 @@ export function Testimonials() {
             <span className="gradient-text-hero">our word for it</span>
           </h2>
           <p className="mt-4 text-base text-secondary leading-relaxed">
-            Real feedback from creators and developers shipping with Designzo.
+            Real feedback from creators and developers shipping with Dezignxo.
           </p>
         </div>
 

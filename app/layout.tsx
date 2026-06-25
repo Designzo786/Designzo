@@ -29,8 +29,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Designzo — 3D Asset Marketplace",
-    template: "%s | Designzo",
+    default: "Dezignxo — 3D Asset Marketplace",
+    template: "%s | Dezignxo",
   },
   description:
     "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium 3D models and materials.",
@@ -43,8 +43,8 @@ export const metadata: Metadata = {
     "AR assets",
     "3D graphics",
   ],
-  authors: [{ name: "Designzo" }],
-  creator: "Designzo",
+  authors: [{ name: "Dezignxo" }],
+  creator: "Dezignxo",
   metadataBase: new URL(
     process.env.NEXTAUTH_URL ?? "http://localhost:3000"
   ),
@@ -56,14 +56,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "Designzo — 3D & 2D Asset Marketplace",
+    title: "Dezignxo — 3D & 2D Asset Marketplace",
     description:
       "The leading platform for 3D & AR assets on the web. Browse, buy, and sell premium digital assets.",
-    siteName: "Designzo",
+    siteName: "Dezignxo",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Designzo — 3D & 2D Asset Marketplace",
+    title: "Dezignxo — 3D & 2D Asset Marketplace",
     description:
       "The leading platform for 3D & AR assets on the web.",
   },
@@ -93,7 +93,7 @@ export default function RootLayout({
             falls back to the OS preference if nothing's saved. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('designzo.theme');if(!t){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('dezignxo.theme');if(!t){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
           }}
         />
       </head>

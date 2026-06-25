@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import type { MockAssetShape } from "@/lib/mock/assets";
 
 type LightingMode = "studio" | "ambience";
-const LIGHTING_STORAGE_KEY = "designzo.viewer.lighting";
+const LIGHTING_STORAGE_KEY = "dezignxo.viewer.lighting";
 
 interface Props {
   // What KIND of asset we're rendering. Drives the dispatch below — 3D model

@@ -3,7 +3,7 @@ import { MessageCircle, Users, Sparkles, Heart, ArrowRight } from "lucide-react"
 
 export const metadata = {
   title: "Community",
-  description: "Connect with creators and buyers in the Designzo community.",
+  description: "Connect with creators and buyers in the Dezignxo community.",
 };
 
 const CHANNELS = [
@@ -45,7 +45,7 @@ export default function CommunityPage() {
           Build with other creators
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          Designzo is more than a marketplace — it&apos;s a place to learn,
+          Dezignxo is more than a marketplace — it&apos;s a place to learn,
           share, and grow alongside other 3D artists and buyers.
         </p>
       </header>

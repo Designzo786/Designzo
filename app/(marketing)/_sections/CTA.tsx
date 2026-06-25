@@ -54,7 +54,7 @@ export function CTA() {
               <span className="gradient-text-gold">creative work</span>?
             </h2>
             <p className="mt-6 text-secondary max-w-xl mx-auto text-base sm:text-lg leading-relaxed">
-              Sell your 3D work on Designzo and earn passive income. Keep 80%
+              Sell your 3D work on Dezignxo and earn passive income. Keep 80%
               of every sale, with bank payouts straight to your account.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">

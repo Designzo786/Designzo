@@ -11,7 +11,7 @@ import {
 
 export const metadata = {
   title: "Help Center",
-  description: "Guides and answers for buying and selling on Designzo.",
+  description: "Guides and answers for buying and selling on Dezignxo.",
 };
 
 const TOPICS = [
@@ -73,7 +73,7 @@ export default function HelpPage() {
           Help Center
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          Find guides, answers, and support for everything on Designzo.
+          Find guides, answers, and support for everything on Dezignxo.
         </p>
       </header>
 

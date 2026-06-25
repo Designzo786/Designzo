@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Privacy Policy",
-  description: "Designzo Privacy Policy",
+  description: "Dezignxo Privacy Policy",
 };
 
 export default function PrivacyPage() {
@@ -18,9 +18,9 @@ export default function PrivacyPage() {
       </header>
 
       <p className="text-secondary leading-relaxed">
-        This Privacy Policy describes how Designzo (&quot;we&quot;,
+        This Privacy Policy describes how Dezignxo (&quot;we&quot;,
         &quot;our&quot;) collects, uses, and shares information when you use
-        our service. By using Designzo you agree to this Policy.
+        our service. By using Dezignxo you agree to this Policy.
       </p>
 
       <Section title="What we collect">
@@ -116,10 +116,10 @@ export default function PrivacyPage() {
         <p>
           To exercise these rights, email{" "}
           <a
-            href="mailto:designzostore.786@gmail.com"
+            href="mailto:dezignxostore.786@gmail.com"
             className="text-accent-light hover:text-accent underline underline-offset-2"
           >
-            designzostore.786@gmail.com
+            dezignxostore.786@gmail.com
           </a>
           .
         </p>
@@ -152,10 +152,10 @@ export default function PrivacyPage() {
       <Section title="Contact">
         For privacy questions, email{" "}
         <a
-          href="mailto:designzostore.786@gmail.com"
+          href="mailto:dezignxostore.786@gmail.com"
           className="text-accent-light hover:text-accent underline underline-offset-2"
         >
-          designzostore.786@gmail.com
+          dezignxostore.786@gmail.com
         </a>
         .
       </Section>

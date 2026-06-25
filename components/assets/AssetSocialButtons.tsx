@@ -66,7 +66,7 @@ export function AssetSocialButtons({
         : `/explore/${assetId}`;
     const shareData = {
       title: assetTitle,
-      text: `Check out "${assetTitle}" on Designzo`,
+      text: `Check out "${assetTitle}" on Dezignxo`,
       url,
     };
 

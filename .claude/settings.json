@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Read(//c/Users/TALHA/Downloads/Data_1/Data_1/Homepage images/**)"
     ]
   }
 }

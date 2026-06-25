@@ -124,7 +124,7 @@ export function CheckoutClient({
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: "Designzo",
+        name: "Dezignxo",
         description: orderData.assetTitle ?? assetTitle,
         order_id: orderData.orderId,
         prefill: {
@@ -257,7 +257,7 @@ export function CheckoutClient({
       </p>
 
       <p className="text-[11px] text-muted text-center leading-relaxed">
-        By completing this purchase, you agree to the Designzo Terms.
+        By completing this purchase, you agree to the Dezignxo Terms.
         You&apos;re buying:{" "}
         <span className="text-secondary">{assetTitle}</span>
       </p>

@@ -164,7 +164,7 @@ export async function createRazorpayXPayout(params: {
       purpose: "payout",
       queue_if_low_balance: true,
       reference_id: params.payoutId,
-      narration: "Designzo creator payout",
+      narration: "Dezignxo creator payout",
     }),
   });
 

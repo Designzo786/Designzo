@@ -14,7 +14,7 @@ import { useDropdown } from "@/hooks/useDropdown";
 import { cn } from "@/lib/utils";
 
 // Categories shown in the dropdown — order matches the home-page tile row
-// so users build a consistent mental map of "what's on Designzo".
+// so users build a consistent mental map of "what's on Dezignxo".
 const CATEGORIES = [
   {
     slug: "3d-models",

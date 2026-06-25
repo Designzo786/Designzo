@@ -153,7 +153,7 @@ export async function GET(req: Request) {
   const fnSafePeriod = from
     ? `${from.toISOString().slice(0, 10)}_to_${(to ?? new Date()).toISOString().slice(0, 10)}`
     : "all-time";
-  const filename = `designzo-sales-${status.toLowerCase()}-${fnSafePeriod}.csv`;
+  const filename = `dezignxo-sales-${status.toLowerCase()}-${fnSafePeriod}.csv`;
 
   return new NextResponse(body, {
     status: 200,

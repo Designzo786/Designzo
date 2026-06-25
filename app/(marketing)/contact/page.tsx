@@ -3,7 +3,7 @@ import { Mail, LifeBuoy, Briefcase, ShieldAlert, Clock } from "lucide-react";
 
 export const metadata = {
   title: "Contact",
-  description: "Get in touch with the Designzo team.",
+  description: "Get in touch with the Dezignxo team.",
 };
 
 const CHANNELS = [
@@ -12,21 +12,21 @@ const CHANNELS = [
     title: "Support",
     description:
       "Account problems, purchases, downloads, or anything not working as expected.",
-    email: "designzostore.786@gmail.com",
+    email: "dezignxostore.786@gmail.com",
   },
   {
     icon: Briefcase,
     title: "Creators & partnerships",
     description:
-      "Questions about selling, payouts, KYC, or partnering with Designzo.",
-    email: "designzostore.786@gmail.com",
+      "Questions about selling, payouts, KYC, or partnering with Dezignxo.",
+    email: "dezignxostore.786@gmail.com",
   },
   {
     icon: ShieldAlert,
     title: "Trust & safety",
     description:
       "Report a copyright issue, a policy violation, or a security concern.",
-    email: "designzostore.786@gmail.com",
+    email: "dezignxostore.786@gmail.com",
   },
 ];
 

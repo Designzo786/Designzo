@@ -2,9 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Wallet, Globe2, ShieldCheck, Upload } from "lucide-react";
 
 export const metadata = {
-  title: "Sell on Designzo",
+  title: "Sell on Dezignxo",
   description:
-    "Become a creator on Designzo — keep 80% of every sale and reach buyers worldwide.",
+    "Become a creator on Dezignxo — keep 80% of every sale and reach buyers worldwide.",
 };
 
 const BENEFITS = [
@@ -62,7 +62,7 @@ export default function SellPage() {
           Turn your 3D work into income
         </h1>
         <p className="mt-4 text-secondary text-base sm:text-lg leading-relaxed">
-          Join Designzo as a Collaborator and sell your models and materials
+          Join Dezignxo as a Collaborator and sell your models and materials
           to creators around the world.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">

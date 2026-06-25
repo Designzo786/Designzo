@@ -1,4 +1,4 @@
-# Designzo — Asset Marketplace Platform
+# Dezignxo — Asset Marketplace Platform
 
 A production-grade digital asset marketplace (similar to Freepik / Sketchfab) where users can browse, buy, and sell 2D/3D graphics and assets. Creators earn revenue from sales; the platform takes a commission. Admins moderate content and manage payouts.
 
@@ -164,7 +164,7 @@ RAZORPAY_X_ACCOUNT_NUMBER=
 
 # Resend (transactional email)
 RESEND_API_KEY=
-EMAIL_FROM="Designzo <noreply@yourdomain.com>"  # must be a verified Resend sender
+EMAIL_FROM="Dezignxo <noreply@yourdomain.com>"  # must be a verified Resend sender
 
 # Platform
 PLATFORM_COMMISSION_PERCENT=20   # e.g. 20 = platform keeps 20%
@@ -235,7 +235,7 @@ npm start
 - [ ] Configure Cloudflare R2 CORS to allow `https://yourdomain.com` with methods `GET, HEAD`
 - [ ] Swap Razorpay keys from `rzp_test_*` → `rzp_live_*` after KYC clears
 - [ ] Configure Razorpay webhook in dashboard → `https://yourdomain.com/api/payments/webhook` → subscribe to `payment.captured`, `payment.failed`, `refund.processed`, `payout.processed`, `payout.failed`, `payout.reversed` → copy signing secret to `RAZORPAY_WEBHOOK_SECRET`
-- [ ] Verify production sender domain in Resend → set `EMAIL_FROM=Designzo <noreply@yourdomain.com>`
+- [ ] Verify production sender domain in Resend → set `EMAIL_FROM=Dezignxo <noreply@yourdomain.com>`
 - [ ] Add `https://yourdomain.com/api/auth/callback/google` as an Authorized Redirect URI in Google Cloud Console
 - [ ] Set `NEXTAUTH_URL=https://yourdomain.com`
 - [ ] Generate a fresh `NEXTAUTH_SECRET` for production (`openssl rand -base64 32`)

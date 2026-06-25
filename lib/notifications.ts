@@ -77,7 +77,7 @@ export async function createNotifications(
 }
 
 /**
- * Fires the "Welcome to Designzo" notification on first signup.
+ * Fires the "Welcome to Dezignxo" notification on first signup.
  *
  * Called from BOTH auth entry points so every new account gets it exactly
  * once regardless of which path they used:
@@ -99,7 +99,7 @@ export async function sendWelcomeNotification(
     userId,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type: "WELCOME" as any,
-    title: "Welcome to Designzo 🎉",
+    title: "Welcome to Dezignxo 🎉",
     body: isCollaborator
       ? "Thanks for joining as a Collaborator. Once an admin approves your application, you can start uploading and selling premium 3D assets."
       : "Thanks for joining. Browse the marketplace, save assets to your wishlist, and buy what you love.",

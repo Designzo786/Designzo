@@ -14,7 +14,7 @@ const AssetViewer = dynamic(() => import("@/components/assets/AssetViewer"), {
   loading: () => <div className="absolute inset-0 skeleton" />,
 });
 
-const HISTORY_KEY = "designzo.ai-history.v1";
+const HISTORY_KEY = "dezignxo.ai-history.v1";
 const HISTORY_LIMIT = 12;
 
 function loadHistory(): AiGenerationResult[] {

@@ -39,7 +39,7 @@ export function ThemeToggle() {
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     try {
-      localStorage.setItem("designzo.theme", next);
+      localStorage.setItem("dezignxo.theme", next);
     } catch {
       // Storage disabled (Safari private, etc.) — the change still applies
       // for this session; it just won't persist across reloads.

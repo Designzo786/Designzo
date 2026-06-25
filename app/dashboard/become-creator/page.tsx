@@ -28,7 +28,7 @@ export default async function BecomeCreatorPage() {
         </h1>
         <p className="text-sm text-muted mt-1">
           Upgrade your account so you can upload, sell, and earn from your 3D
-          assets on Designzo.
+          assets on Dezignxo.
         </p>
       </header>
 

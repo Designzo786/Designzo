@@ -146,7 +146,7 @@ export default async function ProfilePage() {
       <SectionCard
         icon={ShieldCheck}
         title="Account & sign-in"
-        subtitle="How you log into Designzo."
+        subtitle="How you log into Dezignxo."
       >
         <ul className="divide-y divide-border">
           <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
