@@ -74,6 +74,14 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  // Google Search Console ownership proof. Next emits the
+  //   <meta name="google-site-verification" content="..." />
+  // tag inside <head> automatically — same effect as pasting the
+  // tag by hand, but driven by the Metadata API so it stays
+  // co-located with the rest of our SEO config.
+  verification: {
+    google: "pFQoLqlGPJR7sOenhC9z737Zlnig0tGs7qOZCx_F3Wc",
+  },
   // Canonical URL avoids www / apex / trailing-slash duplication. Per-
   // page metadata generators override this with their own absolute
   // canonical when relevant (e.g. asset detail).
