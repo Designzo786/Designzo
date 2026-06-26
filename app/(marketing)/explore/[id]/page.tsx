@@ -29,6 +29,13 @@ import { AssetActionButton } from "@/components/assets/AssetActionButton";
 import { AssetSocialButtons } from "@/components/assets/AssetSocialButtons";
 import { IncludedFormats } from "@/components/assets/IncludedFormats";
 import { PackViewer } from "@/components/assets/PackViewer";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  absoluteUrl,
+  buildBreadcrumbSchema,
+  buildProductSchema,
+  clipDescription,
+} from "@/lib/seo";
 import { AssetReviews } from "./AssetReviews";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -163,9 +170,43 @@ export async function generateMetadata({
   const { id } = await params;
   const asset = await loadAsset(id);
   if (!asset) return { title: "Asset not found" };
+
+  // Rich social-share metadata. Google + Twitter + Slack + Discord all
+  // read these to render the share card — picture + creator name +
+  // truncated description. Without per-asset images every listing
+  // shares with the same generic site card, which kills CTR from
+  // social.
+  const url = absoluteUrl(`/explore/${asset.id}`);
+  const description = clipDescription(asset.description, 160);
+  const categoryName = CATEGORIES.find((c) => c.slug === asset.category)?.name ?? "Asset";
+  const ogImage = asset.previewImage ?? asset.modelUrl;
+
   return {
     title: `${asset.title} by ${asset.creatorName}`,
-    description: asset.description,
+    description,
+    keywords: [
+      categoryName,
+      asset.fileType,
+      ...asset.tags,
+      "royalty-free",
+      "commercial license",
+      "3D asset",
+    ],
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      url,
+      title: `${asset.title} — ${categoryName} by ${asset.creatorName}`,
+      description,
+      siteName: "Dezignxo",
+      ...(ogImage ? { images: [{ url: ogImage, alt: asset.title }] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${asset.title} by ${asset.creatorName}`,
+      description,
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
   };
 }
 
@@ -266,8 +307,35 @@ export default async function AssetDetailPage({
     packItemCount: a._count.packItems,
   }));
 
+  // Per-asset structured data — Product card with price + rating
+  // (drives the rich shopping snippet in SERP) and a BreadcrumbList
+  // (drives the clickable breadcrumb trail under the URL).
+  const categoryNameForCrumbs =
+    category?.name ?? asset.category.replace(/-/g, " ");
+  const productJsonLd = buildProductSchema({
+    id: asset.id,
+    title: asset.title,
+    description: asset.description,
+    imageUrl:
+      asset.previewImage ??
+      asset.modelUrl ??
+      "/opengraph-image",
+    creatorName: asset.creatorName,
+    priceCents: asset.price,
+    avgRating: asset.rating,
+    reviewCount: asset.reviewCount,
+    downloads: asset.downloads,
+  });
+  const breadcrumbJsonLd = buildBreadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Explore", path: "/explore" },
+    { name: categoryNameForCrumbs, path: `/explore?category=${asset.category}` },
+    { name: asset.title, path: `/explore/${asset.id}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <JsonLd schema={[productJsonLd, breadcrumbJsonLd]} />
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-muted mb-4 sm:mb-6 flex-wrap">
         <Link
           href="/explore"

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildOrganizationSchema, buildWebSiteSchema } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -72,6 +74,12 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  // Canonical URL avoids www / apex / trailing-slash duplication. Per-
+  // page metadata generators override this with their own absolute
+  // canonical when relevant (e.g. asset detail).
+  alternates: {
+    canonical: process.env.NEXTAUTH_URL ?? "http://localhost:3000",
+  },
 };
 
 export default function RootLayout({
@@ -96,6 +104,10 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('dezignxo.theme');if(!t){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
           }}
         />
+        {/* Site-wide structured data — Organization + WebSite with a
+            SearchAction so Google can render the SERP sitelinks-search
+            box for brand queries. */}
+        <JsonLd schema={[buildOrganizationSchema(), buildWebSiteSchema()]} />
       </head>
       <body className="min-h-dvh bg-canvas text-primary antialiased">
         <Providers>{children}</Providers>

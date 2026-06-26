@@ -15,7 +15,20 @@ import { creatorDisplayName } from "@/lib/utils";
 import type { Prisma } from "@prisma/client";
 
 export const metadata = {
-  title: "Explore — Browse premium assets",
+  title: "Explore — Browse premium 3D, Lottie & SVG assets",
+  description:
+    "Browse every approved asset on Dezignxo — production-ready 3D models, animated 3D icons, Lottie animations, and SVG icon packs. Filter by category, price, and file format. Royalty-free commercial license on every purchase.",
+  alternates: {
+    canonical: process.env.NEXTAUTH_URL
+      ? `${process.env.NEXTAUTH_URL.replace(/\/$/, "")}/explore`
+      : "/explore",
+  },
+  openGraph: {
+    title: "Explore the Dezignxo marketplace",
+    description:
+      "Premium 3D models, 3D icons, Lottie animations, and SVG icons — all royalty-free, all production-ready.",
+    type: "website" as const,
+  },
 };
 
 // ISR: serve from edge cache for 60s. Admin approve/reject calls
