@@ -5,7 +5,7 @@ import { Categories } from "./_sections/Categories";
 // import { Showcase } from "./_sections/Showcase";
 import { JustLanded } from "./_sections/JustLanded";
 import { CategoryShowcase } from "./_sections/CategoryShowcase";
-import { Hexagon, Sparkles, Layers } from "lucide-react";
+import { Hexagon, Sparkles, Layers, Box } from "lucide-react";
 import { HowItWorks } from "./_sections/HowItWorks";
 import { Testimonials } from "./_sections/Testimonials";
 import { FAQ } from "./_sections/FAQ";
@@ -55,6 +55,15 @@ export default function HomePage() {
           uncomment + restore the import above to bring it back. */}
       {/* <Showcase /> */}
       <JustLanded />
+      <CategoryShowcase
+        categorySlug="3d-models"
+        eyebrow="3D Models"
+        icon={Box}
+        heading="Production-ready 3D models for every pipeline"
+        subheading="Game-ready, PBR-textured 3D models in glTF + FBX + OBJ + USDZ — drop into Unity, Unreal, Blender, or Apple AR."
+        pillAccent="bg-violet-500/15 border border-violet-500/25 text-violet-300"
+        ctaLabel="Browse all 3D models"
+      />
       <CategoryShowcase
         categorySlug="3d-icons"
         eyebrow="3D Icons"
