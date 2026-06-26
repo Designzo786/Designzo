@@ -2,6 +2,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Star, Download, Boxes } from "lucide-react";
 import { formatPrice, formatNumber } from "@/lib/utils";
+import { AssetCardImage } from "./AssetCardImage";
 import type { MockAssetShape } from "@/lib/mock/assets";
 
 const AssetCardPreview = dynamic(
@@ -88,12 +89,10 @@ export function AssetCard({ asset }: { asset: AssetCardData }) {
         {isLottie ? (
           <LottieCardPreview src={asset.previewImage!} />
         ) : hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={asset.previewImage}
+          <AssetCardImage
+            src={asset.previewImage!}
             alt={asset.title}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-            loading="lazy"
           />
         ) : (
           <AssetCardPreview

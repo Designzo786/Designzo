@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ImageOff } from "lucide-react";
+import { AssetCardImage } from "./AssetCardImage";
 
 // Lottie player is ~80 KB gzipped, so lazy-load it. Pages that never
 // render a Lottie thumbnail (e.g. a dashboard with only 3D uploads)
@@ -82,11 +83,9 @@ export function AssetThumb({
     <div
       className={`relative overflow-hidden bg-canvas ring-1 ring-border ${className}`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <AssetCardImage
         src={src}
         alt={alt}
-        loading="lazy"
         className={`absolute inset-0 w-full h-full ${
           fit === "contain" ? "object-contain" : "object-cover"
         }`}
