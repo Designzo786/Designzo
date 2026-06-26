@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const rl = checkRateLimit(req, "checkout", {
+  const rl = await checkRateLimit(req, "checkout", {
     limit: 20,
     windowMs: 60 * 1000,
   });

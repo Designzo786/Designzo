@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   }
 
   // 5 / hour / IP — keeps the admin queue honest.
-  const rl = checkRateLimit(req, "upgrade-collaborator", {
+  const rl = await checkRateLimit(req, "upgrade-collaborator", {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });

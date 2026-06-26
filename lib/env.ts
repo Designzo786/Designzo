@@ -49,6 +49,16 @@ interface EnvShape {
   ADMIN_EMAIL?: string;
   PLATFORM_COMMISSION_PERCENT?: string;
   DIRECT_URL?: string;
+
+  // Upstash Redis (HTTPS REST API) — multi-instance distributed rate
+  // limiter. Without these, lib/rate-limit.ts falls back to per-process
+  // in-memory counters (fine for dev, leaky on Vercel where each region
+  // / instance has its own map). Production-grade setup uses Upstash:
+  //   1. Create a database at console.upstash.com
+  //   2. Copy "REST URL" → UPSTASH_REDIS_REST_URL
+  //   3. Copy "REST Token" → UPSTASH_REDIS_REST_TOKEN
+  UPSTASH_REDIS_REST_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
 }
 
 function read(name: keyof EnvShape, opts: { required?: boolean } = {}) {
@@ -117,6 +127,8 @@ const R2_PUBLIC_URL = read("R2_PUBLIC_URL");
 const ADMIN_EMAIL = read("ADMIN_EMAIL");
 const PLATFORM_COMMISSION_PERCENT = read("PLATFORM_COMMISSION_PERCENT");
 const DIRECT_URL = read("DIRECT_URL");
+const UPSTASH_REDIS_REST_URL = read("UPSTASH_REDIS_REST_URL");
+const UPSTASH_REDIS_REST_TOKEN = read("UPSTASH_REDIS_REST_TOKEN");
 
 export const env = {
   NEXTAUTH_URL,
@@ -138,6 +150,8 @@ export const env = {
   ADMIN_EMAIL,
   PLATFORM_COMMISSION_PERCENT,
   DIRECT_URL,
+  UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN,
   IS_PROD: isProd,
 } as const;
 
@@ -174,4 +188,5 @@ export const flags = {
     RAZORPAY_X_ACCOUNT_NUMBER
   ),
   hasAdminBootstrap: !!ADMIN_EMAIL,
+  hasUpstash: !!(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN),
 } as const;

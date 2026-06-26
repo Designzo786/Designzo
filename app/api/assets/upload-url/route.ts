@@ -290,7 +290,7 @@ export async function POST(req: Request) {
   // 60/hr/IP is generous for legit creators iterating on an upload form
   // while still capping abuse — each request only issues URLs, not actual
   // storage, but R2 PUTs are billable so we don't want runaway clients.
-  const rl = checkRateLimit(req, "asset-upload-url", {
+  const rl = await checkRateLimit(req, "asset-upload-url", {
     limit: 60,
     windowMs: 60 * 60 * 1000,
   });

@@ -52,7 +52,7 @@ export async function POST(req: Request) {
  * user lost the email. Idempotent — overwrites any existing token.
  */
 export async function PUT(req: Request) {
-  const rl = checkRateLimit(req, "verify-email-resend", {
+  const rl = await checkRateLimit(req, "verify-email-resend", {
     limit: 3,
     windowMs: 60 * 60 * 1000,
   });

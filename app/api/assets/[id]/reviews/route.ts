@@ -44,7 +44,7 @@ export async function POST(
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const rl = checkRateLimit(req, "review", {
+  const rl = await checkRateLimit(req, "review", {
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });

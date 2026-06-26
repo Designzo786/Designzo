@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
   // Throttle verification attempts — a forged-signature brute force gets
   // nowhere cryptographically, but rate-limiting keeps the DB lookups cheap.
-  const rl = checkRateLimit(req, "verify-payment", {
+  const rl = await checkRateLimit(req, "verify-payment", {
     limit: 20,
     windowMs: 60 * 1000,
   });

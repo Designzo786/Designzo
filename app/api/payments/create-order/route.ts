@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   // Cap order creation — prevents a logged-in user spamming Razorpay's
   // orders API (each call is a billable/rate-limited request upstream).
-  const rl = checkRateLimit(req, "create-order", {
+  const rl = await checkRateLimit(req, "create-order", {
     limit: 15,
     windowMs: 60 * 1000,
   });

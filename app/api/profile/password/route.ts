@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   // Tight limit: 5 password changes per hour per IP. Slows a stolen-session
   // attacker who's trying to lock the real user out.
-  const rl = checkRateLimit(req, "password-change", {
+  const rl = await checkRateLimit(req, "password-change", {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });

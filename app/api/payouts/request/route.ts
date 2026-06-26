@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   // Payout requests are rare by nature — a tight limit blocks any attempt to
   // race the balance-drain transaction with a flood of concurrent requests.
-  const rl = checkRateLimit(req, "payout-request", {
+  const rl = await checkRateLimit(req, "payout-request", {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });

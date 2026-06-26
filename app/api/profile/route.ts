@@ -9,7 +9,7 @@ const URL_RE = /^https?:\/\/[^\s]+$/i;
 
 export async function PATCH(req: Request) {
   // 30 profile edits per hour per IP — generous, but stops scripted abuse.
-  const rl = checkRateLimit(req, "profile-update", {
+  const rl = await checkRateLimit(req, "profile-update", {
     limit: 30,
     windowMs: 60 * 60 * 1000,
   });

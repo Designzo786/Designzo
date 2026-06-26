@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const rl = checkRateLimit(req, "reset-password", {
+  const rl = await checkRateLimit(req, "reset-password", {
     limit: 10,
     windowMs: 60 * 60 * 1000,
   });

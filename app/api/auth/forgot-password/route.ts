@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   // Rate limit: 3 reset requests per hour per IP. Stops mass-mailing.
-  const rl = checkRateLimit(req, "forgot-password", {
+  const rl = await checkRateLimit(req, "forgot-password", {
     limit: 3,
     windowMs: 60 * 60 * 1000,
   });

@@ -26,7 +26,7 @@ const ALLOWED_TYPES = new Set([
 export async function POST(req: Request) {
   // Tight rate limit — KYC submissions involve PII, so spammers shouldn't get
   // many free attempts.
-  const rl = checkRateLimit(req, "kyc-submit", {
+  const rl = await checkRateLimit(req, "kyc-submit", {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });

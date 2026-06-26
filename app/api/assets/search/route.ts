@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   // Generous ceiling — debounced typing fires a handful of requests per
   // search; this only blocks genuine abuse.
-  const rl = checkRateLimit(req, "asset-search", {
+  const rl = await checkRateLimit(req, "asset-search", {
     limit: 60,
     windowMs: 60 * 1000,
   });

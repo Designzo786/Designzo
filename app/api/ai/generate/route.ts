@@ -13,7 +13,7 @@ const FAKE_DELAY_MS = 1800;
 export async function POST(req: Request) {
   // 30 generations per 10 minutes per IP. Becomes critical once a real (paid)
   // provider is wired in — every call costs money.
-  const rl = checkRateLimit(req, "ai-generate", {
+  const rl = await checkRateLimit(req, "ai-generate", {
     limit: 30,
     windowMs: 10 * 60 * 1000,
   });

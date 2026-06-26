@@ -132,7 +132,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const rl = checkRateLimit(req, "asset-upload", {
+  const rl = await checkRateLimit(req, "asset-upload", {
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });

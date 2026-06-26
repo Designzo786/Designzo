@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   // Rate limit: 5 registrations per hour per IP. Stops a single attacker
   // from creating thousands of fake accounts to mine email addresses.
-  const rl = checkRateLimit(req, "register", {
+  const rl = await checkRateLimit(req, "register", {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });
