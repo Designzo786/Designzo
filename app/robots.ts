@@ -1,15 +1,20 @@
 import type { MetadataRoute } from "next";
-import { getPublicBaseUrl } from "@/lib/env";
+
+/**
+ * Canonical public hostname. Same reasoning as sitemap.ts —
+ * robots.txt needs to point at the absolute sitemap URL on the
+ * exact verified hostname, and that has to stay stable regardless
+ * of env drift.
+ */
+const SITE_URL = "https://www.dezignxo.com";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = getPublicBaseUrl();
-
   return {
     rules: [
       {
         userAgent: "*",
         allow: ["/", "/explore", "/ai-generate"],
-        // Authed surfaces, admin, API and checkout aren't useful to index
+        // Authed surfaces, admin, API, and checkout aren't useful to index.
         disallow: [
           "/dashboard/",
           "/admin/",
@@ -20,7 +25,7 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${base}/sitemap.xml`,
-    host: base,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }
