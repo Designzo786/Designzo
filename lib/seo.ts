@@ -68,14 +68,95 @@ export function buildOrganizationSchema(): Record<string, unknown> {
     "@type": "Organization",
     "@id": `${base}/#organization`,
     name: SITE_NAME,
+    alternateName: ["Dezignxo Marketplace", "Dezignxo Store"],
     url: `${base}/`,
-    logo: `${base}/icon.svg`,
+    logo: {
+      "@type": "ImageObject",
+      url: `${base}/icon.svg`,
+      width: 256,
+      height: 256,
+    },
+    image: `${base}/opengraph-image`,
     description: DEFAULT_DESCRIPTION,
+    foundingDate: "2026",
+    knowsAbout: [
+      "3D Models",
+      "3D Icons",
+      "Lottie Animations",
+      "SVG Icons",
+      "Digital Asset Marketplace",
+      "Royalty-free Assets",
+    ],
     sameAs: [
       // Add real social handles here when they exist — Google reads
       // these to merge our brand with its own knowledge graph.
       // "https://twitter.com/dezignxo",
       // "https://github.com/dezignxo",
+    ],
+  };
+}
+
+/**
+ * SiteNavigationElement list — declares the primary navigation paths
+ * Google can use to populate **sitelinks** under the brand SERP. Not
+ * a guarantee (sitelinks are still algorithm-decided based on traffic
+ * patterns), but listing them explicitly is the single biggest
+ * eligibility signal for a new domain. Each entry is a category /
+ * top-level feature page that we want to win a sitelink slot.
+ */
+export function buildSiteNavigationSchema(): Record<string, unknown> {
+  const base = getPublicBaseUrl();
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SiteNavigationElement",
+        name: "Explore",
+        description: "Browse every approved 3D, Lottie, and SVG asset on Dezignxo.",
+        url: `${base}/explore`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "3D Models",
+        description: "Production-ready glTF, FBX, OBJ, Blender, and USDZ models.",
+        url: `${base}/explore?category=3d-models`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "3D Icons",
+        description: "Stylized 3D icon packs with PNG renders + glTF source files.",
+        url: `${base}/explore?category=3d-icons`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "Lottie Animations",
+        description: "Lightweight Bodymovin + dotLottie animations with optional GIF/MP4.",
+        url: `${base}/explore?category=lottie`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "SVG Icons",
+        description: "Vector icon sets in outline, filled, and duotone styles.",
+        url: `${base}/explore?category=svg-icons`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "AI Generate",
+        description: "Describe an asset and get a live 3D preview to refine and save.",
+        url: `${base}/ai-generate`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "Sell",
+        description: "Upload your work, set a price, keep the majority of every sale.",
+        url: `${base}/sell`,
+      },
+      {
+        "@type": "SiteNavigationElement",
+        name: "Help",
+        description: "Buyer and creator help center.",
+        url: `${base}/help`,
+      },
     ],
   };
 }
