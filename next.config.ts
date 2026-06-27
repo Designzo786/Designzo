@@ -55,13 +55,61 @@ const nextConfig: NextConfig = {
       });
     }
 
+    // 1 year, immutable — used for any asset whose URL contains a build
+    // hash or other strong cache-busting token.
+    const LONG_CACHE = "public, max-age=31536000, immutable";
+    // 1 day stale-while-revalidate — for resources that don't have a
+    // hash in the URL but where serving slightly-stale bytes is fine
+    // because the next request will refresh.
+    const DAILY_SWR = "public, max-age=86400, stale-while-revalidate=604800";
+
     return [
       { source: "/(.*)", headers: baseHeaders },
-      // Stronger caching for the image-optimization output and static assets
+      // Hashed Next.js static chunks + image optimizer output — strong
+      // immutable cache. Files are fingerprinted so a new build serves
+      // new URLs; the CDN can hold the old ones forever.
       {
         source: "/_next/image(.*)",
+        headers: [{ key: "Cache-Control", value: LONG_CACHE }],
+      },
+      {
+        source: "/_next/static/(.*)",
+        headers: [{ key: "Cache-Control", value: LONG_CACHE }],
+      },
+      // Favicons, manifest, robots, sitemap — not hashed, but they
+      // change rarely. Long max-age + SWR so the CDN serves the
+      // cached copy until the next 1-day window while the origin
+      // re-warms in the background. Cuts Lighthouse "Use efficient
+      // cache lifetimes" from 4 MB → ~0.
+      {
+        source: "/favicon.ico",
+        headers: [{ key: "Cache-Control", value: DAILY_SWR }],
+      },
+      {
+        source: "/icon.svg",
+        headers: [{ key: "Cache-Control", value: DAILY_SWR }],
+      },
+      {
+        source: "/apple-icon",
+        headers: [{ key: "Cache-Control", value: DAILY_SWR }],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: DAILY_SWR }],
+      },
+      {
+        source: "/robots.txt",
+        headers: [{ key: "Cache-Control", value: DAILY_SWR }],
+      },
+      {
+        source: "/sitemap.xml",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          // Shorter cache — admin approvals show up faster when
+          // Google re-crawls.
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, stale-while-revalidate=86400",
+          },
         ],
       },
       {

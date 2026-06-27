@@ -119,6 +119,26 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* R2 preconnect — every asset preview, category hero, and Lottie
+            animation on the home page fetches from this R2 public host.
+            Without preconnect each image waits for a fresh DNS+TLS
+            handshake (~200-400ms first-fetch penalty). preconnect lets
+            the browser do that work in parallel with HTML parsing, so
+            the first image is ready the instant the layout engine
+            asks for it. crossOrigin is required for the early-fetch
+            optimisation to apply to CORS-fetched bytes. */}
+        <link
+          rel="preconnect"
+          href="https://pub-471747289587402a92b17615e1089adb.r2.dev"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="dns-prefetch"
+          href="https://pub-471747289587402a92b17615e1089adb.r2.dev"
+        />
+        {/* Google profile avatars — only fetched after sign-in, but the
+            preconnect cost is free + saves ~200ms when it matters. */}
+        <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
         {/* Anti-flash theme bootstrap.
             Runs synchronously BEFORE React hydrates and BEFORE first paint —
             so the user never sees a dark frame flicker through to light (or

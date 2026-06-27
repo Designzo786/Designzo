@@ -99,7 +99,7 @@ export function Hero() {
           <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05]">
             Premium{" "}
             <span className="relative inline-block">
-              <span className="gradient-text-hero">3D</span>
+              <span className="gradient-text-hero">design assets</span>
               <span
                 aria-hidden
                 className="hidden sm:block pointer-events-none absolute -bottom-2 left-0 right-0 h-px bg-linear-to-r from-transparent via-accent-light to-transparent"
@@ -108,13 +108,17 @@ export function Hero() {
                 aria-hidden
                 className="hidden sm:block pointer-events-none absolute -bottom-3 left-1/4 right-1/4 h-4 bg-accent/40 blur-2xl"
               />
-            </span>{" "}
-            for the web
+            </span>
+            <span className="block mt-1 sm:mt-2">for every product</span>
           </h1>
 
-          <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-secondary max-w-md mx-auto leading-relaxed">
-            3D models, Lottie animations, and SVG icons — crafted by the
-            world&apos;s best creators.
+          <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-secondary max-w-xl mx-auto leading-relaxed">
+            Production-ready{" "}
+            <strong className="text-primary font-semibold">3D models</strong>,{" "}
+            <strong className="text-primary font-semibold">3D icons</strong>,{" "}
+            <strong className="text-primary font-semibold">Lottie animations</strong>, and{" "}
+            <strong className="text-primary font-semibold">SVG icon packs</strong>{" "}
+            — crafted by the world&apos;s best creators.
           </p>
 
           {/* ─── Social-proof trust row ─────────────────────────────────
