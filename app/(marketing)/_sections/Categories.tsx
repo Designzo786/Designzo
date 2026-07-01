@@ -54,7 +54,7 @@ const CARDS: readonly Card[] = [
     icon: Box,
     platformTint:
       "from-violet-500/25 via-violet-600/20 to-violet-900/40 border-violet-400/30",
-    image: `${R2_HERO_BASE}/3d-models.png`,
+    image: `${R2_HERO_BASE}/3d-models.png?v=2`,
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
