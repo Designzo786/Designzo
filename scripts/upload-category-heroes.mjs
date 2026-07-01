@@ -25,8 +25,8 @@ const DOWNLOADS = "C:/Users/TALHA/Downloads";
 const UPLOADS = [
   {
     slug: "3d-models",
-    source: "Gemini_Generated_Image_ln6yo2ln6yo2ln6.png",
-    description: "Knight warrior",
+    source: "Yellow_Green_Red#11-Recovered.png",
+    description: "Three fuzzy characters (red, orange, blue)",
   },
   {
     slug: "3d-icons",
