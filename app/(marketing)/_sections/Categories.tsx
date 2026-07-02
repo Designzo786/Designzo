@@ -54,7 +54,7 @@ const CARDS: readonly Card[] = [
     icon: Box,
     platformTint:
       "from-violet-500/25 via-violet-600/20 to-violet-900/40 border-violet-400/30",
-    image: `${R2_HERO_BASE}/3d-models.png?v=2`,
+    image: `${R2_HERO_BASE}/3d-models.png?v=3`,
     href: "/explore?category=3d-models",
     countable: true,
     badge: null,
@@ -87,7 +87,7 @@ const CARDS: readonly Card[] = [
     icon: Layers,
     platformTint:
       "from-emerald-500/25 via-emerald-600/20 to-emerald-900/40 border-emerald-400/30",
-    image: `${R2_HERO_BASE}/svg-icons.png`,
+    image: `${R2_HERO_BASE}/svg-icons.png?v=3`,
     href: "/explore?category=svg-icons",
     countable: true,
     badge: null,

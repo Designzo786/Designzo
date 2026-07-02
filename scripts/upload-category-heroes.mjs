@@ -25,8 +25,8 @@ const DOWNLOADS = "C:/Users/TALHA/Downloads";
 const UPLOADS = [
   {
     slug: "3d-models",
-    source: "Yellow_Green_Red#11-Recovered.png",
-    description: "Three fuzzy characters (red, orange, blue)",
+    source: "Gemini_Generated_Image_fvuskofvuskofvus (1).png",
+    description: "Chat icons + robot",
   },
   {
     slug: "3d-icons",
@@ -40,8 +40,8 @@ const UPLOADS = [
   },
   {
     slug: "svg-icons",
-    source: "Gemini_Generated_Image_fvuskofvuskofvus (1).png",
-    description: "Chat icons + robot",
+    source: "Yellow_Green_Red#11-Recovered.png",
+    description: "Three fuzzy characters (red, orange, blue)",
   },
   {
     slug: "ai-suite",
